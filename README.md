@@ -1,4 +1,4 @@
-# Chess
+# [Chess](https://www.ericjoycefilm.com/wastesoftime/boardgames/chess/index.php?lang=en)
 C code for chess
 
 ## Citation
