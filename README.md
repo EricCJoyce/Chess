@@ -2,7 +2,7 @@
 C code for chess
 
 ## Citation
-If this code was helpful for you, please cite this repository.
+If this code was helpful to you, please cite this repository.
 
 ```
 @misc{chess,
