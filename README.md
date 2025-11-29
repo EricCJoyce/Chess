@@ -17,7 +17,7 @@ Kill the container.
 sudo docker image rm emscripten-c
 ```
 
-## Generate a Zobrist hash
+## Zobrist hash generator
 This executable lives on the back-end. Call it when the page loads to generate a Zobrist hash for every game.
 ```
 gcc -Wall zgenerate.c -lm -o zgenerate
