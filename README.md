@@ -1,5 +1,5 @@
 # [Chess](https://www.ericjoycefilm.com/wastesoftime/boardgames/chess/index.php?lang=en)
-C code for chess
+Notes on the creation of Chess
 
 ## Citation
 If this code was helpful to you, please cite this repository.
