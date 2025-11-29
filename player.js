@@ -1,0 +1,388 @@
+/* A.I. Player class for CHESS. */
+class Player
+  {
+    constructor()
+      {
+        this.team = 'Black';                                        //  In {'White', 'Black'}. Default to Black.
+        this.name = 'Linear';                                       //  Default to linear model.
+        this.models = [];                                           //  All available models.
+        this.ply = 3;                                               //  Depth to which this A.I. should search.
+
+        this.branches = [];                                         //  Array of Objects, each {ByteArray(GameState), uchar(depth), ByteArray(Move)}.
+        this.branchIterator = 0;                                    //                          The state in which    Depth to      The agent's reply.
+                                                                    //                          the agent may act.    which agent   (Having searched.)
+                                                                    //                                                has searched.
+        //////////////////////////////////////////////////////////////  The evaluation engine.
+        this.evaluationEngine = null;                               //  WebAssembly Module containing evaluation functions.
+        this.evaluationInputOffset = null;                          //  (Offset into Module memory.)
+        this.evaluationInputBuffer = null;                          //  ByteArray: Input buffer for evaluation functions. Encode a query-gamestate here.
+
+        this.evaluationOutputOffset = null;                         //  (Offset into Module memory.)
+        this.evaluationOutputBuffer = null;                         //  ByteArray: Output buffer for evaluation functions. Decode an answer from here.
+
+        //////////////////////////////////////////////////////////////  The negamax engine.
+        this.negamaxEngine = null;                                  //  WebAssembly Module containing the negamax search engine.
+        this.negamaxInputOffset = null;                             //  (Offset into Module memory.)
+        this.negamaxInputBuffer = null;                             //  ByteArray: Input buffer for tree search. Encode a query-gamestate here.
+                                                                    //             When Player asks negamax something.
+        this.negamaxQueryOffset = null;                             //  (Offset into Module memory.)
+        this.negamaxQueryBuffer = null;                             //  ByteArray: Input buffer for a query to the evaluation module. Encode a temp-query state here.
+                                                                    //             When negamax asks evaluation something.
+        this.negamaxSearchOffset = null;                            //  (Offset into Module memory.)
+        this.negamaxSearchBuffer = null;                            //  ByteArray: Working buffer for tree-search.
+
+        this.negamaxAuxiliaryOffset = null;                         //  (Offset into Module memory.)
+        this.negamaxAuxiliaryBuffer = null;                         //  ByteArray: Receiving buffer for node expansion.
+
+        this.negamaxOutputOffset = null;                            //  (Offset into Module memory.)
+        this.negamaxOutputBuffer = null;                            //  ByteArray: Output buffer for tree search. Decode an answer from here.
+                                                                    //             When negamax answers Player.
+        this.ZobristHashOffset = null;                              //  (Offset into Module memory.)
+        this.ZobristHashBuffer = null;                              //  ByteArray representation of the Zobrist hasher.
+
+        this.TranspositionTableOffset = null;                       //  (Offset into Module memory.)
+        this.TranspositionTableBuffer = null;                       //  ByteArray representation of the transposition table.
+
+        //////////////////////////////////////////////////////////////  Book lookup.
+        this.bookLookup = new XMLHttpRequest();                     //  IE 7+, Firefox, Chrome, Opera, Safari
+        this.callOut = false;                                       //  True while AJAX call has yet to return.
+
+                                                                    //  Fetch, instantiate, and connect the Evaluation Module.
+        fetch('obj/wasm/eval.wasm', {headers: {'Content-Type': 'application/wasm'} })
+        .then(response => response.arrayBuffer())
+        .then(bytes =>
+          {
+            WebAssembly.instantiate(bytes,
+              {
+                env: {
+                       memoryBase: 0,
+                       tableBase: 0,
+                                                                    //  Malloc 2 pages for 71.8 KB file.
+                       memory: new WebAssembly.Memory({initial: 2, maximum: 2}),
+                       table: new WebAssembly.Table({initial: 0, element: 'anyfunc'})
+                     }
+              })
+            .then(instance =>
+              {
+                this.evaluationEngine = instance;
+                                                                    //  Assign offset to input buffer.
+                this.evaluationInputOffset = this.evaluationEngine.instance.exports.getInputBuffer();
+                this.evaluationInputBuffer = new Uint8Array(this.evaluationEngine.instance.exports.memory.buffer, this.evaluationInputOffset, _GAMESTATE_BYTE_SIZE);
+                                                                    //  Assign offset to output buffer.
+                this.evaluationOutputOffset = this.evaluationEngine.instance.exports.getOutputBuffer();
+                this.evaluationOutputBuffer = new Uint8Array(this.evaluationEngine.instance.exports.memory.buffer, this.evaluationOutputOffset, 4 + _MAX_MOVES * (_GAMESTATE_BYTE_SIZE + _MOVE_BYTE_SIZE));
+
+                elementsLoaded++;                                   //  Check evaluationEngine off our list.
+                                                                    //  Load the tree-search module AFTER the evaluation module is complete.
+                                                                    //  Fetch, instantiate, and connect the Negamax Module.
+                fetch('obj/wasm/negamax.wasm', {headers: {'Content-Type': 'application/wasm'} })
+                .then(response => response.arrayBuffer())
+                .then(bytes =>
+                  {
+                    WebAssembly.instantiate(bytes,
+                      {
+                        env: {
+                               memoryBase: 0,
+                               tableBase: 0,
+                                                                    //  Compiled with -s INITIAL_MEMORY=16056320 = 245 pages.
+                               memory: new WebAssembly.Memory({initial: 245}),
+                               table: new WebAssembly.Table({initial: 1, element: 'anyfunc'}),
+                               _copyQuery2EvalInput: function()
+                                 {
+                                   var i;                           //  Copy negamaxEngine's query buffer contents to evaluationEngine's query buffer.
+                                   for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)
+                                     this.evaluationInputBuffer[i] = this.negamaxQueryBuffer[i];
+                                   return;
+                                 }.bind(this),
+                               _copyEvalOutput2AuxBuffer: function(len)
+                                 {
+                                   var i;                           //  Copy evaluationEngine's output buffer contents to negamaxEngine's tree-search buffer at index.
+                                   const size = _GAMESTATE_BYTE_SIZE + _MOVE_BYTE_SIZE;
+                                   for(i = 0; i < len * size; i++)
+                                     this.negamaxAuxiliaryBuffer[i] = this.evaluationOutputBuffer[4 + i];
+                                   return;
+                                 }.bind(this),
+                               _isTerminal: function()
+                                 {
+                                   return this.evaluationEngine.instance.exports.isTerminal();
+                                 }.bind(this),
+                               _isQuiet: function()
+                                 {
+                                   return this.evaluationEngine.instance.exports.isQuiet();
+                                 }.bind(this),
+                               _evaluate: function()
+                                 {
+                                   if(this.team == 'Black')
+                                     return this.evaluationEngine.instance.exports.evaluate(false);
+                                   else
+                                     return this.evaluationEngine.instance.exports.evaluate(true);
+                                 }.bind(this),
+                               _getSortedMoves: function(reverse)
+                                 {
+                                   return this.evaluationEngine.instance.exports.getSortedMoves(reverse);
+                                 }.bind(this),
+                               _incrementNodeCtr: function(num)
+                                 {
+                                   var ndctr = document.getElementById("node-counter");
+                                   NodeCtr += num;                  //  Add to the count.
+                                   switch(currentLang)              //  Update the DOM element.
+                                     {
+                                       case 'Spanish': ndctr.innerHTML = 'Nodos evaluados: ' + NodeCtr; break;
+                                       case 'German':  ndctr.innerHTML = 'Knoten untersucht: ' + NodeCtr; break;
+                                       case 'Polish':  ndctr.innerHTML = 'W&#281;z&#322;y rozwi&#261;zywane: ' + NodeCtr; break;
+                                       default:        ndctr.innerHTML = 'Nodes searched: ' + NodeCtr;
+                                     }
+                                 }
+                             }
+                      })
+                    .then(instance =>
+                      {
+                        var i;
+
+                        this.negamaxEngine = instance;
+                                                                    //  Assign offset to input buffer. This receives a game state as a byte array.
+                        this.negamaxInputOffset = this.negamaxEngine.instance.exports.getInputBuffer();
+                        this.negamaxInputBuffer = new Uint8Array(this.negamaxEngine.instance.exports.memory.buffer, this.negamaxInputOffset, _GAMESTATE_BYTE_SIZE);
+                                                                    //  Assign offset to input buffer. This receives a game state as a byte array.
+                        this.negamaxQueryOffset = this.negamaxEngine.instance.exports.getQueryBuffer();
+                        this.negamaxQueryBuffer = new Uint8Array(this.negamaxEngine.instance.exports.memory.buffer, this.negamaxQueryOffset, _GAMESTATE_BYTE_SIZE);
+                                                                    //  Assign offset to output buffer. This receives a game state, a 1-byte uchar, a move.
+                        this.negamaxOutputOffset = this.negamaxEngine.instance.exports.getOutputBuffer();
+                        this.negamaxOutputBuffer = new Uint8Array(this.negamaxEngine.instance.exports.memory.buffer, this.negamaxOutputOffset, _GAMESTATE_BYTE_SIZE + 1 + _MOVE_BYTE_SIZE);
+                                                                    //  Assign offset to tree-search buffer.
+                                                                    //  This is a working buffer that receives bytes from the evaluation engine.
+                        this.negamaxSearchOffset = this.negamaxEngine.instance.exports.getNegamaxSearchBuffer();
+                        this.negamaxSearchBuffer = new Uint8Array(this.negamaxEngine.instance.exports.memory.buffer, this.negamaxSearchOffset, _TREE_SEARCH_ARRAY_SIZE * _NEGAMAX_NODE_BYTE_SIZE);
+                                                                    //  Assign offset to auxiliary buffer.
+                                                                    //  This is a receiving buffer, temporarily holding output from the evaluation module before converting these data to negamax nodes.
+                        this.negamaxAuxiliaryOffset = this.negamaxEngine.instance.exports.getAuxiliaryBuffer();
+                        this.negamaxAuxiliaryBuffer = new Uint8Array(this.negamaxEngine.instance.exports.memory.buffer, this.negamaxAuxiliaryOffset, _MAX_MOVES * (_GAMESTATE_BYTE_SIZE + _MOVE_BYTE_SIZE));
+                                                                    //  Assign offset to Zobrist hash buffer.
+                                                                    //  This receives 8 * _ZHASH_TABLE_SIZE bytes. Sections of 8 bytes treated as unsigned long longs.
+                        this.ZobristHashOffset = this.negamaxEngine.instance.exports.getZobristHashBuffer();
+                        this.ZobristHashBuffer = new Uint8Array(this.negamaxEngine.instance.exports.memory.buffer, this.ZobristHashOffset, _HASH_VALUE_BYTE_SIZE * _ZHASH_TABLE_SIZE);
+                                                                    //  Assign offset to Transposition Table buffer.
+                        this.TranspositionTableOffset = this.negamaxEngine.instance.exports.getTranspositionTableBuffer();
+                        this.TranspositionTableBuffer = new Uint8Array(this.negamaxEngine.instance.exports.memory.buffer, this.TranspositionTableOffset, 4 + _TRANSPO_TABLE_SIZE * (_TRANSPO_RECORD_BYTE_SIZE + _HASH_VALUE_BYTE_SIZE));
+
+                        for(i = 0; i < 4; i++)                      //  Blank out the first four bytes; let the rest be trash.
+                          this.TranspositionTableBuffer[i] = 0;
+
+                        elementsLoaded++;                           //  Check negaMaxEngine off our list.
+                                                                    //  Load a Zobrist Hasher.
+                        var ReqXML = new XMLHttpRequest();          //  IE 7+, Firefox, Chrome, Opera, Safari.
+                        var params = 'sendRequest=eggsnhash';
+                        ReqXML.parent = this;                       //  Add a reference to the Player object inside this callback function.
+
+                        ReqXML.open("POST", 'obj/sess/reqzhash.php', true);
+                        ReqXML.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+                        ReqXML.onreadystatechange = function()
+                          {
+                            if(ReqXML.readyState == 4 && ReqXML.status == 200)
+                              {
+                                if(ReqXML.responseText == "")       //  Null return: unknown error.
+                                  {
+                                    switch(currentLang)
+                                      {
+                                        case "Spanish": alert(alertStringScrub("Error"));  break;
+                                        case "German": alert(alertStringScrub("Fehler"));  break;
+                                        case "Polish": alert(alertStringScrub("B&#322;&#261;d na stronie"));  break;
+                                        default: alert(alertStringScrub("Error"));
+                                      }
+                                  }
+                                else
+                                  {
+                                    var parse = ReqXML.responseText.split('|');
+                                    var arr;
+                                    var i;
+                                    if(parse[0] == 'chess' && parse[1] == 'ok')
+                                      {
+                                        parse = parse[2].split(',');//  Repurpose "parse".
+                                        console.log(parse[0] + ' Zobrist keys.');
+                                                                    //  Load into Zobrist-hasher's buffer.
+                                        for(i = 1; i < parse.length; i++)
+                                          {
+                                            arr = new Uint8Array(1);//  Force byte type.
+                                            arr[0] = parseInt(parse[i]);
+                                            this.parent.ZobristHashBuffer[i] = arr[0];
+                                          }
+
+                                        elementsLoaded++;           //  Check Zobrist hasher off our list.
+                                        loadTotalReached();         //  Check the total.
+                                      }
+                                    else                            //  Error-label or garbage.
+                                      {
+                                        switch(currentLang)
+                                          {
+                                            case "Spanish": alert(alertStringScrub("Error"));  break;
+                                            case "German": alert(alertStringScrub("Fehler"));  break;
+                                            case "Polish": alert(alertStringScrub("B&#322;&#261;d na stronie"));  break;
+                                            default: alert(alertStringScrub("Error"));
+                                          }
+                                      }
+                                  }
+                              }
+                          };
+                        ReqXML.send(params);
+                      });
+                  });
+              });
+          });
+      }
+
+    /* Collect all moves the opponent might make, and prepare for each, an Object for the negamax search routine. */
+    branch()
+      {
+        var i, j, len;
+
+        for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)                   //  Copy the current game-state byte-array to the player's evaluation engine's input buffer.
+          this.evaluationInputBuffer[i] = gameStateBuffer[i];
+                                                                    //  Tell the evaluation engine to get a sorted list of possible moves.
+                                                                    //  Sort DESCENDING.
+        len = this.evaluationEngine.instance.exports.getSortedMoves(false);
+
+        this.branches = [];                                         //  Reset the array.
+        for(i = 0; i < len; i++)                                    //  Transfer results from the evaluation engine to the array of objects.
+          {
+            this.branches.push( {gamestate: new Uint8Array(_GAMESTATE_BYTE_SIZE),
+                                 depth:     0,
+                                 move:      new Uint8Array(3)} );
+
+            for(j = 0; j < _GAMESTATE_BYTE_SIZE; j++)
+              this.branches[this.branches.length - 1].gamestate[j] = this.evaluationOutputBuffer[4 + i * (_GAMESTATE_BYTE_SIZE + _MOVE_BYTE_SIZE) + j];
+
+            this.branches[this.branches.length - 1].move[0] = _NOTHING;
+            this.branches[this.branches.length - 1].move[1] = _NOTHING;
+            this.branches[this.branches.length - 1].move[2] = 0;
+          }
+
+        this.branchIterator = 0;                                    //  Reset the branch iterator, point to the first (assumed best) move.
+        console.log(len+' branches');
+
+        return;
+      }
+
+    /* Set up the search routine for the object in "this.branches" under "this.branchIterator". */
+    initSearch()
+      {
+        var i;
+
+        if(this.branches[ this.branchIterator ].depth < this.ply)   //  Is search necessary?
+          {
+            //  First, copy the byte array from this.branches[ this.branchIterator ] to "this.negamaxInputBuffer".
+            for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)
+              this.negamaxInputBuffer[i] = this.branches[ this.branchIterator ].gamestate[i];
+
+            //  Next, attempt to look up this game state in the server-side opening book.
+            if()
+              {
+                console.log('Retrieved lookup for '+this.branchIterator);
+              }
+            else                                                    //  If lookup failed, proceed with tree-search.
+              {
+                this.negamaxEngine.instance.exports.initSearch( this.ply );
+                console.log('Loaded '+this.branchIterator+' for search @ '+this.ply);
+              }
+          }
+
+        return;
+      }
+
+    /* Advance the search routine. */
+    step()
+      {
+        var i;
+
+        if(this.branches[ this.branchIterator ].depth < this.ply)   //  Is search necessary?
+          {
+            if(this.negamaxEngine.instance.exports.negamax())       //  Returns true when search is complete.
+              {
+                console.log('Search is complete.');
+
+                //  Result of search is stored in this.negamaxOutputBuffer.
+                //for(i = 0; i < ; i++)
+                //  this.branches[ this.branchIterator ]
+
+                if(++this.branchIterator == this.branches.length)   //  Wrap around.
+                  this.branchIterator = 0;
+              }
+          }
+
+
+        return;
+      }
+
+    /* Attempt to look up an advantageous move to make for the game state currently held as a byte array in "this.negamaxInputBuffer". */
+    lookup()
+      {
+        if(!this.callOut)
+          {
+            var params = 'sendRequest=philadelphia';
+            var i;
+            for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)
+              params += '&b'+i+'='+this.negamaxInputBuffer[i];
+
+            this.bookLookup.open("POST", 'obj/sess/lookup.php', true);
+            this.bookLookup.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+            this.bookLookup.onreadystatechange = function()
+              {
+                if(this.bookLookup.readyState == 4 && this.bookLookup.status == 200)
+                  {
+                    if(this.bookLookup.responseText == "")          //  Null return: unknown error
+                      {
+/*
+                        switch(currentLang)
+                          {
+                            case "Spanish": alert(alertStringScrub("Error"));  break;
+                            case "German": alert(alertStringScrub("Fehler"));  break;
+                            case "Polish": alert(alertStringScrub("B&#322;&#261;d na stronie"));  break;
+                            default: alert(alertStringScrub("Error"));
+                          }
+*/
+                      }
+                    else
+                      {
+                        var parse = this.bookLookup.responseText.split('|');
+                        var arr;
+                        var i;
+                        if(parse[0] == 'chess' && parse[1] == 'ok')
+                          {
+/*
+                            parse = parse[2].split(',');            //  Repurpose "parse".
+                            for(i = 0; i < parse.length; i++)       //  Load buffer.
+                              {
+                                arr = new Uint8Array(1);            //  Force byte type.
+                                arr[0] = parseInt(parse[i]);
+                                gameStateBuffer[i] = arr[0];
+                              }
+*/
+                          }
+                        else                                        //  Error-label or garbage
+                          {
+/*
+                            switch(currentLang)
+                              {
+                                case "Spanish": alert(alertStringScrub("Error"));  break;
+                                case "German": alert(alertStringScrub("Fehler"));  break;
+                                case "Polish": alert(alertStringScrub("B&#322;&#261;d na stronie"));  break;
+                                default: alert(alertStringScrub("Error"));
+                              }
+*/
+                          }
+                      }
+
+                    this.callOut = false;
+                  }
+              };
+            this.callOut = true;
+            this.bookLookup.send(params);
+          }
+
+        return;
+      }
+/*
+    someOtherFunctionOfThisClass()
+      {
+      }
+*/
+  }
