@@ -44,6 +44,7 @@ For Chess:
 | _NEGAMAX_NODE_BYTE_SIZE | 129 |
 | _TRANSPO_RECORD_BYTE_SIZE | 91 |
 | _TRANSPO_TABLE_SIZE | 65536 |
+| ZHASH_TABLE_SIZE | 751 |
 
 ## Citation
 If this code was helpful to you, please cite this repository.
