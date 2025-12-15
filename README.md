@@ -35,16 +35,16 @@ I have separated game logic and node evaluation from tree-search. This allows me
 ![Negamax Schema](Negamax_Engine_Schema.png)
 
 For Chess:
-| Name  | Bytes  |
-| :---:	| :----: |
-| _GAMESTATE_BYTE_SIZE | 81 |
-| _MOVE_BYTE_SIZE | 3 |
-| _MAX_MOVES | 64 |
-| _TREE_SEARCH_ARRAY_SIZE | 65536 |
-| _NEGAMAX_NODE_BYTE_SIZE | 129 |
-| _TRANSPO_RECORD_BYTE_SIZE | 91 |
-| _TRANSPO_TABLE_SIZE | 65536 |
-| ZHASH_TABLE_SIZE | 751 |
+| Name  | Bytes  | Description |
+| :---:	| :----: | :---------: |
+| _GAMESTATE_BYTE_SIZE | 81 | Number of bytes needed to encode a game state |
+| _MOVE_BYTE_SIZE | 3 | Number of bytes needed to describe a move in Chess |
+| _MAX_MOVES | 64 | A (generous) upper bound on how many moves may be made by a team in a single turn |
+| _TREE_SEARCH_ARRAY_SIZE | 65536 | Number of (game-state bytes, move-bytes) |
+| _NEGAMAX_NODE_BYTE_SIZE | 129 | Number of bytes needed to encode a negamax node |
+| _TRANSPO_RECORD_BYTE_SIZE | 91 | Number of bytes needed to store a TranspoRecord object |
+| _TRANSPO_TABLE_SIZE | 65536 | Number of TranspoRecords, each 91 bytes |
+| ZHASH_TABLE_SIZE | 751 | Number of Zobrist keys |
 
 ## Citation
 If this code was helpful to you, please cite this repository.
