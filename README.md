@@ -1,6 +1,8 @@
 # [Chess](https://www.ericjoycefilm.com/wastesoftime/boardgames/chess/index.php?lang=en)
 Notes on the creation of Chess
 
+![Negamax Schema](Negamax\ Engine\ Schema.png)
+
 ## Docker container to compile C to WebAssembly
 Create the container.
 ```
