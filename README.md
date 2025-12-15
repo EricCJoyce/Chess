@@ -3,6 +3,16 @@ Notes on the creation of Chess
 
 ![Negamax Schema](Negamax_Engine_Schema.png)
 
+| Name  | Bytes  |
+| :---:	| :----: |
+| _GAMESTATE_BYTE_SIZE | 81 |
+| _MOVE_BYTE_SIZE | 3 |
+| _MAX_MOVES | 64 |
+| _TREE_SEARCH_ARRAY_SIZE | 65536 |
+| _NEGAMAX_NODE_BYTE_SIZE | 129 |
+| _TRANSPO_RECORD_BYTE_SIZE | 91 |
+| _TRANSPO_TABLE_SIZE | 65536 |
+
 ## Docker container to compile C to WebAssembly
 Create the container.
 ```
