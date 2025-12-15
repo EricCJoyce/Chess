@@ -49,10 +49,12 @@ For Chess:
 | _TRANSPO_TABLE_SIZE | 65536 | Number of TranspoRecords, each 91 bytes |
 | ZHASH_TABLE_SIZE | 751 | Number of Zobrist keys |
 
+Compile the evaluation engine:
 ```
 sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c emcc -Os -s STANDALONE_WASM -s EXPORTED_FUNCTIONS="['_getInputBuffer','_getOutputBuffer','_isQuiet','_isTerminal','_evaluate','_getSortedMoves']" -Wl,--no-entry "philadelphia.c" -o "eval.wasm"
 ```
 
+Compile the negamax engine:
 ```
 sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c em++ -I ./ -Os -s STANDALONE_WASM -s INITIAL_MEMORY=16056320 -s STACK_SIZE=1048576 -s EXPORTED_FUNCTIONS="['_getInputBuffer','_getQueryBuffer','_getOutputBuffer','_getZobristHashBuffer','_getTranspositionTableBuffer','_getNegamaxSearchBuffer','_getAuxiliaryBuffer','_initSearch','_negamax']" -Wl,--no-entry "negamax.cpp" -o "negamax.wasm"
 ```
