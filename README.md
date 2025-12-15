@@ -39,6 +39,7 @@ For Chess:
 | :---:	| :----: | :---------: |
 | _GAMESTATE_BYTE_SIZE | 81 | Number of bytes needed to encode a game state |
 | _MOVE_BYTE_SIZE | 3 | Number of bytes needed to describe a move in Chess |
+| _MAX_NUM_TARGETS | 32 | A (generous) upper bound on how many distinct destinations (not distinct moves) may be available to a player from a single index |
 | _MAX_MOVES | 64 | A (generous) upper bound on how many moves may be made by a team in a single turn |
 | _TREE_SEARCH_ARRAY_SIZE | 65536 | Number of (game-state bytes, move-bytes) |
 | _NEGAMAX_NODE_BYTE_SIZE | 129 | Number of bytes needed to encode a negamax node |
