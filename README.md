@@ -46,7 +46,7 @@ For Chess:
 | _TRANSPO_RECORD_BYTE_SIZE | 91 | Number of bytes needed to store a TranspoRecord object |
 | _TRANSPO_TABLE_SIZE | 65536 | Number of TranspoRecords, each 91 bytes |
 | _TREE_SEARCH_ARRAY_SIZE | 65536 | Number of (game-state bytes, move-bytes) |
-| _NEGAMAX_NODE_BYTE_SIZE | 129 | Number of bytes needed to encode a negamax node |
+| _NEGAMAX_NODE_BYTE_SIZE | 130 | Number of bytes needed to encode a negamax node |
 | ZHASH_TABLE_SIZE | 751 | Number of Zobrist keys |
 
 Compile the evaluation engine:
