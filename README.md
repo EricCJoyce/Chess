@@ -43,10 +43,10 @@ For Chess:
 | _MOVE_BYTE_SIZE | 3 | Number of bytes needed to describe a move in Chess |
 | _MAX_NUM_TARGETS | 32 | A (generous) upper bound on how many distinct destinations (not distinct moves) may be available to a player from a single index |
 | _MAX_MOVES | 64 | A (generous) upper bound on how many moves may be made by a team in a single turn |
-| _TREE_SEARCH_ARRAY_SIZE | 65536 | Number of (game-state bytes, move-bytes) |
-| _NEGAMAX_NODE_BYTE_SIZE | 129 | Number of bytes needed to encode a negamax node |
 | _TRANSPO_RECORD_BYTE_SIZE | 91 | Number of bytes needed to store a TranspoRecord object |
 | _TRANSPO_TABLE_SIZE | 65536 | Number of TranspoRecords, each 91 bytes |
+| _TREE_SEARCH_ARRAY_SIZE | 65536 | Number of (game-state bytes, move-bytes) |
+| _NEGAMAX_NODE_BYTE_SIZE | 129 | Number of bytes needed to encode a negamax node |
 | ZHASH_TABLE_SIZE | 751 | Number of Zobrist keys |
 
 Compile the evaluation engine:
