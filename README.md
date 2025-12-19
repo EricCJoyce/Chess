@@ -26,6 +26,10 @@ gcc -Wall zgenerate.c -lm -o zgenerate
 ## Client-facing game logic module
 ![Game Logic Schema](Game_Logic_Schema.png)
 
+The game-logic module has *two* outward-facing buffers:
+- `currentState` is `_GAMESTATE_BYTE_SIZE` bytes long. It encodes the current state of the game.
+- `movesBuffer` is `4 + _MAX_NUM_TARGETS` bytes long. Its first four bytes encode `n`, the number (unsigned int) of legal targets, then the subsequent `n` bytes are those indices on the chess board.
+
 Compile the front-end, client-facing game-logic module. This WebAssembly module answers queries from the client-side like getting data about which pieces can move where.
 ```
 sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c emcc -Os -s STANDALONE_WASM -s EXPORTED_FUNCTIONS="['_getCurrentState','_getMovesBuffer','_sideToMove_client','_isWhite_client','_isBlack_client','_isEmpty_client','_isPawn_client','_isKnight_client','_isBishop_client','_isRook_client','_isQueen_client','_isKing_client','_getMovesIndex_client','_makeMove_client','_isTerminal_client','_isWin_client','_draw']" -Wl,--no-entry "gamelogic.c" -o "gamelogic.wasm"
