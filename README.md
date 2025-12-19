@@ -75,10 +75,11 @@ This produces a `.wasm` with functions you can load into the JavaScript Player c
 - `this.evaluationEngine.instance.exports.evaluate(bool);` .
 - `this.evaluationEngine.instance.exports.getMoves();` .
 
-The **negamax engine** has *nine* outward-facing buffers:
+The **negamax engine** has *tne* outward-facing buffers:
 - `inputGameStateBuffer`
-- `queryGameStateBuffer`
 - `outputBuffer`
+- `queryGameStateBuffer`
+- `queryMoveBuffer`
 - `zobristHashBuffer`
 - `transpositionTableBuffer`
 - `negamaxSearchBuffer`
