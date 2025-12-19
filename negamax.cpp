@@ -1,6 +1,6 @@
 /*
 
-sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c em++ -I ./ -Os -s STANDALONE_WASM -s INITIAL_MEMORY=16056320 -s STACK_SIZE=1048576 -s EXPORTED_FUNCTIONS="['_getInputBuffer','_getQueryBuffer','_getOutputBuffer','_getZobristHashBuffer','_getTranspositionTableBuffer','_getNegamaxSearchBuffer','_getAuxiliaryBuffer','_initSearch','_negamax']" -Wl,--no-entry "negamax.cpp" -o "negamax.wasm"
+sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c em++ -I ./ -Os -s STANDALONE_WASM -s INITIAL_MEMORY=16121856 -s STACK_SIZE=1048576 -s EXPORTED_FUNCTIONS="['_getInputBuffer','_getQueryBuffer','_getOutputBuffer','_getZobristHashBuffer','_getTranspositionTableBuffer','_getNegamaxSearchBuffer','_getAuxiliaryBuffer','_getKillerMovesBuffer','_getHistoryBuffer','_initSearch','_negamax']" -Wl,--no-entry "negamax.cpp" -o "negamax.wasm"
 
 */
 
@@ -11,24 +11,58 @@ sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,sourc
 #define _NONE                      64                               /* Required as a "blank" value without #include "gamestate.h". */
 #define _NO_PROMO                   0                               /* Required as a "blank" value without #include "gamestate.h". */
 
-#define _TREE_SEARCH_ARRAY_SIZE 65536                               /* Number of (game-state bytes, move-bytes). */
-#define _NEGAMAX_NODE_BYTE_SIZE   129                               /* Number of bytes needed to store a negamax node. */
+#define _KILLER_MOVE_PER_PLY        2                               /* Typical for other chess engines. */
+#define _KILLER_MOVE_MAX_DEPTH     64                               /* Simply something "comfortably large". */
 
-#define _PHASE_TRANSPO_CHECK        0                               /* Indicating Transpo-Check is to follow. */
-#define _PHASE_EVALUATION           1                               /* Indicating Evaluation is to follow. */
-#define _PHASE_EXPANSION            2                               /* Indicating Expansion is to follow. */
-#define _PHASE_PARENT_UPDATE        3                               /* Indicating Parent-Update is to follow. */
+#define _TREE_SEARCH_ARRAY_SIZE 65536                               /* Number of (game-state bytes, move-bytes). */
+#define _NEGAMAX_NODE_BYTE_SIZE   130                               /* Number of bytes needed to store a negamax node. */
+
+#define _PHASE_ENTER_NODE           0                               /* Indicating that transpo-check, terminal-check, null move, IID, early eval/pruning are to follow. */
+#define _PHASE_GEN_AND_ORDER        1                               /* Indicating that move-generation, basic scoring / ordering are to follow. */
+#define _PHASE_NEXT_MOVE            2                               /* Indicating that next-move picking, reduction-decision, child-node pushing are to follow. */
+#define _PHASE_AFTER_CHILD          3                               /* Indicating that the child-return routine (update alpha/beta, killers, history, TT) is to follow. */
+#define _PHASE_FINISH_NODE          4                               /* Indicating that the final TT store, parent update, then pop are to follow. */
+
+#define NN_FLAG_NULL_TRIED       0x01                               /* Indicates that we already tried a null move here. */
+#define NN_FLAG_NULL_IN_PROGRESS 0x02                               /* Indicates that there is currently a null-move child. */
+#define NN_FLAG_IS_NULL_CHILD    0x04                               /* Indicates that this node itself was reached via null move. */
+
+#define NN_FLAG_IS_PV            0x08                               /* Indicates a PV node. */
+#define NN_FLAG_AT_ROOT          0x10                               /* Indicates a root node. */
+#define NN_FLAG_IN_CHECK         0x20                               /* Indicates that the side to move is in check here (cached). */
+                                                                    /* Convenience macros. */
+#define NN_SET_FLAG(node, f)    ((node)->flags |=  (f))
+#define NN_CLEAR_FLAG(node, f)  ((node)->flags &= ~(f))
+#define NN_HAS_FLAG(node, f)   (((node)->flags &   (f)) != 0)
+
+#define NULL_MOVE_BASE_REDUCTION    2                               /*  */
+#define NULL_MOVE_EXTRA_REDUCTION   1                               /*  */
+
+//#define _PHASE_TRANSPO_CHECK        0                               /* Indicating Transpo-Check is to follow. */
+//#define _PHASE_NULL_MOVE_PRUNING    1                               /* Indicating Null-Move Pruning is to follow. */
+//#define _PHASE_INTERNAL_ITER_DEEP   2                               /* Indicating Internal Iterative Deepening is to follow. */
+//#define _PHASE_EXPANSION            3                               /* Indicating Expansion is to follow. */
+//#define _PHASE_MOVE_ORDERING        4                               /* Indicating Move-Ordering is to follow. */
+//#define _PHASE_LATE_MOVE_REDUCTION  5                               /* Indicating Late-Move-Reduction is to follow. */
+//#define _PHASE_EVALUATION           6                               /* Indicating Evaluation is to follow. */
+//#define _PHASE_KILLER_MOVES_UPDATE  7                               /* Indicating Killer-Move Updating is to follow. */
+//#define _PHASE_HISTORY_UPDATE       8                               /* Indicating History-Updating is to follow. */
+//#define _PHASE_TRANSPO_UPDATE       9                               /* Indicating Transpo-Update is to follow. */
+//#define _PHASE_PARENT_UPDATE       10                               /* Indicating Parent-Update is to follow. */
 
 /**************************************************************************************************
  Typedefs  */
 
-typedef struct NegamaxNodeType                                      //  TOTAL: 129 = _NEGAMAX_NODE_BYTE_SIZE bytes.
+typedef struct NegamaxNodeType                                      //  TOTAL: 130 = _NEGAMAX_NODE_BYTE_SIZE bytes.
   {
     unsigned char gs[_GAMESTATE_BYTE_SIZE];                         //  (81 bytes) The given gamestate as a byte array.
     unsigned int parent;                                            //  (4 bytes) Index into "negamaxSearchBuffer" of this node's parent.
     unsigned char parentMove[_MOVE_BYTE_SIZE];                      //  (3 bytes) Describe the move that led from "parent" to this node.
     unsigned char bestMove[_MOVE_BYTE_SIZE];                        //  (3 bytes) Best move found so far from this node.
     unsigned int childrenCtr;                                       //  (4 bytes) Number of children.
+    //unsigned int moveOffset;                                        //  (4 bytes) Index into a global move buffer.
+    //unsigned int moveCount;                                         //  (4 bytes) How many moves generated for this node.
+    //Suggests that childrenCtr should become the current move index; how many we've already searched.
     signed char depth;                                              //  (1 byte) Counts down to 0, or to -1 if quiescence searching.
 
     float originalAlpha;                                            //  (4 bytes) The alpha value saved at the top of the negamax call.
@@ -39,8 +73,10 @@ typedef struct NegamaxNodeType                                      //  TOTAL: 1
     unsigned long long zhash;                                       //  (8 bytes) Zobrist hash of the given gamestate byte array.
     unsigned int hIndex;                                            //  (4 bytes) Zobrist hash modulo table length, adjusted as necessary using linear probing.
 
-    unsigned char phase;                                            //  (1 byte) In {_PHASE_TRANSPO_CHECK, _PHASE_EVALUATION,
-                                                                    //               _PHASE_EXPANSION, _PHASE_PARENT_UPDATE}.
+    unsigned char phase;                                            //  (1 byte) In {_PHASE_ENTER_NODE, _PHASE_GEN_AND_ORDER, _PHASE_NEXT_MOVE,
+                                                                    //               _PHASE_AFTER_CHILD, _PHASE_FINISH_NODE}.
+    unsigned char flags;                                            //  (1 byte) Covers [NN_FLAG_NULL_TRIED, NN_FLAG_NULL_IN_PROGRESS, NN_FLAG_IS_NULL_CHILD,
+                                                                    //                   NN_FLAG_IS_PV, NN_FLAG_AT_ROOT, NN_FLAG_IN_CHECK].
     float value;                                                    //  (4 bytes) Value computed over this node's children and/or eventually returned.
   } NegamaxNode;
 
@@ -67,8 +103,21 @@ __attribute__((import_module("env"), import_name("_isQuiet"))) bool isQuiet();
 __attribute__((import_module("env"), import_name("_isTerminal"))) bool isTerminal();
                                                                     //  Bridge between WebAssembly Modules:
                                                                     //  Query the Evaluation Engine.
+                                                                    //  Is the side to move in the GameState encoded in Evaluation Engine's input buffer in check?
+__attribute__((import_module("env"), import_name("_isSideToMoveInCheck"))) bool isSideToMoveInCheck();
+                                                                    //  Bridge between WebAssembly Modules:
+                                                                    //  Query the Evaluation Engine.
+                                                                    //  How much non-pawn material does the side to move in the GameState encoded in Evaluation Engine's input buffer have?
+__attribute__((import_module("env"), import_name("_nonPawnMaterial"))) unsigned char nonPawnMaterial();
+                                                                    //  Bridge between WebAssembly Modules:
+                                                                    //  Query the Evaluation Engine.
+                                                                    //  Make Evaluation Engine write the (child-state, move) bytes resulting from a null move
+                                                                    //  to the Evaluation Engine's output buffer.
+__attribute__((import_module("env"), import_name("_makeNullMove"))) void makeNullMove();
+                                                                    //  Bridge between WebAssembly Modules:
+                                                                    //  Query the Evaluation Engine.
                                                                     //  Evaluate the GameState encoded in Evaluation Engine's input buffer?
-__attribute__((import_module("env"), import_name("_evaluate"))) bool evaluate();
+__attribute__((import_module("env"), import_name("_evaluate"))) float evaluate();
                                                                     //  Bridge between WebAssembly Modules:
                                                                     //  Query the Evaluation Engine.
                                                                     //  Make Evaluation Engine write a sorted list of (child-state, move) tuples
@@ -86,6 +135,8 @@ extern "C"
     unsigned char* getTranspositionTableBuffer(void);
     unsigned char* getNegamaxSearchBuffer(void);
     unsigned char* getAuxiliaryBuffer(void);
+    unsigned char* getKillerMovesBuffer(void);
+    unsigned char* getHistoryBuffer(void);
     void initSearch(unsigned char);
     bool negamax(void);
   }
@@ -117,7 +168,7 @@ unsigned char queryGameStateBuffer[_GAMESTATE_BYTE_SIZE];           //  Input fr
                                                                     //  Output from negamaxEngine to Player.js.
 unsigned char outputBuffer[_GAMESTATE_BYTE_SIZE + 1 + _MOVE_BYTE_SIZE];
 
-                                                                    //  8,454,148 bytes.
+                                                                    //  8,519,684 bytes.
                                                                     //  Flat, global array that behaves like a DFS stack for negamax nodes.
                                                                     //  First four bytes are for an unsigned int: the length of the array.
 unsigned char negamaxSearchBuffer[_TREE_SEARCH_ARRAY_SIZE * _NEGAMAX_NODE_BYTE_SIZE + 4];
@@ -129,10 +180,18 @@ unsigned char auxiliaryBuffer[_MAX_MOVES * (_GAMESTATE_BYTE_SIZE + _MOVE_BYTE_SI
                                                                     //  6,488,068 bytes.
                                                                     //  For "transpositionTableBuffer" included in "transposition.h".
 
-                                                                    //  SUBTOTAL:  14,947,839 bytes.
+                                                                    //  384 bytes.
+                                                                    //  Each entry is [from_1, to_1, promo_1, from_2, to_2, promo_2].
+unsigned char killerMovesBuffer[_KILLER_MOVE_PER_PLY * _MOVE_BYTE_SIZE * _KILLER_MOVE_MAX_DEPTH];
+
+                                                                    //  8,192 bytes.
+                                                                    //  2 is for 2 teams, white and black. So read an entry as (side, from, to).
+unsigned char historyBuffer[2 * _NONE * _NONE];                     //  Note that we don't care about promotion choices here; just bump up moves (from, to).
+
+                                                                    //  SUBTOTAL:  15,021,951 bytes.
                                                                     //  Give the stack 1,048,576 bytes.
-                                                                    //  TOTAL:     15,996,415 bytes.
-                                                                    //  Round to:  16,056,320 bytes = 245 pages.
+                                                                    //  TOTAL:     16,070,527 bytes.
+                                                                    //  Round to:  16,121,856 bytes = 246 pages (cover units of 65,536).
 
 /**************************************************************************************************
  Pointer-retrieval functions  */
@@ -184,6 +243,18 @@ unsigned char* getAuxiliaryBuffer(void)
     return &auxiliaryBuffer[0];
   }
 
+/* Expose the global array decalred here to JavaScript (just so we can address it). */
+unsigned char* getKillerMovesBuffer(void)
+  {
+    return &killerMovesBuffer[0];
+  }
+
+/* Expose the global array decalred here to JavaScript (just so we can address it). */
+unsigned char* getHistoryBuffer(void)
+  {
+    return &historyBuffer[0];
+  }
+
 /**************************************************************************************************
  Negamax-search functions  */
 
@@ -218,8 +289,9 @@ void initSearch(unsigned char depth)
     root.zhash = 0L;                                                //  Initialize root's zhash.
     root.hIndex = 0;                                                //  Initialize root's hIndex.
 
-    root.phase = _PHASE_TRANSPO_CHECK;                              //  Indicate that no work has been done on this node yet:
+    root.phase = _PHASE_ENTER_NODE;                                 //  Indicate that no work has been done on this node yet:
                                                                     //  the first thing to try is a transposition table lookup.
+    root.flags = NN_FLAG_AT_ROOT;                                   //  Set root flag.
     root.value = -std::numeric_limits<float>::infinity();           //  Initialize root's value.
 
     saveNegamaxSearchBufferLength(1);                               //  Write number of NegamaxNodes in "negamaxSearchBuffer".
@@ -237,13 +309,17 @@ void initSearch(unsigned char depth)
 bool negamax(void)
   {
     unsigned int gsIndex;
-    NegamaxNode node;
+    NegamaxNode node, child;
     unsigned int i, j;
+    unsigned char material;
+    signed char R, newDepth;
+    unsigned int negamaxSearchBufferLength;
+    bool b;
 
     gsIndex = restoreNegamaxSearchBufferLength() - 1;               //  Index for top of stack is length minus one.
     restoreNode(gsIndex, &node);                                    //  Restore the node at the top of the stack.
 
-    if(gsIndex == 0 && node.phase == _PHASE_PARENT_UPDATE)          //  If the root node has reappeared at the top of the stack with this state, then we're done.
+    if(gsIndex == 0 && node.phase == _PHASE_PARENT_UPDATE)          //  If the root node has appeared at the top of the stack with this state, then we're done.
       {                                                             //  Recover data from search and write to "outputBuffer".
         i = 0;
 
@@ -260,17 +336,166 @@ bool negamax(void)
 
     switch(node.phase)
       {
-        case _PHASE_TRANSPO_CHECK:                                  //  Nothing has been done with this node yet: attempt transpo lookup.
-          transpoCheck_step(gsIndex, &node);
+        //////////////////////////////////////////////////////////////  Nothing has been done with this node yet.
+        case _PHASE_ENTER_NODE:
+          transpoCheck_step(gsIndex, &node);                        //  - Attempt transpo lookup.
+          if(node.phase == _PHASE_FINISH_NODE)                      //    Lookup succeeded: break.
+            break;
+                                                                    //  Copy "node"s "gs" to "queryGameStateBuffer"
+          for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)                 //  for isTerminal() and evaluate().
+            queryGameStateBuffer[i] = node->gs[i];
+
+          copyQuery2EvalInput();                                    //  Copy "queryGameStateBuffer" to Evaluation Module's "inputBuffer".
+
+          b = isTerminal();                                         //  (Ask the Evaluation Module) Is the given game state terminal?
+          if(b)                                                     //  - Terminal-state check.
+            {
+              node.value = node.color * evaluate();                 //  This imported function handles testing the AI's side.
+              node.phase = _PHASE_FINISH_NODE;                      //  Mark for the finishing phase.
+              saveNode(&node, gsIndex);                             //  Save the updated node.
+              break;
+            }
+
+          b = isSideToMoveInCheck();                                //  (Ask the Evaluation Module) Is the side to move in the given game state in check?
+          if(b)                                                     //  - In check?
+            NN_SET_FLAG(&node, NN_FLAG_IN_CHECK);
+          else
+            NN_CLEAR_FLAG(&node, NN_FLAG_IN_CHECK);
+
+          material = nonPawnMaterial();                             //  Are the conditions correct to try null-move pruning?
+          if( !NN_HAS_FLAG(&node, NN_FLAG_NULL_TRIED) && !NN_HAS_FLAG(&node, NN_FLAG_IS_NULL_CHILD) &&
+              !NN_HAS_FLAG(&node, NN_FLAG_AT_ROOT)    && !NN_HAS_FLAG(&node, NN_FLAG_IS_PV)         &&
+              !NN_HAS_FLAG(&node, NN_FLAG_IN_CHECK)   && node.depth >= 3 && material > 3             )
+            {
+                                                                    //  - Null-move pruning.
+              NN_SET_FLAG(&node, NN_FLAG_NULL_TRIED);               //  Indicate that we did try the null move for this node.
+              NN_SET_FLAG(&node, NN_FLAG_NULL_IN_PROGRESS);         //  Indicate that this node's null-child is (WILL BE) on the stack.
+              R = NULL_MOVE_BASE_REDUCTION;
+              if(node.depth >= 6)
+                R += NULL_MOVE_EXTRA_REDUCTION;
+              newDepth = node.depth - 1 - R;
+              if(newDepth < 0)
+                newDepth = 0;
+
+              makeNullMove();                                       //  (Ask the Evaluation Module) To make the null-move.
+              copyEvalOutput2AuxBuffer(1);                          //  Copy ONE of (_GAMESTATE_BYTE_SIZE + _MOVE_BYTE_SIZE)
+                                                                    //  from the Evaluation Module's output buffer
+                                                                    //  to the Negamax Module's auxiliary buffer.
+                                                                    //  Save the current length, before addition of child nodes.
+              negamaxSearchBufferLength = restoreNegamaxSearchBufferLength();
+              i = 0;
+              for(j = 0; j < _GAMESTATE_BYTE_SIZE; j++)             //  Copy child gamestate byte-array to child node.
+                child.gs[j] = auxiliaryBuffer[i++];
+              child.parent = gsIndex;                               //  Set child's parent to the given index into "negamaxSearchBuffer".
+              for(j = 0; j < _MOVE_BYTE_SIZE; j++)                  //  Copy the move the brought parent to child into the child node.
+                child.parentMove[j] = auxiliaryBuffer[i++];
+              child.bestMove[0] = _NONE;                            //  Set child's best-move to a blank move.
+              child.bestMove[1] = _NONE;
+              child.bestMove[2] = 0;
+
+              child.childrenCtr = 0;                                //  Set child's children-counter to zero.
+              child.depth = newDepth;                               //  Set child's depth to "newDepth".
+              child.originalAlpha = -node.beta;                     //  Set child's alpha to negative parent's beta.
+              child.alpha = -node.beta;
+              child.beta = -node.alpha;                             //  Set child's beta to negative parent's alpha.
+              child.color = -node.color;                            //  Set child's color to negative parent's color.
+              child.zhash = 0L;
+              child.hIndex = 0;
+              child.phase = _PHASE_ENTER_NODE;                      //  Set child's phase.
+              child.flags = 0;
+              NN_SET_FLAG(&child, NN_FLAG_IS_NULL_CHILD);           //  Set the flag that says this is a null-move child.
+              child.value = -std::numeric_limits<float>::infinity();
+
+              node.phase = _PHASE_AFTER_CHILD;
+              node.childrenCtr++;
+
+              saveNode(&child, negamaxSearchBufferLength++);        //  Write serialized node to head of "negamaxSearchBuffer".
+                                                                    //  Write number of NegamaxNodes in "negamaxSearchBuffer".
+              saveNegamaxSearchBufferLength(negamaxSearchBufferLength);
+              saveNode(&node, gsIndex);                             //  Save the updated node.
+            }
+          else                                                      //  Conditions do NOT allow null-move pruning.
+            {
+              node.phase = _PHASE_GEN_AND_ORDER;
+              saveNode(&node, gsIndex);                             //  Save the updated node.
+            }
           break;
-        case _PHASE_EVALUATION:                                     //  Node has already passed transpo-check; attempt evaluation.
-          evaluation_step(gsIndex, &node);
-          break;
-        case _PHASE_EXPANSION:                                      //  Node has already passed evaluation; expand it.
+
+        //////////////////////////////////////////////////////////////  Node has passed initial checks (transpo, terminal, leaf). Now generate moves/children.
+        case _PHASE_GEN_AND_ORDER:
           expansion_step(gsIndex, &node);
           break;
-        case _PHASE_PARENT_UPDATE:                                  //  Node has a return-value ready for its parent.
-          parentUpdate_step(gsIndex, &node);
+
+        case _PHASE_NEXT_MOVE:                                      //  Node has already passed .
+          break;
+
+        //////////////////////////////////////////////////////////////  Node is somebody's child.
+        case _PHASE_AFTER_CHILD:
+          restoreNode(gsIndex, &child);                             //  Read bytes on the top of the stack into the struct named "child",
+          restoreNode(child.parent, &node);                         //  and use "node" to refer to the stack-top's parent.
+                                                                    //  This child is a null-move child.
+          if(NN_HAS_FLAG(&node, NN_FLAG_NULL_IN_PROGRESS) && NN_HAS_FLAG(&child, NN_FLAG_IS_NULL_CHILD))
+            {
+              NN_CLEAR_FLAG(&node, NN_FLAG_NULL_IN_PROGRESS);       //  Un-set this flag: we are addressing the null-move child now.
+
+              if(nullScore >= node.beta)                            //  Null-move fails high: prune this node.
+                {                                                   //  We could store -child.value or node.beta; the parent only needs a value >= beta.
+                  node.value = -child.value;
+                  node.phase = _PHASE_FINISH_NODE;
+                }
+              else                                                  //  The null-move did NOT prune. Continue search as normal.
+                node.phase = _PHASE_GEN_AND_ORDER;
+              //  Save parent
+            }
+          else                                                      //  This "child" is a regular move we tried from "node".
+            {
+              if(-child.value >= node.beta)                         //  Beta cutoff?
+                {                                                   //  Beta cutoff: this move is so good for us that the opponent will avoid this node.
+                  node.value = -child.value;
+                  node.phase = _PHASE_FINISH_NODE;
+                  //  TODO:  killer / history updates go here once you have those tables:
+                  //  TODO:  update_killers(parent, moveBytes);
+                  //  TODO:  update_history(parent, moveBytes, -child.value);
+                }
+              if(-child.value > node.alpha)                         //  Improve alpha?
+                {
+                  node.alpha = -child.value;
+                  node.value = -child.value;                        //  Best-so-far for this node.
+                  // Track best move from this node
+                  // (Assuming child->parentMove describes the move from parent->gs to child->gs)
+                  //  TODO:  history update (no cutoff, but good move):
+                  //  TODO:  update_history(parent, moveBytes, score);
+                }
+
+              // Decide what to do next:
+              // - If there are more moves to try from this parent, go to NEXT_MOVE.
+              // - If we've exhausted the move list, we're done with this node -> FINISH_NODE.
+
+              // For that we probably need a per-parent move index & count; I'll assume:
+              //   parent->childrenCtr = number of moves already searched
+              //   parent->numMoves    = total moves generated for this node
+              // You can adapt this to your actual fields.
+
+              //parent->childrenCtr++;  // e.g., one more child processed
+
+              //if (parent->childrenCtr >= parent->numMoves)
+              //  {
+              //     No more children to search -> this node is finished.
+              //     parent->value already holds the best score found (or alpha).
+              //     parent->phase = _PHASE_FINISH_NODE;
+              //  }
+              //else
+              //  {
+              //    Still have more moves to test from this parent
+              //    parent->phase = _PHASE_NEXT_MOVE;
+              //  }
+              //
+              //
+            }
+
+          break;
+
+        case _PHASE_FINISH_NODE:                                    //  Node has a return-value ready for its parent.
           break;
       }
 
@@ -278,9 +503,9 @@ bool negamax(void)
   }
 
 /* HEARTBEAT NEGAMAX
-   First step: attempt to look up the given game state in the transposition table.
-   This phase will either find the transposition or it won't.
-   If this phase does find the given "node" in the transposition table, either:
+   Attempt to look up the given game state in the transposition table.
+   This step will either find the transposition or it won't.
+   If this step does find the given "node" in the transposition table, either:
      1.) it sets the return-value for the given "node" and set's "node"s phase so that Parent-Update follows, or
      2.) it adjusts "node"s bounds and sets its phase so that evaluation follows. */
 void transpoCheck_step(unsigned int gsIndex, NegamaxNode* node)
@@ -338,7 +563,7 @@ void transpoCheck_step(unsigned int gsIndex, NegamaxNode* node)
             if(ttRecord.type == NODE_TYPE_PV)                       //  Exact.
               {
                 node->value = ttRecord.score;                       //  This node's return value furnished by the transpo lookup.
-                node->phase = _PHASE_PARENT_UPDATE;                 //  Set node's phase to Parent-Update.
+                node->phase = _PHASE_FINISH_NODE;                   //  Set node's phase to Parent-Update.
                 saveNode(node, gsIndex);                            //  Save the updated node.
                 return;
               }
@@ -350,21 +575,20 @@ void transpoCheck_step(unsigned int gsIndex, NegamaxNode* node)
             if(node->alpha >= node->beta)
               {
                 node->value = ttRecord.score;                       //  This node's return value furnished by the transpo lookup.
-                node->phase = _PHASE_PARENT_UPDATE;                 //  Set node's phase to Parent-Update.
+                node->phase = _PHASE_FINISH_NODE;                   //  Set node's phase to Parent-Update.
                 saveNode(node, gsIndex);                            //  Save the updated node.
                 return;
               }
           }
       }
 
-    node->phase = _PHASE_EVALUATION;                                //  Set node's phase to Evaluate.
-    saveNode(node, gsIndex);                                        //  Save the updated node.
-
+    //node->phase = _PHASE_EVALUATION;                                //  Set node's phase to Evaluate.
+    //saveNode(node, gsIndex);                                        //  Save the updated node.
     return;
   }
 
 /* HEARTBEAT NEGAMAX
-   Second step: if we are given a terminal game state or if depth has run down to zero (or -1 given quiescence search) then evaluate the state.
+   If we are given a terminal game state or if depth has run down to zero (or -1 given quiescence search) then evaluate the state.
    This step tests the value of "node"s "depth".
    If the conditions are right to evaluate, then evaluate the state and save it to "node"s "returnValue" field.
    Sets "node"s phase to Parent-Update if the node was evaluated.
@@ -401,17 +625,21 @@ void evaluation_step(unsigned int gsIndex, NegamaxNode* node)
   }
 
 /* HEARTBEAT NEGAMAX
-   Third step: if we did not evaluate in the previous step, then we should expand the next ply.
+   Expand the next ply.
    (Re)load the given "node"s game-state byte array into the Negamax Module's query buffer.
    Copy the query buffer contents to the Evaluation Module's input buffer.
-   Call the Evaluation Module's "getSortedMoves" function with a TRUE boolean: this sorts worst-moves first to suit the negamax stack.
+   Call the Evaluation Module's "getSortedMoves" function: this creates a byte-array of concatenated child-states, moves, and rough scores.
+   Perform additional scoring using the transposition table, killer moves, and history heuristic. Then sort ASCENDING, as suits the STACK MODEL.
    Convert the received data to nodes and append them to the Negamax Module's "negamaxSearchBuffer". */
 void expansion_step(unsigned int gsIndex, NegamaxNode* node)
   {
     unsigned int len;                                               //  Number of moves available for the side to move in this state.
     unsigned int negamaxSearchBufferLength;
-    unsigned char gsBuffer[_GAMESTATE_BYTE_SIZE];
-    unsigned char moveBuffer[_MOVE_BYTE_SIZE];
+    //unsigned char gsBuffer[_GAMESTATE_BYTE_SIZE];
+    //unsigned char moveBuffer[_MOVE_BYTE_SIZE];
+    unsigned char buffer4[4];
+    signed int si4;
+    signed int scores[_MAX_MOVES];                                  //  SEE scores which we will augment using negamax knowledge.
     unsigned int i, j, auxCtr;
     NegamaxNode child;
 
@@ -420,11 +648,23 @@ void expansion_step(unsigned int gsIndex, NegamaxNode* node)
 
     copyQuery2EvalInput();                                          //  Copy "queryGameStateBuffer" to Evaluation Module's "inputBuffer".
 
-                                                                    //  (Ask the Evaluation Module) Generate sorted list of moves in order
-    len = getSortedMoves(true);                                     //  of ASCENDING ADVANTAGE (worst first). This is necessitated by the STACK MODEL.
+    len = getSortedMoves();                                         //  (Ask the Evaluation Module) Generate SEE-scored list of moves.
+                                                                    //  (These are scored, quick-n-cheap, BUT NOT SORTED.)
 
     copyEvalOutput2AuxBuffer(len);                                  //  Copy from Evaluation Module's output buffer to "auxiliaryBuffer".
     negamaxSearchBufferLength = restoreNegamaxSearchBufferLength(); //  Save the current length, before addition of child nodes.
+
+    //  [Transposition-Table move]
+    //  Good captures, promotions, checks
+    //  [Killer moves] (quiet moves that recently caused beta cutoffs at this depth)
+    //  Other quiet moves, ordered by [history heuristic]
+    //  Bad captures (SEE < 0)
+/*
+    When you sort:
+    If given "reverse" is TRUE, then gamestate-move pairs are written in order of ASCENDING ADVANTAGE (worst first).
+    If given "reverse" is FALSE, then gamestate-move pairs are written in order of DESCENDING ADVANTAGE (best first).
+*/
+
 
     auxCtr = 0;                                                     //  Convert each run of (_GAMESTATE_BYTE_SIZE + _MOVE_BYTE_SIZE) bytes in "auxiliaryBuffer"
     for(i = 0; i < len; i++)                                        //  to a NegamaxNode and append them to "negamaxSearchBuffer".
@@ -437,30 +677,41 @@ void expansion_step(unsigned int gsIndex, NegamaxNode* node)
         for(j = 0; j < _MOVE_BYTE_SIZE; j++)                        //  Copy the move the brought parent to child into the child node.
           child.parentMove[j] = auxiliaryBuffer[auxCtr++];
 
+        for(j = 0; j < 4; j++)                                      //  Copy the 4 bytes of the move's SEE score from the global buffer.
+          buffer4[i] = auxiliaryBuffer[auxCtr++];
+        memcpy(&si4, buffer4, 4);                                   //  Force the 4-byte buffer into a signed int.
+        scores[i] = si4;                                            //  Save the rough, SEE score to a local array.
+
+        //  Is this state in the transpo table already? HUGE BUMP! +1'000'000
+        //  Is this state killer move, slot 0? +80'000
+        //  Is this state killer move, slot 1? +70'000
+        //  Is this state in the history table for (side, from, to)? +(that score)
+
+
+
+
         child.bestMove[0] = _NONE;                                  //  Set child's best-move to a blank move.
         child.bestMove[1] = _NONE;
         child.bestMove[2] = 0;
-
         child.childrenCtr = 0;                                      //  Set child's children-counter to zero.
-
         child.depth = node->depth - 1;                              //  Set child's depth to parent's depth - 1.
         child.originalAlpha = -node->beta;                          //  Set child's alpha to negative parent's beta.
         child.alpha = -node->beta;
         child.beta = -node->alpha;                                  //  Set child's beta to negative parent's alpha.
         child.color = -node->color;                                 //  Set child's color to negative parent's color.
-        child.zhash = 0L;
-        child.hIndex = 0;
+        child.zhash = 0L;                                           //
+        child.hIndex = 0;                                           //
         child.phase = _PHASE_TRANSPO_CHECK;                         //  First thing to attempt: a transpo-table lookup.
+        child.flags = 0;                                            //
+        child.value = -std::numeric_limits<float>::infinity();      //
 
-        child.value = -std::numeric_limits<float>::infinity();
-
-        node->childrenCtr++;
+        node->childrenCtr++;                                        //  Increase the expanded node's number of children.
 
         saveNode(&child, negamaxSearchBufferLength++);              //  Write serialized node to head of "negamaxSearchBuffer".
         saveNegamaxSearchBufferLength(negamaxSearchBufferLength);   //  Write number of NegamaxNodes in "negamaxSearchBuffer".
       }
 
-    node->value = -std::numeric_limits<float>::infinity();          //  Initialize the given node's "value" to Negative Infinity.
+    //node->value = -std::numeric_limits<float>::infinity();          //  Initialize the given node's "value" to Negative Infinity.
     node->phase = _PHASE_PARENT_UPDATE;                             //  Set expanded node's phase to Parent-Update for when it again appears at
                                                                     //  the top of the stack.
     saveNode(node, gsIndex);                                        //  Save the newly expanded node.
@@ -657,6 +908,7 @@ void restoreNode(unsigned int index, NegamaxNode* node)
     node->hIndex = ui4;                                             //  Recover node's hIndex from local buffer.
 
     node->phase = buffer[i++];                                      //  Recover node's phase from local buffer.
+    node->flags = buffer[i++];                                      //  Recover node's flags from local buffer.
 
     for(j = 0; j < 4; j++)                                          //  Copy 4 bytes from the local buffer.
       buffer4[j] = buffer[i++];
@@ -731,6 +983,7 @@ void saveNode(NegamaxNode* node, unsigned int index)
       buffer[i++] = buffer4[j];
 
     buffer[i++] = node->phase;                                      //  Copy the node's phase to the buffer.
+    buffer[i++] = node->flags;                                      //  Copy the node's flags to the buffer.
 
     f4 = node->value;                                               //  Copy the node's value to the buffer.
     memcpy(buffer4, (unsigned char*)(&f4), 4);                      //  Force float into 4-byte unsigned char buffer.
@@ -1090,3 +1343,4 @@ unsigned long long hash(unsigned char* hashInputBuffer)
 
     return h;
   }
+

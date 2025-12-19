@@ -90,8 +90,10 @@ unsigned int getPawnMoves(unsigned char, GameState*, Move*);
 unsigned int getPawnAttackable(unsigned char, GameState*, Move*);
 unsigned int getPawnEnPassantAttacks(unsigned char, GameState*, Move*);
 bool isEnPassantAttack(Move*, GameState*);
+bool isCapture(Move*, GameState*);
 unsigned char enPassantVictim(Move*, GameState*);
 bool isPawnDoubleMove(unsigned char, unsigned char, GameState*);
+unsigned char attackersOfSquare(unsigned char, unsigned char, GameState*, Move*);
 
 unsigned int getKnightMoves(unsigned char, GameState*, Move*);
 unsigned int getBishopMoves(unsigned char, GameState*, Move*);
@@ -1160,6 +1162,12 @@ bool isEnPassantAttack(Move* move, GameState* gs)
     return false;
   }
 
+/* Is the given move a capture on the given GameState? */
+bool isCapture(Move* move, GameState* gs)
+  {
+    return !isEmpty(move->to, gs) || bool isEnPassantAttack(move, gs);
+  }
+
 /* If white has captured en passant, then the captured black pawn is below it.
    If black has captured en passant, then the captured white pawn is above it. */
 unsigned char enPassantVictim(Move* move, GameState* gs)
@@ -1171,6 +1179,35 @@ unsigned char enPassantVictim(Move* move, GameState* gs)
 bool isPawnDoubleMove(unsigned char a, unsigned char b, GameState* gs)
   {
     return (isPawn(a, gs) && ((isWhite(a, gs) && row(a) == 1 && row(b) == 3) || (isBlack(a, gs) && row(a) == 6 && row(b) == 4)));
+  }
+
+/* Build an array of indices of all pieces belonging to "team" that can attack "index" on given GameState "gs". */
+unsigned char attackersOfSquare(unsigned char index, unsigned char team, GameState* gs, Move* buffer)
+  {
+    unsigned char len = 0;
+    unsigned char i;
+    unsigned int lenMoves, j;
+    Move moves[_NONE];                                              //  Assumes generous upper bound of 64 moves per piece.
+
+    for(i = 0; i < _NONE; i++)                                      //  Scan every square.
+      {
+        if(getTeam(i, gs) == team)                                  //  If this square contains a piece belonging to "team", proceed.
+          {
+            lenMoves = getMovesIndex(i, gs, moves);                 //  All (LEGAL) moves for this piece.
+            for(j = 0; j < lenMoves; j++)
+              {
+                if(moves[j].to == index)                            //  If the piece at "i" can attack "index", add "i" to the array.
+                  {
+                    buffer[len].from = i;
+                    buffer[len].to = index;
+                    buffer[len].promo = _NO_PROMO;
+                    len++;
+                  }
+              }
+          }
+      }
+
+    return len;
   }
 
 /**************************************************************************************************
@@ -1258,7 +1295,7 @@ unsigned int getBishopMoves(unsigned char index, GameState* gs, Move* buffer)
     else
       flags = "W";
 
-    len = ulSet(index, flags, gs, tmpBuff);                         //  Up-left.
+    len = ulSet(index, flags, gs, tmpBuff);                         //  Up-left
     for(i = 0; i < len; i++)
       {
         buffer[movesCtr].from = index;
@@ -1267,7 +1304,7 @@ unsigned int getBishopMoves(unsigned char index, GameState* gs, Move* buffer)
         movesCtr++;
       }
 
-    len = urSet(index, flags, gs, tmpBuff);                         //  Up-right.
+    len = urSet(index, flags, gs, tmpBuff);                         //  Up-right
     for(i = 0; i < len; i++)
       {
         buffer[movesCtr].from = index;
@@ -1276,7 +1313,7 @@ unsigned int getBishopMoves(unsigned char index, GameState* gs, Move* buffer)
         movesCtr++;
       }
 
-    len = dlSet(index, flags, gs, tmpBuff);                         //  Down-left.
+    len = dlSet(index, flags, gs, tmpBuff);                         //  Down-left
     for(i = 0; i < len; i++)
       {
         buffer[movesCtr].from = index;
@@ -1285,7 +1322,7 @@ unsigned int getBishopMoves(unsigned char index, GameState* gs, Move* buffer)
         movesCtr++;
       }
 
-    len = drSet(index, flags, gs, tmpBuff);                         //  Down-right.
+    len = drSet(index, flags, gs, tmpBuff);                         //  Down-right
     for(i = 0; i < len; i++)
       {
         buffer[movesCtr].from = index;
@@ -1311,7 +1348,7 @@ unsigned int getRookMoves(unsigned char index, GameState* gs, Move* buffer)
     else
       flags = "W";
 
-    len = uSet(index, flags, gs, tmpBuff);                          //  Up.
+    len = uSet(index, flags, gs, tmpBuff);                          //  Up
     for(i = 0; i < len; i++)
       {
         buffer[movesCtr].from = index;
@@ -1320,7 +1357,7 @@ unsigned int getRookMoves(unsigned char index, GameState* gs, Move* buffer)
         movesCtr++;
       }
 
-    len = rSet(index, flags, gs, tmpBuff);                          //  Right.
+    len = rSet(index, flags, gs, tmpBuff);                          //  Right
     for(i = 0; i < len; i++)
       {
         buffer[movesCtr].from = index;
@@ -1329,7 +1366,7 @@ unsigned int getRookMoves(unsigned char index, GameState* gs, Move* buffer)
         movesCtr++;
       }
 
-    len = dSet(index, flags, gs, tmpBuff);                          //  Down.
+    len = dSet(index, flags, gs, tmpBuff);                          //  Down
     for(i = 0; i < len; i++)
       {
         buffer[movesCtr].from = index;
@@ -1338,7 +1375,7 @@ unsigned int getRookMoves(unsigned char index, GameState* gs, Move* buffer)
         movesCtr++;
       }
 
-    len = lSet(index, flags, gs, tmpBuff);                          //  Left.
+    len = lSet(index, flags, gs, tmpBuff);                          //  Left
     for(i = 0; i < len; i++)
       {
         buffer[movesCtr].from = index;
@@ -1364,7 +1401,7 @@ unsigned int getQueenMoves(unsigned char index, GameState* gs, Move* buffer)
     else
       flags = "W";
 
-    len = uSet(index, flags, gs, tmpBuff);                          //  Up.
+    len = uSet(index, flags, gs, tmpBuff);                          //  Up
     for(i = 0; i < len; i++)
       {
         buffer[movesCtr].from = index;
@@ -1373,7 +1410,7 @@ unsigned int getQueenMoves(unsigned char index, GameState* gs, Move* buffer)
         movesCtr++;
       }
 
-    len = urSet(index, flags, gs, tmpBuff);                         //  Up-Right.
+    len = urSet(index, flags, gs, tmpBuff);                         //  Up-Right
     for(i = 0; i < len; i++)
       {
         buffer[movesCtr].from = index;
@@ -1382,7 +1419,7 @@ unsigned int getQueenMoves(unsigned char index, GameState* gs, Move* buffer)
         movesCtr++;
       }
 
-    len = rSet(index, flags, gs, tmpBuff);                          //  Right.
+    len = rSet(index, flags, gs, tmpBuff);                          //  Right
     for(i = 0; i < len; i++)
       {
         buffer[movesCtr].from = index;
@@ -1391,7 +1428,7 @@ unsigned int getQueenMoves(unsigned char index, GameState* gs, Move* buffer)
         movesCtr++;
       }
 
-    len = drSet(index, flags, gs, tmpBuff);                         //  Down-Right.
+    len = drSet(index, flags, gs, tmpBuff);                         //  Down-Right
     for(i = 0; i < len; i++)
       {
         buffer[movesCtr].from = index;
@@ -1400,7 +1437,7 @@ unsigned int getQueenMoves(unsigned char index, GameState* gs, Move* buffer)
         movesCtr++;
       }
 
-    len = dSet(index, flags, gs, tmpBuff);                          //  Down.
+    len = dSet(index, flags, gs, tmpBuff);                          //  Down
     for(i = 0; i < len; i++)
       {
         buffer[movesCtr].from = index;
@@ -1409,7 +1446,7 @@ unsigned int getQueenMoves(unsigned char index, GameState* gs, Move* buffer)
         movesCtr++;
       }
 
-    len = dlSet(index, flags, gs, tmpBuff);                         //  Down-left.
+    len = dlSet(index, flags, gs, tmpBuff);                         //  Down-left
     for(i = 0; i < len; i++)
       {
         buffer[movesCtr].from = index;
@@ -1418,7 +1455,7 @@ unsigned int getQueenMoves(unsigned char index, GameState* gs, Move* buffer)
         movesCtr++;
       }
 
-    len = lSet(index, flags, gs, tmpBuff);                          //  Left.
+    len = lSet(index, flags, gs, tmpBuff);                          //  Left
     for(i = 0; i < len; i++)
       {
         buffer[movesCtr].from = index;
@@ -1427,7 +1464,7 @@ unsigned int getQueenMoves(unsigned char index, GameState* gs, Move* buffer)
         movesCtr++;
       }
 
-    len = ulSet(index, flags, gs, tmpBuff);                         //  Up-left.
+    len = ulSet(index, flags, gs, tmpBuff);                         //  Up-left
     for(i = 0; i < len; i++)
       {
         buffer[movesCtr].from = index;
@@ -1607,24 +1644,24 @@ unsigned int getKingNonCastle(unsigned char index, GameState* gs, Move* buffer)
  End-State Testing  */
 
 /*  Given a board array, return
-     GAME_ONGOING         if the state is not a win for either player.
-     GAME_OVER_WHITE_WINS if the state is a win for White.
-     GAME_OVER_BLACK_WINS if the state is a win for Black.
-     GAME_OVER_STALEMATE  if the state is a stalemate. */
+     GAME_ONGOING         if the state is not a win for either player
+     GAME_OVER_WHITE_WINS if the state is a win for White
+     GAME_OVER_BLACK_WINS if the state is a win for Black
+     GAME_OVER_STALEMATE  if the state is a stalemate */
 unsigned char isWin(GameState* gs)
   {
     Move moves[_NONE];                                              //  Generous upper-bound assumption that every square could be reachable.
     unsigned int len;
     unsigned char i;
     unsigned char kpos = 0;
-    unsigned char wMatNonK = 0, bMatNonK = 0;                       //  Counts of pieces other than Kings.
+    unsigned char wMatNonK = 0, bMatNonK = 0;                       //  Counts of pieces other than Kings
 
     if(gs->moveCtr == 100)                                          //  Twice 50.
       return GAME_OVER_STALEMATE;
 
-    len = getMoves(gs, moves);                                      //  Get moves for side to move.
+    len = getMoves(gs, moves);                                      //  Get moves for side to move
 
-    for(i = 0; i < _NONE; i++)                                      //  Count up all pieces that are not a King.
+    for(i = 0; i < _NONE; i++)                                      //  Count up all pieces that are not a King
       {
         if(!isEmpty(i, gs) && !isKing(i, gs))
           {
@@ -1635,7 +1672,7 @@ unsigned char isWin(GameState* gs)
           }
       }
 
-    if(len == 0)                                                    //  Game is over if side to move cannot move.
+    if(len == 0)                                                    //  Game is over if side to move cannot move
       {
         if(nowToMove(gs) == 'w')
           {
@@ -1661,7 +1698,7 @@ unsigned char isWin(GameState* gs)
             return GAME_OVER_STALEMATE;
           }
       }
-    else if(wMatNonK == 0 && bMatNonK == 0)                         //  Game is over if only Kings remain.
+    else if(wMatNonK == 0 && bMatNonK == 0)                         //  Game is over if only Kings remain
       return GAME_OVER_STALEMATE;
     else if(gs->moveCtr == 50)                                      //  Game is over if moveCtr reaches 50.
       return GAME_OVER_STALEMATE;
@@ -1840,13 +1877,13 @@ bool isBlackQueenside(Move* move, GameState* gs)
            B = stop and include Black (as one would when attacking Black)
    buffer: provided by the parent function, the set built ends up here, with length returned */
 
-/* Build list of upward squares (e.g. 0, 8, 16, 24, ... ). */
+/* Build list of upward squares (e.g. 0, 8, 16, 24, ... ) */
 unsigned char uSet(unsigned char index, char* fstr, GameState* gs, unsigned char* buffer)
   {
     unsigned char len = 0;
     unsigned char dst = u(index);
 
-    bool w = false;                                                 //  Scan flag-string.
+    bool w = false;                                                 //  Scan flag-string
     bool W = false;
     bool b = false;
     bool B = false;
@@ -1877,13 +1914,13 @@ unsigned char uSet(unsigned char index, char* fstr, GameState* gs, unsigned char
           }
         else if(isWhite(dst, gs))
           {
-            if(w)                                                   //  Pass through White.
+            if(w)                                                   //  Pass through White
               {
                 buffer[len] = dst;
                 len++;
                 dst = u(dst);
               }
-            else if(W)                                              //  Stop and include White.
+            else if(W)                                              //  Stop and include White
               {
                 buffer[len] = dst;
                 len++;
@@ -1894,13 +1931,13 @@ unsigned char uSet(unsigned char index, char* fstr, GameState* gs, unsigned char
           }
         else if(isBlack(dst, gs))
           {
-            if(b)                                                   //  Pass through Black.
+            if(b)                                                   //  Pass through Black
               {
                 buffer[len] = dst;
                 len++;
                 dst = u(dst);
               }
-            else if(B)                                              //  Stop and include Black.
+            else if(B)                                              //  Stop and include Black
               {
                 buffer[len] = dst;
                 len++;
@@ -1914,13 +1951,13 @@ unsigned char uSet(unsigned char index, char* fstr, GameState* gs, unsigned char
     return len;
   }
 
-/* Build list of downward squares (e.g. 56, 48, 40, 32, ... ). */
+/* Build list of downward squares (e.g. 56, 48, 40, 32, ... ) */
 unsigned char dSet(unsigned char index, char* fstr, GameState* gs, unsigned char* buffer)
   {
     unsigned char len = 0;
     unsigned char dst = d(index);
 
-    bool w = false;                                                 //  Scan flag-string.
+    bool w = false;                                                 //  Scan flag-string
     bool W = false;
     bool b = false;
     bool B = false;
@@ -1951,13 +1988,13 @@ unsigned char dSet(unsigned char index, char* fstr, GameState* gs, unsigned char
           }
         else if(isWhite(dst, gs))
           {
-            if(w)                                                   //  Pass through White.
+            if(w)                                                   //  Pass through White
               {
                 buffer[len] = dst;
                 len++;
                 dst = d(dst);
               }
-            else if(W)                                              //  Stop and include White.
+            else if(W)                                              //  Stop and include White
               {
                 buffer[len] = dst;
                 len++;
@@ -1968,13 +2005,13 @@ unsigned char dSet(unsigned char index, char* fstr, GameState* gs, unsigned char
           }
         else if(isBlack(dst, gs))
           {
-            if(b)                                                   //  Pass through Black.
+            if(b)                                                   //  Pass through Black
               {
                 buffer[len] = dst;
                 len++;
                 dst = d(dst);
               }
-            else if(B)                                              //  Stop and include Black.
+            else if(B)                                              //  Stop and include Black
               {
                 buffer[len] = dst;
                 len++;
@@ -1988,13 +2025,13 @@ unsigned char dSet(unsigned char index, char* fstr, GameState* gs, unsigned char
     return len;
   }
 
-/* Build list of leftward squares (e.g. 39, 38, 37, 36, ... ). */
+/* Build list of leftward squares (e.g. 39, 38, 37, 36, ... ) */
 unsigned char lSet(unsigned char index, char* fstr, GameState* gs, unsigned char* buffer)
   {
     unsigned char len = 0;
     unsigned char dst = l(index);
 
-    bool w = false;                                                 //  Scan flag-string.
+    bool w = false;                                                 //  Scan flag-string
     bool W = false;
     bool b = false;
     bool B = false;
@@ -2025,13 +2062,13 @@ unsigned char lSet(unsigned char index, char* fstr, GameState* gs, unsigned char
           }
         else if(isWhite(dst, gs))
           {
-            if(w)                                                   //  Pass through White.
+            if(w)                                                   //  Pass through White
               {
                 buffer[len] = dst;
                 len++;
                 dst = l(dst);
               }
-            else if(W)                                              //  Stop and include White.
+            else if(W)                                              //  Stop and include White
               {
                 buffer[len] = dst;
                 len++;
@@ -2042,13 +2079,13 @@ unsigned char lSet(unsigned char index, char* fstr, GameState* gs, unsigned char
           }
         else if(isBlack(dst, gs))
           {
-            if(b)                                                   //  Pass through Black.
+            if(b)                                                   //  Pass through Black
               {
                 buffer[len] = dst;
                 len++;
                 dst = l(dst);
               }
-            else if(B)                                              //  Stop and include Black.
+            else if(B)                                              //  Stop and include Black
               {
                 buffer[len] = dst;
                 len++;
@@ -2062,13 +2099,13 @@ unsigned char lSet(unsigned char index, char* fstr, GameState* gs, unsigned char
     return len;
   }
 
-/* Build list of rightward squares (e.g. 32, 33, 34, 35, ... ). */
+/* Build list of rightward squares (e.g. 32, 33, 34, 35, ... ) */
 unsigned char rSet(unsigned char index, char* fstr, GameState* gs, unsigned char* buffer)
   {
     unsigned char len = 0;
     unsigned char dst = r(index);
 
-    bool w = false;                                                 //  Scan flag-string.
+    bool w = false;                                                 //  Scan flag-string
     bool W = false;
     bool b = false;
     bool B = false;
@@ -2099,13 +2136,13 @@ unsigned char rSet(unsigned char index, char* fstr, GameState* gs, unsigned char
           }
         else if(isWhite(dst, gs))
           {
-            if(w)                                                   //  Pass through White.
+            if(w)                                                   //  Pass through White
               {
                 buffer[len] = dst;
                 len++;
                 dst = r(dst);
               }
-            else if(W)                                              //  Stop and include White.
+            else if(W)                                              //  Stop and include White
               {
                 buffer[len] = dst;
                 len++;
@@ -2116,13 +2153,13 @@ unsigned char rSet(unsigned char index, char* fstr, GameState* gs, unsigned char
           }
         else if(isBlack(dst, gs))
           {
-            if(b)                                                   //  Pass through Black.
+            if(b)                                                   //  Pass through Black
               {
                 buffer[len] = dst;
                 len++;
                 dst = r(dst);
               }
-            else if(B)                                              //  Stop and include Black.
+            else if(B)                                              //  Stop and include Black
               {
                 buffer[len] = dst;
                 len++;
@@ -2136,13 +2173,13 @@ unsigned char rSet(unsigned char index, char* fstr, GameState* gs, unsigned char
     return len;
   }
 
-/* Build list of up-leftward squares (e.g. 7, 14, 21, 28, ... ). */
+/* Build list of up-leftward squares (e.g. 7, 14, 21, 28, ... ) */
 unsigned char ulSet(unsigned char index, char* fstr, GameState* gs, unsigned char* buffer)
   {
     unsigned char len = 0;
     unsigned char dst = ul(index);
 
-    bool w = false;                                                 //  Scan flag-string.
+    bool w = false;                                                 //  Scan flag-string
     bool W = false;
     bool b = false;
     bool B = false;
@@ -2173,13 +2210,13 @@ unsigned char ulSet(unsigned char index, char* fstr, GameState* gs, unsigned cha
           }
         else if(isWhite(dst, gs))
           {
-            if(w)                                                   //  Pass through White.
+            if(w)                                                   //  Pass through White
               {
                 buffer[len] = dst;
                 len++;
                 dst = ul(dst);
               }
-            else if(W)                                              //  Stop and include White.
+            else if(W)                                              //  Stop and include White
               {
                 buffer[len] = dst;
                 len++;
@@ -2190,13 +2227,13 @@ unsigned char ulSet(unsigned char index, char* fstr, GameState* gs, unsigned cha
           }
         else if(isBlack(dst, gs))
           {
-            if(b)                                                   //  Pass through Black.
+            if(b)                                                   //  Pass through Black
               {
                 buffer[len] = dst;
                 len++;
                 dst = ul(dst);
               }
-            else if(B)                                              //  Stop and include Black.
+            else if(B)                                              //  Stop and include Black
               {
                 buffer[len] = dst;
                 len++;
@@ -2210,13 +2247,13 @@ unsigned char ulSet(unsigned char index, char* fstr, GameState* gs, unsigned cha
     return len;
   }
 
-/* Build list of up-rightward squares (e.g. 0, 9, 18, 27, ... ). */
+/* Build list of up-rightward squares (e.g. 0, 9, 18, 27, ... ) */
 unsigned char urSet(unsigned char index, char* fstr, GameState* gs, unsigned char* buffer)
   {
     unsigned char len = 0;
     unsigned char dst = ur(index);
 
-    bool w = false;                                                 //  Scan flag-string.
+    bool w = false;                                                 //  Scan flag-string
     bool W = false;
     bool b = false;
     bool B = false;
@@ -2247,13 +2284,13 @@ unsigned char urSet(unsigned char index, char* fstr, GameState* gs, unsigned cha
           }
         else if(isWhite(dst, gs))
           {
-            if(w)                                                   //  Pass through White.
+            if(w)                                                   //  Pass through White
               {
                 buffer[len] = dst;
                 len++;
                 dst = ur(dst);
               }
-            else if(W)                                              //  Stop and include White.
+            else if(W)                                              //  Stop and include White
               {
                 buffer[len] = dst;
                 len++;
@@ -2264,13 +2301,13 @@ unsigned char urSet(unsigned char index, char* fstr, GameState* gs, unsigned cha
           }
         else if(isBlack(dst, gs))
           {
-            if(b)                                                   //  Pass through Black.
+            if(b)                                                   //  Pass through Black
               {
                 buffer[len] = dst;
                 len++;
                 dst = ur(dst);
               }
-            else if(B)                                              //  Stop and include Black.
+            else if(B)                                              //  Stop and include Black
               {
                 buffer[len] = dst;
                 len++;
@@ -2284,13 +2321,13 @@ unsigned char urSet(unsigned char index, char* fstr, GameState* gs, unsigned cha
     return len;
   }
 
-/* Build list of down-rightward squares (e.g. 56, 49, 42, 35, ... ). */
+/* Build list of down-rightward squares (e.g. 56, 49, 42, 35, ... ) */
 unsigned char drSet(unsigned char index, char* fstr, GameState* gs, unsigned char* buffer)
   {
     unsigned char len = 0;
     unsigned char dst = dr(index);
 
-    bool w = false;                                                 //  Scan flag-string.
+    bool w = false;                                                 //  Scan flag-string
     bool W = false;
     bool b = false;
     bool B = false;
@@ -2321,13 +2358,13 @@ unsigned char drSet(unsigned char index, char* fstr, GameState* gs, unsigned cha
           }
         else if(isWhite(dst, gs))
           {
-            if(w)                                                   //  Pass through White.
+            if(w)                                                   //  Pass through White
               {
                 buffer[len] = dst;
                 len++;
                 dst = dr(dst);
               }
-            else if(W)                                              //  Stop and include White.
+            else if(W)                                              //  Stop and include White
               {
                 buffer[len] = dst;
                 len++;
@@ -2338,13 +2375,13 @@ unsigned char drSet(unsigned char index, char* fstr, GameState* gs, unsigned cha
           }
         else if(isBlack(dst, gs))
           {
-            if(b)                                                   //  Pass through Black.
+            if(b)                                                   //  Pass through Black
               {
                 buffer[len] = dst;
                 len++;
                 dst = dr(dst);
               }
-            else if(B)                                              //  Stop and include Black.
+            else if(B)                                              //  Stop and include Black
               {
                 buffer[len] = dst;
                 len++;
@@ -2358,13 +2395,13 @@ unsigned char drSet(unsigned char index, char* fstr, GameState* gs, unsigned cha
     return len;
   }
 
-/* Build list of down-leftward squares (e.g. 63, 54, 45, 36, ... ). */
+/* Build list of down-leftward squares (e.g. 63, 54, 45, 36, ... ) */
 unsigned char dlSet(unsigned char index, char* fstr, GameState* gs, unsigned char* buffer)
   {
     unsigned char len = 0;
     unsigned char dst = dl(index);
 
-    bool w = false;                                                 //  Scan flag-string.
+    bool w = false;                                                 //  Scan flag-string
     bool W = false;
     bool b = false;
     bool B = false;
@@ -2395,13 +2432,13 @@ unsigned char dlSet(unsigned char index, char* fstr, GameState* gs, unsigned cha
           }
         else if(isWhite(dst, gs))
           {
-            if(w)                                                   //  Pass through White.
+            if(w)                                                   //  Pass through White
               {
                 buffer[len] = dst;
                 len++;
                 dst = dl(dst);
               }
-            else if(W)                                              //  Stop and include White.
+            else if(W)                                              //  Stop and include White
               {
                 buffer[len] = dst;
                 len++;
@@ -2412,13 +2449,13 @@ unsigned char dlSet(unsigned char index, char* fstr, GameState* gs, unsigned cha
           }
         else if(isBlack(dst, gs))
           {
-            if(b)                                                   //  Pass through Black.
+            if(b)                                                   //  Pass through Black
               {
                 buffer[len] = dst;
                 len++;
                 dst = dl(dst);
               }
-            else if(B)                                              //  Stop and include Black.
+            else if(B)                                              //  Stop and include Black
               {
                 buffer[len] = dst;
                 len++;
@@ -2435,7 +2472,7 @@ unsigned char dlSet(unsigned char index, char* fstr, GameState* gs, unsigned cha
 /**************************************************************************************************
  Board logic  */
 
-/*  Return the index UP from the given i. */
+/*  Return the index UP from the given i */
 unsigned char u(unsigned char i)
   {
     if(i < _NONE)
@@ -2446,7 +2483,7 @@ unsigned char u(unsigned char i)
     return _NONE;
   }
 
-/*  Return the index DOWN from the given i. */
+/*  Return the index DOWN from the given i */
 unsigned char d(unsigned char i)
   {
     if(i < _NONE)
@@ -2457,7 +2494,7 @@ unsigned char d(unsigned char i)
     return _NONE;
   }
 
-/*  Return the index LEFT from the given i. */
+/*  Return the index LEFT from the given i */
 unsigned char l(unsigned char i)
   {
     if(i < _NONE)
@@ -2468,7 +2505,7 @@ unsigned char l(unsigned char i)
     return _NONE;
   }
 
-/*  Return the index RIGHT from the given i. */
+/*  Return the index RIGHT from the given i */
 unsigned char r(unsigned char i)
   {
     if(i < _NONE)
@@ -2479,7 +2516,7 @@ unsigned char r(unsigned char i)
     return _NONE;
   }
 
-/*  Return the index UP-LEFT from the given i. */
+/*  Return the index UP-LEFT from the given i */
 unsigned char ul(unsigned char i)
   {
     if(i < _NONE)
@@ -2490,7 +2527,7 @@ unsigned char ul(unsigned char i)
     return _NONE;
   }
 
-/*  Return the index UP-RIGHT from the given i. */
+/*  Return the index UP-RIGHT from the given i */
 unsigned char ur(unsigned char i)
   {
     if(i < _NONE)
@@ -2501,7 +2538,7 @@ unsigned char ur(unsigned char i)
     return _NONE;
   }
 
-/*  Return the index DOWN-LEFT from the given i. */
+/*  Return the index DOWN-LEFT from the given i */
 unsigned char dl(unsigned char i)
   {
     if(i < _NONE)
@@ -2512,7 +2549,7 @@ unsigned char dl(unsigned char i)
     return _NONE;
   }
 
-/*  Return the index DOWN-RIGHT from the given i. */
+/*  Return the index DOWN-RIGHT from the given i */
 unsigned char dr(unsigned char i)
   {
     if(i < _NONE)
@@ -2523,19 +2560,19 @@ unsigned char dr(unsigned char i)
     return _NONE;
   }
 
-/*  Compute the COLUMN in which given index is included. */
+/*  Compute the COLUMN in which given index is included */
 unsigned char col(unsigned char i)
   {
     if(i < _NONE)
-      return i & 7;                                                 //  i & 7 == i % 8 because 8 is a power of 2.
+      return i & 7;                                                 //  i & 7 == i % 8 because 8 is a power of 2
     return _NONE;
   }
 
-/*  Compute the ROW in which given index is included. */
+/*  Compute the ROW in which given index is included */
 unsigned char row(unsigned char i)
   {
     if(i < _NONE)
-      return (i - (i & 7)) / 8;                                     //  i & 7 == i % 8 because 8 is a power of 2.
+      return (i - (i & 7)) / 8;                                     //  i & 7 == i % 8 because 8 is a power of 2
     return _NONE;
   }
 

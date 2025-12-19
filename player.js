@@ -34,6 +34,12 @@ class Player
         this.negamaxAuxiliaryOffset = null;                         //  (Offset into Module memory.)
         this.negamaxAuxiliaryBuffer = null;                         //  ByteArray: Receiving buffer for node expansion.
 
+        this.negamaxKillerMovesOffset = null;                       //  (Offset into Module memory.)
+        this.negamaxKillerMovesBuffer = null;                       //  ByteArray representation of the killer-moves table.
+
+        this.negamaxHistoryHeuristicOffset = null;                  //  (Offset into Module memory.)
+        this.negamaxHistoryHeuristicBuffer = null;                  //  ByteArray representation of the history-heuristic table.
+
         this.negamaxOutputOffset = null;                            //  (Offset into Module memory.)
         this.negamaxOutputBuffer = null;                            //  ByteArray: Output buffer for tree search. Decode an answer from here.
                                                                     //             When negamax answers Player.
@@ -84,8 +90,8 @@ class Player
                         env: {
                                memoryBase: 0,
                                tableBase: 0,
-                                                                    //  Compiled with -s INITIAL_MEMORY=16056320 = 245 pages.
-                               memory: new WebAssembly.Memory({initial: 245}),
+                                                                    //  Compiled with -s INITIAL_MEMORY=16121856 = 246 pages.
+                               memory: new WebAssembly.Memory({initial: 246}),
                                table: new WebAssembly.Table({initial: 1, element: 'anyfunc'}),
                                _copyQuery2EvalInput: function()
                                  {
@@ -97,7 +103,7 @@ class Player
                                _copyEvalOutput2AuxBuffer: function(len)
                                  {
                                    var i;                           //  Copy evaluationEngine's output buffer contents to negamaxEngine's tree-search buffer at index.
-                                   const size = _GAMESTATE_BYTE_SIZE + _MOVE_BYTE_SIZE;
+                                   const size = _GAMESTATE_BYTE_SIZE + _MOVE_BYTE_SIZE + 4;
                                    for(i = 0; i < len * size; i++)
                                      this.negamaxAuxiliaryBuffer[i] = this.evaluationOutputBuffer[4 + i];
                                    return;
@@ -109,6 +115,18 @@ class Player
                                _isQuiet: function()
                                  {
                                    return this.evaluationEngine.instance.exports.isQuiet();
+                                 }.bind(this),
+                               _isSideToMoveInCheck: function()
+                                 {
+                                   return this.evaluationEngine.instance.exports.isSideToMoveInCheck();
+                                 }.bind(this),
+                               _nonPawnMaterial: function()
+                                 {
+                                   return this.evaluationEngine.instance.exports.nonPawnMaterial();
+                                 }.bind(this),
+                               _makeNullMove: function()
+                                 {
+                                   return this.evaluationEngine.instance.exports.makeNullMove();
                                  }.bind(this),
                                _evaluate: function()
                                  {
@@ -157,6 +175,14 @@ class Player
                                                                     //  This is a receiving buffer, temporarily holding output from the evaluation module before converting these data to negamax nodes.
                         this.negamaxAuxiliaryOffset = this.negamaxEngine.instance.exports.getAuxiliaryBuffer();
                         this.negamaxAuxiliaryBuffer = new Uint8Array(this.negamaxEngine.instance.exports.memory.buffer, this.negamaxAuxiliaryOffset, _MAX_MOVES * (_GAMESTATE_BYTE_SIZE + _MOVE_BYTE_SIZE));
+                                                                    //  Assign offset to auxiliary buffer.
+                                                                    //
+                        this.negamaxKillerMovesOffset = this.negamaxEngine.instance.exports.getKillerMovesBuffer();
+                        this.negamaxKillerMovesBuffer = new Uint8Array(this.negamaxEngine.instance.exports.memory.buffer, this.negamaxKillerMovesOffset, _KILLER_MOVE_PER_PLY * _MOVE_BYTE_SIZE * _KILLER_MOVE_MAX_DEPTH);
+                                                                    //  Assign offset to auxiliary buffer.
+                                                                    //
+                        this.negamaxHistoryHeuristicOffset = this.negamaxEngine.instance.exports.getHistoryBuffer();
+                        this.negamaxHistoryHeuristicBuffer = new Uint8Array(this.negamaxEngine.instance.exports.memory.buffer, this.negamaxHistoryHeuristicOffset, 2 * _NOTHING * _NOTHING);
                                                                     //  Assign offset to Zobrist hash buffer.
                                                                     //  This receives 8 * _ZHASH_TABLE_SIZE bytes. Sections of 8 bytes treated as unsigned long longs.
                         this.ZobristHashOffset = this.negamaxEngine.instance.exports.getZobristHashBuffer();
@@ -274,6 +300,7 @@ class Player
               this.negamaxInputBuffer[i] = this.branches[ this.branchIterator ].gamestate[i];
 
             //  Next, attempt to look up this game state in the server-side opening book.
+            /*
             if()
               {
                 console.log('Retrieved lookup for '+this.branchIterator);
@@ -283,6 +310,7 @@ class Player
                 this.negamaxEngine.instance.exports.initSearch( this.ply );
                 console.log('Loaded '+this.branchIterator+' for search @ '+this.ply);
               }
+            */
           }
 
         return;

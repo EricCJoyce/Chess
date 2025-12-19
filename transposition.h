@@ -1,7 +1,7 @@
 #ifndef __TRANSPOSITION_H
 #define __TRANSPOSITION_H
 
-#include <unordered_map>                                            /* Data structure for the transposition table. */
+//#include <unordered_map>                                            /* Data structure for the transposition table. */
 
 #include <stdlib.h>
 #include <string.h>                                                 /* Needed for memcpy(). */
@@ -14,9 +14,10 @@
 #define _TRANSPO_TABLE_SIZE       65536                             /* Number of TranspoRecords, each 91 bytes. */
 #define _TRANSPO_AGE_THRESHOLD       40                             /* Every time the transposition table is serialized, increment every entry's "age",
                                                                        and shed entries older than this threshold. */
-#define NODE_TYPE_PV                  0                             /* Score is exact. */
-#define NODE_TYPE_ALL                 1                             /* Score is an upper bound. */
-#define NODE_TYPE_CUT                 2                             /* Score is a lower bound. */
+#define NODE_TYPE_NONE                0                             /* No entry. */
+#define NODE_TYPE_PV                  1                             /* Score is exact. */
+#define NODE_TYPE_ALL                 2                             /* Score is an upper bound. */
+#define NODE_TYPE_CUT                 3                             /* Score is a lower bound. */
 
 /**************************************************************************************************
  Typedefs  */
@@ -27,7 +28,7 @@ typedef struct TranspoRecordType
     unsigned char bestMove[_MOVE_BYTE_SIZE];                        //  Move as byte array (3 bytes).
     unsigned char depth;                                            //  The depth FROM WHICH evaluation of this node is ratified (1 byte).
     float score;                                                    //  32 bits are plenty (4 bytes).
-    unsigned char type;                                             //  In {NODE_TYPE_PV, NODE_TYPE_ALL, NODE_TYPE_CUT} as
+    unsigned char type;                                             //  In {NODE_TYPE_NONE, NODE_TYPE_PV, NODE_TYPE_ALL, NODE_TYPE_CUT} as
                                                                     //  score is exact, an upper bound, or lower bound, respectively (1 byte).
     unsigned char age;                                              //  Used to determine when a record should be removed (1 byte).
                                                                     //  If age == 0, then this entry is free to be overwritten.
