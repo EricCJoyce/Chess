@@ -51,7 +51,7 @@ For Chess:
 | _NEGAMAX_NODE_BYTE_SIZE | 130 | Number of bytes needed to encode a negamax node |
 | ZHASH_TABLE_SIZE | 751 | Number of Zobrist keys |
 
-The evaluation engine has *four* outward-facing buffers:
+The **evaluation engine** has *four* outward-facing buffers:
 - `inputGameStateBuffer` is `_GAMESTATE_BYTE_SIZE` bytes long. The negamax module writes bytes here and can then ask the evaluation module things like, "What moves are available from this state?"
 - `inputMoveBuffer` is `_MOVE_BYTE_SIZE` bytes long. The negamax module writes bytes here and writes game-state bytes to `inputGameStateBuffer` and can then ask, "What game state results from making this move from this state?"
 - `outputGameStateBuffer` is `_GAMESTATE_BYTE_SIZE` bytes long and encodes a chess state after an operation. The negamax module reads these bytes from the evaluation module.
@@ -59,8 +59,32 @@ The evaluation engine has *four* outward-facing buffers:
 
 Compile the evaluation engine:
 ```
-sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c emcc -Os -s STANDALONE_WASM -s EXPORTED_FUNCTIONS="['_getInputBuffer','_getOutputBuffer','_isQuiet','_isTerminal','_isSideToMoveInCheck','_nonPawnMaterial','_makeNullMove','_evaluate','_getSortedMoves']" -Wl,--no-entry "philadelphia.c" -o "eval.wasm"
+sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c emcc -Os -s STANDALONE_WASM -s EXPORTED_FUNCTIONS="['_getInputGameStateBuffer','_getInputMoveBuffer','_getOutputGameStateBuffer','_getOutputMovesBuffer','_isQuiet','_isTerminal','_isSideToMoveInCheck','_nonPawnMaterial','_makeMove','_makeNullMove','_evaluate','_getMoves']" -Wl,--no-entry "philadelphia.c" -o "eval.wasm"
 ```
+This produces a `.wasm` with functions you can load into the JavaScript Player calss and call like this:
+- `this.evaluationEngine.instance.exports.getInputGameStateBuffer();` returns the address of the evaluation module's input-gamestate buffer.
+- `this.evaluationEngine.instance.exports.getInputMoveBuffer();` returns the address of the evaluation module's input-move buffer.
+- `this.evaluationEngine.instance.exports.getOutputGameStateBuffer();` returns the address of the evaluation module's output-gamestate buffer.
+- `this.evaluationEngine.instance.exports.getOutputMovesBuffer();` returns the address of the evaluation module's output-moves buffer.
+- `this.evaluationEngine.instance.exports.isQuiet();` returns a Boolean value, according to the game state bytes previously written to the evaluation module's input-gamestate buffer.
+- `this.evaluationEngine.instance.exports.isTerminal();` returns a Boolean value, according to the game state bytes previously written to the evaluation module's input-gamestate buffer.
+- `this.evaluationEngine.instance.exports.isSideToMoveInCheck();` returns a Boolean value, according to the game state bytes previously written to the evaluation module's input-gamestate buffer.
+- `this.evaluationEngine.instance.exports.nonPawnMaterial();` returns an unsigned integer value, according to the game state bytes previously written to the evaluation module's input-gamestate buffer. This function is used by the negamax module to test whether there is enough material to try null-move pruning.
+- `this.evaluationEngine.instance.exports.makeMove();` .
+- `this.evaluationEngine.instance.exports.makeNullMove();` .
+- `this.evaluationEngine.instance.exports.evaluate(bool);` .
+- `this.evaluationEngine.instance.exports.getMoves();` .
+
+The **negamax engine** has *nine* outward-facing buffers:
+- `inputGameStateBuffer`
+- `queryGameStateBuffer`
+- `outputBuffer`
+- `zobristHashBuffer`
+- `transpositionTableBuffer`
+- `negamaxSearchBuffer`
+- `auxiliaryBuffer`
+- `killerMovesTableBuffer`
+- `historyTableBuffer`
 
 Compile the negamax engine:
 ```
