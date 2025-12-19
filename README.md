@@ -100,15 +100,16 @@ This produces a `.wasm` with functions you can load into the JavaScript Player c
 - `this.evaluationEngine.instance.exports.evaluate(bool);` .
 - `this.evaluationEngine.instance.exports.getMoves();` .
 
-The **negamax engine** has *tne* outward-facing buffers:
+The **negamax engine** has *eleven* outward-facing buffers:
 - `inputGameStateBuffer`
 - `outputBuffer`
 - `queryGameStateBuffer`
 - `queryMoveBuffer`
+- `answerGameStateBuffer`
+- `answerMovesBuffer`
 - `zobristHashBuffer`
 - `transpositionTableBuffer`
 - `negamaxSearchBuffer`
-- `auxiliaryBuffer`
 - `killerMovesTableBuffer`
 - `historyTableBuffer`
 
@@ -116,6 +117,8 @@ Compile the negamax engine:
 ```
 sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c em++ -I ./ -Os -s STANDALONE_WASM -s INITIAL_MEMORY=16121856 -s STACK_SIZE=1048576 -s EXPORTED_FUNCTIONS="['_getInputBuffer','_getQueryBuffer','_getOutputBuffer','_getZobristHashBuffer','_getTranspositionTableBuffer','_getNegamaxSearchBuffer','_getAuxiliaryBuffer','_getKillerMovesBuffer','_getHistoryBuffer','_initSearch','_negamax']" -Wl,--no-entry "negamax.cpp" -o "negamax.wasm"
 ```
+This produces a `.wasm` with functions you can load into the JavaScript Player class and call like this:
+- `this.negamaxEngine.instance.exports.getInputBuffer();` returns the address of the negamax module's input-gamestate buffer.
 
 ## Citation
 If this code was helpful to you, please cite this repository.
