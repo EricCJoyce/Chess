@@ -55,7 +55,7 @@ sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,sourc
 
 typedef struct NegamaxNodeType                                      //  TOTAL: 130 = _NEGAMAX_NODE_BYTE_SIZE bytes.
   {
-    unsigned char gs[_GAMESTATE_BYTE_SIZE];                         //  (81 bytes) The given gamestate as a byte array.
+    //unsigned char gs[_GAMESTATE_BYTE_SIZE];                         //  (81 bytes) The given gamestate as a byte array.
     unsigned int parent;                                            //  (4 bytes) Index into "negamaxSearchBuffer" of this node's parent.
     unsigned char parentMove[_MOVE_BYTE_SIZE];                      //  (3 bytes) Describe the move that led from "parent" to this node.
     unsigned char bestMove[_MOVE_BYTE_SIZE];                        //  (3 bytes) Best move found so far from this node.
@@ -87,12 +87,20 @@ typedef struct NegamaxNodeType                                      //  TOTAL: 1
      This gives you linguistic independence: leave tree-search to C++. */
                                                                     //  Bridge between WebAssembly Modules:
                                                                     //  Prepare to query the Evaluation Engine by copying the Negamax Engine's
-                                                                    //  query-buffer contents into the Evaluation Engine's input buffer.
-__attribute__((import_module("env"), import_name("_copyQuery2EvalInput"))) void copyQuery2EvalInput();
+                                                                    //  query-gamestate-buffer contents into the Evaluation Engine's input-gamestate buffer.
+__attribute__((import_module("env"), import_name("_copyQuery2EvalGSInput"))) void copyQuery2EvalGSInput();
                                                                     //  Bridge between WebAssembly Modules:
-                                                                    //  Copy the Evaluation Engine's output from getSortedMoves()
-                                                                    //  to the Negamax Engine's auxiliary buffer.
-__attribute__((import_module("env"), import_name("_copyEvalOutput2AuxBuffer"))) void copyEvalOutput2AuxBuffer(unsigned int);
+                                                                    //  Prepare to query the Evaluation Engine by copying the Negamax Engine's
+                                                                    //  query-move-buffer contents into the Evaluation Engine's input-move buffer.
+__attribute__((import_module("env"), import_name("_copyQuery2EvalMoveInput"))) void copyQuery2EvalMoveInput();
+                                                                    //  Bridge between WebAssembly Modules:
+                                                                    //  Copy the Evaluation Engine's output-gamestate
+                                                                    //  to the Negamax Engine's answer-gamestate buffer.
+__attribute__((import_module("env"), import_name("_copyEvalOutput2AnswerGSBuffer"))) void copyEvalOutput2AnswerGSBuffer();
+                                                                    //  Bridge between WebAssembly Modules:
+                                                                    //  Copy the Evaluation Engine's output-moves
+                                                                    //  to the Negamax Engine's answer-moves buffer.
+__attribute__((import_module("env"), import_name("_copyEvalOutput2AnswerMovesBuffer"))) void copyEvalOutput2AnswerMovesBuffer();
                                                                     //  Bridge between WebAssembly Modules:
                                                                     //  Query the Evaluation Engine.
                                                                     //  Is the GameState encoded in Evaluation Engine's input buffer quiet?
@@ -111,7 +119,12 @@ __attribute__((import_module("env"), import_name("_isSideToMoveInCheck"))) bool 
 __attribute__((import_module("env"), import_name("_nonPawnMaterial"))) unsigned char nonPawnMaterial();
                                                                     //  Bridge between WebAssembly Modules:
                                                                     //  Query the Evaluation Engine.
-                                                                    //  Make Evaluation Engine write the (child-state, move) bytes resulting from a null move
+                                                                    //  Make Evaluation Engine write the child-state bytes resulting from the given move
+                                                                    //  to the Evaluation Engine's output buffer.
+__attribute__((import_module("env"), import_name("_makeMove"))) void makeMove();
+                                                                    //  Bridge between WebAssembly Modules:
+                                                                    //  Query the Evaluation Engine.
+                                                                    //  Make Evaluation Engine write the child-state, bytes resulting from a null move
                                                                     //  to the Evaluation Engine's output buffer.
 __attribute__((import_module("env"), import_name("_makeNullMove"))) void makeNullMove();
                                                                     //  Bridge between WebAssembly Modules:
@@ -122,21 +135,23 @@ __attribute__((import_module("env"), import_name("_evaluate"))) float evaluate()
                                                                     //  Query the Evaluation Engine.
                                                                     //  Make Evaluation Engine write a sorted list of (child-state, move) tuples
                                                                     //  to the Evaluation Engine's output buffer.
-__attribute__((import_module("env"), import_name("_getSortedMoves"))) unsigned int getSortedMoves(bool);
+__attribute__((import_module("env"), import_name("_getMoves"))) unsigned int getMoves();
                                                                     //  Add a count to the running total of nodes searched.
 __attribute__((import_module("env"), import_name("_incrementNodeCtr"))) void incrementNodeCtr(unsigned int);
 
 extern "C"
   {
     unsigned char* getInputBuffer(void);
-    unsigned char* getQueryBuffer(void);
     unsigned char* getOutputBuffer(void);
+    unsigned char* getQueryGameStateBuffer(void);
+    unsigned char* getQueryMoveBuffer(void);
+    unsigned char* getAnswerGameStateBuffer(void);
+    unsigned char* getAnswerMovesBuffer(void);
     unsigned char* getZobristHashBuffer(void);
     unsigned char* getTranspositionTableBuffer(void);
     unsigned char* getNegamaxSearchBuffer(void);
-    unsigned char* getAuxiliaryBuffer(void);
-    unsigned char* getKillerMovesBuffer(void);
-    unsigned char* getHistoryBuffer(void);
+    unsigned char* getKillerMovesTableBuffer(void);
+    unsigned char* getHistoryTableBuffer(void);
     void initSearch(unsigned char);
     bool negamax(void);
   }
@@ -159,34 +174,50 @@ unsigned long long hash(unsigned char*);
                                                                     //  Global array containing the serialized game state:
 unsigned char inputGameStateBuffer[_GAMESTATE_BYTE_SIZE];           //  Input from Player.js to its negamaxEngine.
 
+                                                                    //  89 bytes.
+                                                                    //  Global array containing: {serialized game state,
+                                                                    //                            1-byte uchar,
+                                                                    //                            serialized move,
+                                                                    //                            4-byte float}:
+                                                                    //  Output from negamaxEngine to Player.js.
+unsigned char outputBuffer[_GAMESTATE_BYTE_SIZE + 1 + _MOVE_BYTE_SIZE + 4];
+
                                                                     //  81 bytes.
-                                                                    //  Global array containing the serialized game state:
+                                                                    //  Global array containing the serialized (query) game state:
 unsigned char queryGameStateBuffer[_GAMESTATE_BYTE_SIZE];           //  Input from negamaxEngine to evaluationEngine.
 
-                                                                    //  85 bytes.
-                                                                    //  Global array containing: {serialized game state, 1-byte uchar, serialized move}:
-                                                                    //  Output from negamaxEngine to Player.js.
-unsigned char outputBuffer[_GAMESTATE_BYTE_SIZE + 1 + _MOVE_BYTE_SIZE];
+                                                                    //  3 bytes.
+                                                                    //  Global array containing the serialized (query) move:
+unsigned char queryMoveBuffer[_MOVE_BYTE_SIZE];                     //  Input from negamaxEngine to evaluationEngine.
+
+                                                                    //  81 bytes.
+                                                                    //  Global array containing a serialized (answer) game state:
+unsigned char answerGameStateBuffer[_GAMESTATE_BYTE_SIZE];          //  Output from evaluationEngine to negamaxEngine.
+
+                                                                    //  452 bytes.
+                                                                    //  Global array containing: {4-byte unsigned int,
+                                                                    //                            serialized (answer-move, rough score)}:
+                                                                    //  Output from evaluationEngine to negamaxEngine.
+unsigned char answerMovesBuffer[4 + _MAX_MOVES * (_MOVE_BYTE_SIZE + 4)];
+
+                                                                    //  6,008 bytes.
+                                                                    //  For "zobristHashBuffer" included in "zobrist.h".
+
+                                                                    //  6,488,068 bytes.
+                                                                    //  For "transpositionTableBuffer" included in "transposition.h".
 
                                                                     //  8,519,684 bytes.
                                                                     //  Flat, global array that behaves like a DFS stack for negamax nodes.
                                                                     //  First four bytes are for an unsigned int: the length of the array.
 unsigned char negamaxSearchBuffer[_TREE_SEARCH_ARRAY_SIZE * _NEGAMAX_NODE_BYTE_SIZE + 4];
 
-                                                                    //  5,376 bytes.
-                                                                    //  Receiving array, from which GameState-Move bytes are converted to NegamaxNodes.
-unsigned char auxiliaryBuffer[_MAX_MOVES * (_GAMESTATE_BYTE_SIZE + _MOVE_BYTE_SIZE)];
-
-                                                                    //  6,488,068 bytes.
-                                                                    //  For "transpositionTableBuffer" included in "transposition.h".
-
                                                                     //  384 bytes.
                                                                     //  Each entry is [from_1, to_1, promo_1, from_2, to_2, promo_2].
-unsigned char killerMovesBuffer[_KILLER_MOVE_PER_PLY * _MOVE_BYTE_SIZE * _KILLER_MOVE_MAX_DEPTH];
+unsigned char killerMovesTableBuffer[_KILLER_MOVE_PER_PLY * _MOVE_BYTE_SIZE * _KILLER_MOVE_MAX_DEPTH];
 
                                                                     //  8,192 bytes.
                                                                     //  2 is for 2 teams, white and black. So read an entry as (side, from, to).
-unsigned char historyBuffer[2 * _NONE * _NONE];                     //  Note that we don't care about promotion choices here; just bump up moves (from, to).
+unsigned char historyTableBuffer[2 * _NONE * _NONE];                //  Note that we don't care about promotion choices here; just bump up moves (from, to).
 
                                                                     //  SUBTOTAL:  15,021,951 bytes.
                                                                     //  Give the stack 1,048,576 bytes.
@@ -203,19 +234,38 @@ unsigned char* getInputBuffer(void)
     return &inputGameStateBuffer[0];
   }
 
-/* Expose the global array declared here to JavaScript (just so we can address it).
-   Player's "negamaxEngine" writes intermediate game states as byte arrays here and then calls Player.js's "evaluationEngine". */
-unsigned char* getQueryBuffer(void)
-  {
-    return &queryGameStateBuffer[0];
-  }
-
 /* Expose the global array declared here to JavaScript.
    "negamaxEngine" writes its output here for Player.js to pick up: {gamestate as byte array, unsigned int as byte array, move as byte array}.
    This stands for {child state, depth searched, move to play in reply}. */
 unsigned char* getOutputBuffer(void)
   {
     return &outputBuffer[0];
+  }
+
+/* Expose the global array declared here to JavaScript (just so we can address it).
+   Player's "negamaxEngine" writes a game states as a byte array here and then calls Player.js's "evaluationEngine". */
+unsigned char* getQueryGameStateBuffer(void)
+  {
+    return &queryGameStateBuffer[0];
+  }
+
+/* Expose the global array declared here to JavaScript (just so we can address it).
+   Player's "negamaxEngine" writes a move as a byte array here and then calls Player.js's "evaluationEngine". */
+unsigned char* getQueryMoveBuffer(void)
+  {
+    return &queryMoveBuffer[0];
+  }
+
+/* Expose the global array decalred here to JavaScript (just so we can address it). */
+unsigned char* getAnswerGameStateBuffer(void)
+  {
+    return &answerGameStateBuffer[0];
+  }
+
+/* Expose the global array decalred here to JavaScript (just so we can address it). */
+unsigned char* getAnswerMovesBuffer(void)
+  {
+    return &answerMovesBuffer[0];
   }
 
 /* Expose the global array declared here to JavaScript (just so we can fill it).
@@ -238,21 +288,15 @@ unsigned char* getNegamaxSearchBuffer(void)
   }
 
 /* Expose the global array decalred here to JavaScript (just so we can address it). */
-unsigned char* getAuxiliaryBuffer(void)
+unsigned char* getKillerMovesTableBuffer(void)
   {
-    return &auxiliaryBuffer[0];
+    return &killerMovesTableBuffer[0];
   }
 
 /* Expose the global array decalred here to JavaScript (just so we can address it). */
-unsigned char* getKillerMovesBuffer(void)
+unsigned char* getHistoryTableBuffer(void)
   {
-    return &killerMovesBuffer[0];
-  }
-
-/* Expose the global array decalred here to JavaScript (just so we can address it). */
-unsigned char* getHistoryBuffer(void)
-  {
-    return &historyBuffer[0];
+    return &historyTableBuffer[0];
   }
 
 /**************************************************************************************************
@@ -330,6 +374,8 @@ bool negamax(void)
 
         for(j = 0; j < _MOVE_BYTE_SIZE; j++)                        //  Copy best move for this state, as determined by depth, to output buffer.
           outputBuffer[i++] = node.bestMove[j];
+
+        //  Write the score to the last four bytes.
 
         return true;                                                //  Indicate that search has completed.
       }

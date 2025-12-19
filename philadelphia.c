@@ -1,6 +1,6 @@
 /*
 
-sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c emcc -Os -s STANDALONE_WASM -s EXPORTED_FUNCTIONS="['_getInputBuffer','_getOutputBuffer','_isQuiet','_isTerminal','_isSideToMoveInCheck','_nonPawnMaterial','_makeNullMove','_evaluate','_getSortedMoves']" -Wl,--no-entry "philadelphia.c" -o "eval.wasm"
+sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c emcc -Os -s STANDALONE_WASM -s EXPORTED_FUNCTIONS="['_getInputGameStateBuffer','_getInputMoveBuffer','_getOutputGameStateBuffer','_getOutputMovesBuffer','_isQuiet','_isTerminal','_isSideToMoveInCheck','_nonPawnMaterial','_makeMove','_makeNullMove','_evaluate','_getMoves']" -Wl,--no-entry "philadelphia.c" -o "eval.wasm"
 
 */
 
@@ -23,51 +23,71 @@ sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,sourc
 /**************************************************************************************************
  Prototypes  */
 
-unsigned char* getInputBuffer(void);
-unsigned char* getOutputBuffer(void);
+unsigned char* getInputGameStateBuffer(void);
+unsigned char* getInputMoveBuffer(void);
+unsigned char* getOutputGameStateBuffer(void);
+unsigned char* getOutputMovesBuffer(void);
 
-void serializeToBuffer(GameState*, unsigned char*);
-void deserialize(GameState*);
+void serializeGameStateToBuffer(GameState*, unsigned char*);
+void serializeMoveToBuffer(Move*, unsigned char*);
+void deserializeGameState(GameState*);
+void deserializeMove(Move*);
 
 bool isQuiet(void);
 bool isTerminal(void);
 bool isSideToMoveInCheck(void);
 unsigned char nonPawnMaterial(void);
+void makeMove(void);
 void makeNullMove(void);
 float evaluate(bool);
-unsigned int getSortedMoves(void);
+unsigned int getMoves(void);
 //void quicksort(bool, float*, Move*, unsigned int, unsigned int);
 //unsigned int partition(bool, float*, Move*, unsigned int, unsigned int);
 
 /**************************************************************************************************
  Globals  */
 
-unsigned char inputBuffer[_GAMESTATE_BYTE_SIZE];                    //  Global array containing the serialized INPUT game state.
+unsigned char inputGameStateBuffer[_GAMESTATE_BYTE_SIZE];           //  Global array containing the serialized INPUT game state.
+
+unsigned char inputMoveBuffer[_MOVE_BYTE_SIZE];                     //  Global array containing the serialized INPUT move.
+
+unsigned char outputGameStateBuffer[_GAMESTATE_BYTE_SIZE];          //  Global array containing the serialized OUTPUT game state.
 
                                                                     //  Global array containing an integer (4 bytes) followed by that number of moves.
                                                                     //  Each move is represented as a byte sub-array encoding:
-                                                                    //    _GAMESTATE_BYTE_SIZE : byte-array of the resulting child state,
-                                                                    //    _MOVE_BYTE_SIZE      : (from, to, promo),
-                                                                    //    4                    : bytes for signed integer, which is rough score.
-unsigned char outputBuffer[4 + _MAX_MOVES * (_GAMESTATE_BYTE_SIZE + _MOVE_BYTE_SIZE + 4)];
+                                                                    //    _MOVE_BYTE_SIZE  :  (from, to, promo),
+                                                                    //    4                :  bytes for signed integer, which is rough score.
+unsigned char outputMovesBuffer[4 + _MAX_MOVES * (_MOVE_BYTE_SIZE + 4)];
 
 /**************************************************************************************************
  Functions  */
 
 /* Expose the global array declared here to JavaScript.  */
-unsigned char* getInputBuffer(void)
+unsigned char* getInputGameStateBuffer(void)
   {
-    return &inputBuffer[0];
+    return &inputGameStateBuffer[0];
   }
 
 /* Expose the global array declared here to JavaScript.  */
-unsigned char* getOutputBuffer(void)
+unsigned char* getInputMoveBuffer(void)
   {
-    return &outputBuffer[0];
+    return &inputMoveBuffer[0];
+  }
+
+/* Expose the global array declared here to JavaScript.  */
+unsigned char* getOutputGameStateBuffer(void)
+  {
+    return &outputGameStateBuffer[0];
+  }
+
+/* Expose the global array declared here to JavaScript.  */
+unsigned char* getOutputMovesBuffer(void)
+  {
+    return &outputMovesBuffer[0];
   }
 
 /* Write the given game state to the given buffer. */
-void serializeToBuffer(GameState* gs, unsigned char* buffer)
+void serializeGameStateToBuffer(GameState* gs, unsigned char* buffer)
   {
     unsigned char i = 0, j, k;
     unsigned char ch, mask;
@@ -321,8 +341,20 @@ void serializeToBuffer(GameState* gs, unsigned char* buffer)
     return;
   }
 
-/* Recover a GameState from the unsigned-char buffer "inputBuffer". */
-void deserialize(GameState* gs)
+/* Write the given move to the given buffer. */
+void serializeMoveToBuffer(Move* move, unsigned char* buffer)
+  {
+    unsigned char i = 0;
+
+    buffer[i++] = move->from;
+    buffer[i++] = move->to;
+    buffer[i++] = move->promo;
+
+    return;
+  }
+
+/* Recover a GameState from the unsigned-char buffer "inputGameStateBuffer". */
+void deserializeGameState(GameState* gs)
   {
     unsigned char i, j, k;
     unsigned char ch, mask;
@@ -332,42 +364,42 @@ void deserialize(GameState* gs)
       gs->board[i] = 'e';
     gs->previousDoublePawnMove = 0;
 
-    gs->whiteToMove = ((inputBuffer[0] & 128) == 128);              //  Recover side to move.
+    gs->whiteToMove = ((inputGameStateBuffer[0] & 128) == 128);     //  Recover side to move.
+                                                                    //  Recover white's castling data.
+    gs->whiteKingsidePrivilege = ((inputGameStateBuffer[1] & 128) == 128);
+    gs->whiteQueensidePrivilege = ((inputGameStateBuffer[2] & 128) == 128);
+    gs->whiteCastled = ((inputGameStateBuffer[3] & 128) == 128);
+                                                                    //  Recover black's castling data.
+    gs->blackKingsidePrivilege = ((inputGameStateBuffer[4] & 128) == 128);
+    gs->blackQueensidePrivilege = ((inputGameStateBuffer[5] & 128) == 128);
+    gs->blackCastled = ((inputGameStateBuffer[6] & 128) == 128);
+                                                                    //  Recover en-passant data.
+    gs->previousDoublePawnMove |= (inputGameStateBuffer[0] & 1) << 7;
+    gs->previousDoublePawnMove |= (inputGameStateBuffer[1] & 1) << 6;
+    gs->previousDoublePawnMove |= (inputGameStateBuffer[2] & 1) << 5;
+    gs->previousDoublePawnMove |= (inputGameStateBuffer[3] & 1) << 4;
+    gs->previousDoublePawnMove |= (inputGameStateBuffer[4] & 1) << 3;
+    gs->previousDoublePawnMove |= (inputGameStateBuffer[5] & 1) << 2;
+    gs->previousDoublePawnMove |= (inputGameStateBuffer[6] & 1) << 1;
+    gs->previousDoublePawnMove |= (inputGameStateBuffer[7] & 1);
 
-    gs->whiteKingsidePrivilege = ((inputBuffer[1] & 128) == 128);   //  Recover white's castling data.
-    gs->whiteQueensidePrivilege = ((inputBuffer[2] & 128) == 128);
-    gs->whiteCastled = ((inputBuffer[3] & 128) == 128);
+    wKingPos |= (inputGameStateBuffer[8] & 128);                    //  Recover white king's position.
+    wKingPos |= (inputGameStateBuffer[9] & 128) >> 1;
+    wKingPos |= (inputGameStateBuffer[10] & 128) >> 2;
+    wKingPos |= (inputGameStateBuffer[11] & 128) >> 3;
+    wKingPos |= (inputGameStateBuffer[12] & 128) >> 4;
+    wKingPos |= (inputGameStateBuffer[13] & 128) >> 5;
+    wKingPos |= (inputGameStateBuffer[14] & 128) >> 6;
+    wKingPos |= (inputGameStateBuffer[15] & 128) >> 7;
 
-    gs->blackKingsidePrivilege = ((inputBuffer[4] & 128) == 128);   //  Recover black's castling data.
-    gs->blackQueensidePrivilege = ((inputBuffer[5] & 128) == 128);
-    gs->blackCastled = ((inputBuffer[6] & 128) == 128);
-
-    gs->previousDoublePawnMove |= (inputBuffer[0] & 1) << 7;        //  Recover en-passant data.
-    gs->previousDoublePawnMove |= (inputBuffer[1] & 1) << 6;
-    gs->previousDoublePawnMove |= (inputBuffer[2] & 1) << 5;
-    gs->previousDoublePawnMove |= (inputBuffer[3] & 1) << 4;
-    gs->previousDoublePawnMove |= (inputBuffer[4] & 1) << 3;
-    gs->previousDoublePawnMove |= (inputBuffer[5] & 1) << 2;
-    gs->previousDoublePawnMove |= (inputBuffer[6] & 1) << 1;
-    gs->previousDoublePawnMove |= (inputBuffer[7] & 1);
-
-    wKingPos |= (inputBuffer[8] & 128);                             //  Recover white king's position.
-    wKingPos |= (inputBuffer[9] & 128) >> 1;
-    wKingPos |= (inputBuffer[10] & 128) >> 2;
-    wKingPos |= (inputBuffer[11] & 128) >> 3;
-    wKingPos |= (inputBuffer[12] & 128) >> 4;
-    wKingPos |= (inputBuffer[13] & 128) >> 5;
-    wKingPos |= (inputBuffer[14] & 128) >> 6;
-    wKingPos |= (inputBuffer[15] & 128) >> 7;
-
-    bKingPos |= (inputBuffer[8] & 1) << 7;                          //  Recover black king's position.
-    bKingPos |= (inputBuffer[9] & 1) << 6;
-    bKingPos |= (inputBuffer[10] & 1) << 5;
-    bKingPos |= (inputBuffer[11] & 1) << 4;
-    bKingPos |= (inputBuffer[12] & 1) << 3;
-    bKingPos |= (inputBuffer[13] & 1) << 2;
-    bKingPos |= (inputBuffer[14] & 1) << 1;
-    bKingPos |= (inputBuffer[15] & 1);
+    bKingPos |= (inputGameStateBuffer[8] & 1) << 7;                 //  Recover black king's position.
+    bKingPos |= (inputGameStateBuffer[9] & 1) << 6;
+    bKingPos |= (inputGameStateBuffer[10] & 1) << 5;
+    bKingPos |= (inputGameStateBuffer[11] & 1) << 4;
+    bKingPos |= (inputGameStateBuffer[12] & 1) << 3;
+    bKingPos |= (inputGameStateBuffer[13] & 1) << 2;
+    bKingPos |= (inputGameStateBuffer[14] & 1) << 1;
+    bKingPos |= (inputGameStateBuffer[15] & 1);
 
     i = 0;                                                          //  Reset to head of byte array.
 
@@ -377,7 +409,7 @@ void deserialize(GameState* gs)
         mask = 64;
         for(k = 1; k < 7; k++)
           {
-            if((inputBuffer[i] & mask) == mask)
+            if((inputGameStateBuffer[i] & mask) == mask)
               gs->board[j + k * 8] = 'P';
             mask = mask >> 1;
           }
@@ -390,7 +422,7 @@ void deserialize(GameState* gs)
         mask = 64;
         for(k = 1; k < 7; k++)
           {
-            if((inputBuffer[i] & mask) == mask)
+            if((inputGameStateBuffer[i] & mask) == mask)
               gs->board[j + k * 8] = 'p';
             mask = mask >> 1;
           }
@@ -403,7 +435,7 @@ void deserialize(GameState* gs)
         mask = 128;
         for(k = 0; k < 8; k++)
           {
-            if((inputBuffer[i] & mask) == mask)
+            if((inputGameStateBuffer[i] & mask) == mask)
               gs->board[j + k * 8] = 'N';
             mask = mask >> 1;
           }
@@ -416,7 +448,7 @@ void deserialize(GameState* gs)
         mask = 128;
         for(k = 0; k < 8; k++)
           {
-            if((inputBuffer[i] & mask) == mask)
+            if((inputGameStateBuffer[i] & mask) == mask)
               gs->board[j + k * 8] = 'n';
             mask = mask >> 1;
           }
@@ -429,7 +461,7 @@ void deserialize(GameState* gs)
         mask = 128;
         for(k = 0; k < 8; k++)
           {
-            if((inputBuffer[i] & mask) == mask)
+            if((inputGameStateBuffer[i] & mask) == mask)
               gs->board[j + k * 8] = 'B';
             mask = mask >> 1;
           }
@@ -442,7 +474,7 @@ void deserialize(GameState* gs)
         mask = 128;
         for(k = 0; k < 8; k++)
           {
-            if((inputBuffer[i] & mask) == mask)
+            if((inputGameStateBuffer[i] & mask) == mask)
               gs->board[j + k * 8] = 'b';
             mask = mask >> 1;
           }
@@ -455,7 +487,7 @@ void deserialize(GameState* gs)
         mask = 128;
         for(k = 0; k < 8; k++)
           {
-            if((inputBuffer[i] & mask) == mask)
+            if((inputGameStateBuffer[i] & mask) == mask)
               gs->board[j + k * 8] = 'R';
             mask = mask >> 1;
           }
@@ -468,7 +500,7 @@ void deserialize(GameState* gs)
         mask = 128;
         for(k = 0; k < 8; k++)
           {
-            if((inputBuffer[i] & mask) == mask)
+            if((inputGameStateBuffer[i] & mask) == mask)
               gs->board[j + k * 8] = 'r';
             mask = mask >> 1;
           }
@@ -481,7 +513,7 @@ void deserialize(GameState* gs)
         mask = 128;
         for(k = 0; k < 8; k++)
           {
-            if((inputBuffer[i] & mask) == mask)
+            if((inputGameStateBuffer[i] & mask) == mask)
               gs->board[j + k * 8] = 'Q';
             mask = mask >> 1;
           }
@@ -494,7 +526,7 @@ void deserialize(GameState* gs)
         mask = 128;
         for(k = 0; k < 8; k++)
           {
-            if((inputBuffer[i] & mask) == mask)
+            if((inputGameStateBuffer[i] & mask) == mask)
               gs->board[j + k * 8] = 'q';
             mask = mask >> 1;
           }
@@ -504,12 +536,21 @@ void deserialize(GameState* gs)
     gs->board[ wKingPos ] = 'K';                                    //  Restore white king.
     gs->board[ bKingPos ] = 'k';                                    //  Restore black king.
 
-    gs->moveCtr = inputBuffer[i++];                                 //  Recover move counter.
+    gs->moveCtr = inputGameStateBuffer[i++];                        //  Recover move counter.
 
     return;
   }
 
-/* Answer the NegaMax Module's query, "Is the GameState in the query buffer quiet?" */
+/* Recover a Move from the unsigned-char buffer "inputMoveBuffer". */
+void deserializeMove(Move* move)
+  {
+    move->from = inputMoveBuffer[0];
+    move->to = inputMoveBuffer[1];
+    move->promo = inputMoveBuffer[2];
+    return;
+  }
+
+/* Answer the Negamax Module's query, "Is the GameState in the query buffer quiet?" */
 bool isQuiet(void)
   {
     GameState gs;
@@ -517,7 +558,7 @@ bool isQuiet(void)
     return quiet(&gs);
   }
 
-/* Answer the NegaMax Module's query, "Is the GameState in the query buffer terminal?" */
+/* Answer the Negamax Module's query, "Is the GameState in the query buffer terminal?" */
 bool isTerminal(void)
   {
     GameState gs;
@@ -525,7 +566,7 @@ bool isTerminal(void)
     return terminal(&gs);
   }
 
-/* Answer the NegaMax Module's query, "Is the side to move in the GameState in the query buffer in check?" */
+/* Answer the Negamax Module's query, "Is the side to move in the GameState in the query buffer in check?" */
 bool isSideToMoveInCheck(void)
   {
     GameState gs;
@@ -547,7 +588,7 @@ bool isSideToMoveInCheck(void)
     return inCheckBy(i, 'w', &gs);
   }
 
-/* Answer the NegaMax Module's query, "How much non-pawn material does the side to move have in the GameState in the query buffer?" */
+/* Answer the Negamax Module's query, "How much non-pawn material does the side to move have in the GameState in the query buffer?" */
 unsigned char nonPawnMaterial(void)
   {
     GameState gs;
@@ -597,80 +638,68 @@ unsigned char nonPawnMaterial(void)
     return 3 * (knights + bishops) + 5 * rooks + 9 * queens;
   }
 
-/* For use by null-move pruning in tree-search.
-   Answer the NegaMax Module's query, "What is the GameState that results from a null-move by the GameState in the query buffer?"
-   Writes to "outputBuffer":
-     [4-byte unsigned integer = 1], [_GAMESTATE_BYTE_SIZE bytes of child gamestate,
-                                     _MOVE_BYTE_SIZE bytes of move = _NONE, _NONE, _NO_PROMO,
-                                     0 ]. */
-void makeNullMove(void)
+/* Answer the Negamax Module's query, "What GameState results from making the move in the input-move buffer in the game state in the input-gamestate buffer?"
+   Writes to "outputGameStateBuffer". */
+void makeMove(void)
   {
-    GameState gs, child;
-    unsigned char buffer4[4];                                       //  Byte array to hold leading int = number of moves in output buffer.
-    unsigned char bufferGS[_GAMESTATE_BYTE_SIZE];
-    unsigned int i, j;
-    unsigned int numMoves;                                          //  This is a dummy.
-    signed int score;                                               //  This is also a dummy.
+    GameState gs;
+    Move move;
 
-    deserialize(&gs);                                               //  Recover GameState from buffer.
+    deserializeGameState(&gs);                                      //  Recover GameState from buffer.
+    deserializeMove(&move);                                         //  Recover Move from buffer.
 
-    copyGameState(&gs, &child);                                     //  Clone the given GameState.
+    makeMove(&move, &gs);                                           //  Make the move.
 
-    child.whiteToMove = !gs.whiteToMove;                            //  Flip side to move.
-    child.previousDoublePawnMove = 0;                               //  Blank this out: a null move is certainly not a pawn's double move.
-    child.moveCtr++;                                                //  Increment the moves counter.
-
-    i = 0;
-    numMoves = 1;
-    memcpy(buffer4, (unsigned char*)(&numMoves), 4);                //  Force the unsigned integer into a 4-byte temp buffer.
-    for(j = 0; j < 4; j++)                                          //  Copy bytes to serial buffer.
-      outputBuffer[i++] = buffer4[j];
-
-    serializeToBuffer(&child, bufferGS);                            //  Write to (local) byte array.
-    for(j = 0; j < _GAMESTATE_BYTE_SIZE; j++)                       //  Copy local byte array to global output byte array.
-      outputBuffer[i++] = bufferGS[j];
-
-    outputBuffer[i++] = _NONE;                                      //  Write null move to global byte array.
-    outputBuffer[i++] = _NONE;
-    outputBuffer[i++] = _NO_PROMO;
-
-    score = 0;
-    memcpy(buffer4, (unsigned char*)(&score), 4);                   //  Force the signed integer into a 4-byte temp buffer.
-    for(j = 0; j < 4; j++)                                          //  Copy bytes to serial buffer.
-      outputBuffer[i++] = buffer4[j];
+    serializeGameStateToBuffer(&gs, outputGameStateBuffer);         //  Write updated GameState to output-gamestate buffer.
 
     return;
   }
 
-/* Answer the NegaMax Module's query, "What is the evaluation of the GameState in the query buffer?" */
+/* For use by null-move pruning in tree-search.
+   Answer the Negamax Module's query, "What GameState results from a null-move in the game state in the input-gamestate buffer?"
+   Writes to "outputGameStateBuffer". */
+void makeNullMove(void)
+  {
+    GameState gs;
+
+    deserializeGameState(&gs);                                      //  Recover GameState from buffer.
+
+    makeNullMove(&gs);                                              //  Make the move.
+
+    serializeGameStateToBuffer(&gs, outputGameStateBuffer);         //  Write updated GameState to output-gamestate buffer.
+
+    return;
+  }
+
+/* Answer the Negamax Module's query, "What is the evaluation of the GameState in the input-gamestate buffer?" */
 float evaluate(bool evaluateForWhite)
   {
     GameState gs;
-    deserialize(&gs);                                               //  Recover GameState from buffer.
+    deserializeGameState(&gs);                                      //  Recover GameState from buffer.
     return score(&gs, evaluateForWhite);
   }
 
-/* Answer the NegaMax Module's query, "What are all the moves that can be made from the GameState in the query buffer?"
-   Writes to "outputBuffer":
-     [4-byte unsigned integer], [_GAMESTATE_BYTE_SIZE bytes of child gamestate, _MOVE_BYTE_SIZE bytes of move, 4 bytes of a signed int],
-                                [_GAMESTATE_BYTE_SIZE bytes of child gamestate, _MOVE_BYTE_SIZE bytes of move, 4 bytes of a signed int],
-                                                                     . . .
-                                [_GAMESTATE_BYTE_SIZE bytes of child gamestate, _MOVE_BYTE_SIZE bytes of move, 4 bytes of a signed int] */
-unsigned int getSortedMoves()
+/* Answer the Negamax Module's query, "What are all the moves that can be made from the GameState in the input-gamestate buffer?"
+   Writes to "outputMovesBuffer":
+     [4-byte unsigned integer], [_MOVE_BYTE_SIZE bytes of move, 4 bytes of a signed int],
+                                [_MOVE_BYTE_SIZE bytes of move, 4 bytes of a signed int],
+                                                          . . .
+                                [_MOVE_BYTE_SIZE bytes of move, 4 bytes of a signed int] */
+unsigned int getMoves()
   {
     GameState gs, child;
     Move moves[_MAX_MOVES];
     unsigned int movesLen = 0;
     signed int score, scores[_MAX_MOVES];                           //  Use fast, cheap heuristics like SEE.
+
     unsigned char buffer4[4];                                       //  Byte array to hold leading int = number of moves in output buffer.
-    unsigned char bufferGS[_GAMESTATE_BYTE_SIZE];
     unsigned int i, j, k;
     unsigned char whiteKingIndex, blackKingIndex;
 
-    deserialize(&gs);                                               //  Recover GameState from buffer.
+    deserializeGameState(&gs);                                      //  Recover GameState from buffer.
     movesLen = getMoves(&gs, moves);                                //  Get moves.
 
-    for(i = 0; i < movesLen; i++)
+    for(i = 0; i < movesLen; i++)                                   //  Compute a fast-n-cheap score to help the Negamax Module sort its nodes.
       {
         scores[i] = 0;                                              //  Initialize every move to zero.
 
@@ -695,28 +724,20 @@ unsigned int getSortedMoves()
     //quicksort(!reverse, scores, moves, 0, movesLen - 1);            //  Sort according to (shallow) evaluation.
 
     i = 0;                                                          //  Point to head of output buffer.
-
     memcpy(buffer4, (unsigned char*)(&movesLen), 4);                //  Force the unsigned integer into a 4-byte temp buffer.
     for(j = 0; j < 4; j++)                                          //  Copy bytes to serial buffer.
-      outputBuffer[i++] = buffer4[j];
+      outputMovesBuffer[i++] = buffer4[j];
 
     for(j = 0; j < movesLen; j++)                                   //  Write moves as bytes to output buffer, following uint total number of moves.
       {
-        copyGameState(&gs, &child);                                 //  Clone the source state.
-        makeMove(moves + j, &child);                                //  Apply the candidate move.
-        child.whiteToMove = !gs.whiteToMove;                        //  Flip side-to-move.
-        serializeToBuffer(&child, bufferGS);                        //  Write to (local) byte array.
-        for(k = 0; k < _GAMESTATE_BYTE_SIZE; k++)                   //  Copy local byte array to global output byte array.
-          outputBuffer[i++] = bufferGS[k];
-
-        outputBuffer[i++] = moves[j].from;                          //  Copy move to global byte array.
-        outputBuffer[i++] = moves[j].to;
-        outputBuffer[i++] = moves[j].promo;
+        outputMovesBuffer[i++] = moves[j].from;                     //  Copy move to global byte array.
+        outputMovesBuffer[i++] = moves[j].to;
+        outputMovesBuffer[i++] = moves[j].promo;
 
         score = scores[j];
-        memcpy(buffer4, (unsigned char*)(&movesLen), 4);            //  Force the signed integer into a 4-byte temp buffer.
+        memcpy(buffer4, (unsigned char*)(&score), 4);               //  Force the SIGNED integer into a 4-byte temp buffer.
         for(k = 0; k < 4; k++)                                      //  Copy local SIGNED score to global output byte array.
-          outputBuffer[i++] = buffer4[k];
+          outputMovesBuffer[i++] = buffer4[k];
       }
 
     return movesLen;

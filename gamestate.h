@@ -78,6 +78,7 @@ typedef struct MoveType                                             //  TOTAL: 3
 void copyGameState(GameState*, GameState*);
 
 void makeMove(Move*, GameState*);
+void makeNullMove(GameState*);
 char nowToMove(GameState*);
 char nextToMove(GameState*);
 bool inCheckBy(unsigned char, unsigned char, GameState*);
@@ -325,6 +326,14 @@ void makeMove(Move* move, GameState* gs)
 
     gs->whiteToMove = !gs->whiteToMove;                             //  Flip flag.
 
+    return;
+  }
+
+/* Does not apply to real chess, but this is convenient for tree-search. */
+void makeNullMove(GameState* gs)
+  {
+    gs->previousDoublePawnMove = 0;                                 //  Zero this out.
+    gs->whiteToMove = !gs->whiteToMove;                             //  Flip flag.
     return;
   }
 
