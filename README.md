@@ -51,6 +51,12 @@ For Chess:
 | _NEGAMAX_NODE_BYTE_SIZE | 130 | Number of bytes needed to encode a negamax node |
 | ZHASH_TABLE_SIZE | 751 | Number of Zobrist keys |
 
+The evaluation engine has *four* outward-facing buffers:
+- `inputGameStateBuffer` is `_GAMESTATE_BYTE_SIZE` bytes long. The negamax module writes bytes here and can then ask the evaluation module things like, "What moves are available from this state?"
+- `inputMoveBuffer` is `_MOVE_BYTE_SIZE` bytes long. The negamax module writes bytes here and writes game-state bytes to `inputGameStateBuffer` and can then ask, "What game state results from making this move from this state?"
+- `outputGameStateBuffer` is `_GAMESTATE_BYTE_SIZE` bytes long and encodes a chess state after an operation. The negamax module reads these bytes from the evaluation module.
+- `outputMovesBuffer` is 4 + `_MAX_MOVES` * (`_MOVE_BYTE_SIZE` + 4) bytes long. The first 4 bytes decode to an unsigned integer indicating how many moves are in the array. Subsequent bytes encode the move (as from, to, promo) and the rough score computed using SEE, promotions, and checks. The negamax module reads these, updates their scores for better move-ordering, and turns them into search nodes.
+
 Compile the evaluation engine:
 ```
 sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c emcc -Os -s STANDALONE_WASM -s EXPORTED_FUNCTIONS="['_getInputBuffer','_getOutputBuffer','_isQuiet','_isTerminal','_isSideToMoveInCheck','_nonPawnMaterial','_makeNullMove','_evaluate','_getSortedMoves']" -Wl,--no-entry "philadelphia.c" -o "eval.wasm"
