@@ -26,7 +26,7 @@ gcc -Wall zgenerate.c -lm -o zgenerate
 ## Client-facing game logic module
 ![Game Logic Schema](Game_Logic_Schema.png)
 
-The game-logic module has *two* outward-facing buffers:
+The **game-logic module** has *two* outward-facing buffers:
 - `currentState` is `_GAMESTATE_BYTE_SIZE` bytes long. It encodes the current state of the game.
 - `movesBuffer` is `4 + _MAX_NUM_TARGETS` bytes long. Its first four bytes encode `n`, the number (unsigned int) of legal targets, then the subsequent `n` bytes are those indices on the chess board.
 
