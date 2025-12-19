@@ -35,6 +35,25 @@ Compile the front-end, client-facing game-logic module. This WebAssembly module 
 sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c emcc -Os -s STANDALONE_WASM -s EXPORTED_FUNCTIONS="['_getCurrentState','_getMovesBuffer','_sideToMove_client','_isWhite_client','_isBlack_client','_isEmpty_client','_isPawn_client','_isKnight_client','_isBishop_client','_isRook_client','_isQueen_client','_isKing_client','_getMovesIndex_client','_makeMove_client','_isTerminal_client','_isWin_client','_draw']" -Wl,--no-entry "gamelogic.c" -o "gamelogic.wasm"
 ```
 
+This produces a `.wasm` with functions you can call like this:
+- `gameEngine.instance.exports.getCurrentState();` returns the address of the game-logic module's current-gamestate buffer.
+- `gameEngine.instance.exports.getMovesBuffer();` returns the address of the game-logic module's move-targets buffer.
+- `gameEngine.instance.exports.sideToMove_client();` returns `_WHITE_TO_MOVE` or `_BLACK_TO_MOVE`.
+- `gameEngine.instance.exports.isWhite_client(unsigned char);` returns a Boolean value indicating whether the piece at the given index belongs to the white team.
+- `gameEngine.instance.exports.isBlack_client(unsigned char);` returns a Boolean value indicating whether the piece at the given index belongs to the black team.
+- `gameEngine.instance.exports.isEmpty_client(unsigned char);` returns a Boolean value indicating whether the given index is empty.
+- `gameEngine.instance.exports.isPawn_client(unsigned char);` returns a Boolean value indicating whether the piece at the given index is a pawn.
+- `gameEngine.instance.exports.isKnight_client(unsigned char);` returns a Boolean value indicating whether the piece at the given index is a knight.
+- `gameEngine.instance.exports.isBishop_client(unsigned char);` returns a Boolean value indicating whether the piece at the given index is a bishop.
+- `gameEngine.instance.exports.isRook_client(unsigned char);` returns a Boolean value indicating whether the piece at the given index is a rook.
+- `gameEngine.instance.exports.isQueen_client(unsigned char);` returns a Boolean value indicating whether the piece at the given index is a queen.
+- `gameEngine.instance.exports.isKing_client(unsigned char);` returns a Boolean value indicating whether the piece at the given index is a king.
+- `gameEngine.instance.exports.getMovesIndex_client(unsigned char);` writes the number of legal targets `n` and then a run of `n` indices for the current state of the board and the piece at the given index.
+- `gameEngine.instance.exports.makeMove_client(unsigned char, unsigned char, unsigned char);` .
+- `gameEngine.instance.exports.isTerminal_client();` returns a Boolean value indicating whether the current game state is terminal.
+- `gameEngine.instance.exports.isWin_client();` returns an unsigned char indicating whether white has won, black has won, the game has reached stalemate, or the game is ongoing.
+- `gameEngine.instance.exports.draw();` prints the board to the browser console.
+
 ## Negamax & evaluation engines
 I have separated game logic and node evaluation from tree-search. This allows me to have a single, game-agnostic negamax engine (in C++) for two-player, non-stochastic, perfect-information games (written in whatever language). The JavaScript class `player.js` glues together and coordinates these components.
 
@@ -54,6 +73,8 @@ For Chess:
 | _TREE_SEARCH_ARRAY_SIZE | 65536 | Number of (game-state bytes, move-bytes) |
 | _NEGAMAX_NODE_BYTE_SIZE | 130 | Number of bytes needed to encode a negamax node |
 | ZHASH_TABLE_SIZE | 751 | Number of Zobrist keys |
+| _WHITE_TO_MOVE | 0 | Indication that white is to move in the current game state |
+| _BLACK_TO_MOVE | 1 | Indication that black is to move in the current game state |
 
 The **evaluation engine** has *four* outward-facing buffers:
 - `inputGameStateBuffer` is `_GAMESTATE_BYTE_SIZE` bytes long. The negamax module writes bytes here and can then ask the evaluation module things like, "What moves are available from this state?"
@@ -65,7 +86,7 @@ Compile the evaluation engine:
 ```
 sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c emcc -Os -s STANDALONE_WASM -s EXPORTED_FUNCTIONS="['_getInputGameStateBuffer','_getInputMoveBuffer','_getOutputGameStateBuffer','_getOutputMovesBuffer','_isQuiet','_isTerminal','_isSideToMoveInCheck','_nonPawnMaterial','_makeMove','_makeNullMove','_evaluate','_getMoves']" -Wl,--no-entry "philadelphia.c" -o "eval.wasm"
 ```
-This produces a `.wasm` with functions you can load into the JavaScript Player calss and call like this:
+This produces a `.wasm` with functions you can load into the JavaScript Player class and call like this:
 - `this.evaluationEngine.instance.exports.getInputGameStateBuffer();` returns the address of the evaluation module's input-gamestate buffer.
 - `this.evaluationEngine.instance.exports.getInputMoveBuffer();` returns the address of the evaluation module's input-move buffer.
 - `this.evaluationEngine.instance.exports.getOutputGameStateBuffer();` returns the address of the evaluation module's output-gamestate buffer.
