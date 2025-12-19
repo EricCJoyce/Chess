@@ -32,7 +32,7 @@ sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,sourc
 ```
 
 ## Negamax & evaluation engines
-I have separated game logic and node evaluation from tree-search. This allows me to have a single negamax engine (in C++) for two-player, non-stochastic, perfect-information games (written in whatever language). The JavaScript class `player.js` glues together and coordinates these components.
+I have separated game logic and node evaluation from tree-search. This allows me to have a single, game-agnostic negamax engine (in C++) for two-player, non-stochastic, perfect-information games (written in whatever language). The JavaScript class `player.js` glues together and coordinates these components.
 
 ![Negamax Schema](Negamax_Engine_Schema.png)
 
