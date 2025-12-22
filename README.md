@@ -84,13 +84,14 @@ The **evaluation engine** has *four* outward-facing buffers:
 
 Compile the evaluation engine:
 ```
-sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c emcc -Os -s STANDALONE_WASM -s EXPORTED_FUNCTIONS="['_getInputGameStateBuffer','_getInputMoveBuffer','_getOutputGameStateBuffer','_getOutputMovesBuffer','_isQuiet','_isTerminal','_isSideToMoveInCheck','_nonPawnMaterial','_makeMove','_makeNullMove','_evaluate','_getMoves']" -Wl,--no-entry "philadelphia.c" -o "eval.wasm"
+sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c emcc -Os -s STANDALONE_WASM -s EXPORTED_FUNCTIONS="['_getInputGameStateBuffer','_getInputMoveBuffer','_getOutputGameStateBuffer','_getOutputMovesBuffer','_sideToMove','_isQuiet','_isTerminal','_isSideToMoveInCheck','_nonPawnMaterial','_makeMove','_makeNullMove','_evaluate','_getMoves']" -Wl,--no-entry "philadelphia.c" -o "eval.wasm"
 ```
 This produces a `.wasm` with functions you can load into the JavaScript Player class and call like this:
 - `this.evaluationEngine.instance.exports.getInputGameStateBuffer();` returns the address of the evaluation module's input-gamestate buffer.
 - `this.evaluationEngine.instance.exports.getInputMoveBuffer();` returns the address of the evaluation module's input-move buffer.
 - `this.evaluationEngine.instance.exports.getOutputGameStateBuffer();` returns the address of the evaluation module's output-gamestate buffer.
 - `this.evaluationEngine.instance.exports.getOutputMovesBuffer();` returns the address of the evaluation module's output-moves buffer.
+- `this.evaluationEngine.instance.exports.sideToMove();` returns `'w'` or `'b'`.
 - `this.evaluationEngine.instance.exports.isQuiet();` returns a Boolean value, according to the game state bytes previously written to the evaluation module's input-gamestate buffer.
 - `this.evaluationEngine.instance.exports.isTerminal();` returns a Boolean value, according to the game state bytes previously written to the evaluation module's input-gamestate buffer.
 - `this.evaluationEngine.instance.exports.isSideToMoveInCheck();` returns a Boolean value, according to the game state bytes previously written to the evaluation module's input-gamestate buffer.
