@@ -2,23 +2,25 @@
 Notes on the creation of Chess
 
 ## Docker container to compile C to WebAssembly
-Create the container.
+We wish to have means to compile C code into WebAssembly modules that handle game-compute on the front-end. Since this is a specialized, project-specific use-case, I do not want to modify my system's usual toolchains. 
+
+Therefore, create a Docker container to do all this. Leave the rest of my system alone.
 ```
 sudo docker build -t emscripten-c .
 ```
 
-Confirm its existence.
+Confirm the container's existence.
 ```
 sudo docker images
 ```
 
-Kill the container.
+When you choose to, kill the container.
 ```
 sudo docker image rm emscripten-c
 ```
 
 ## Zobrist hash generator
-This executable lives on the back-end. Call it when the page loads to generate a Zobrist hash for every game.
+This executable lives on the server back-end. Call it when the page loads to generate a random Zobrist hash for every game.
 ```
 gcc -Wall zgenerate.c -lm -o zgenerate
 ```
@@ -35,9 +37,13 @@ Compile the front-end, client-facing game-logic module. This WebAssembly module 
 sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c emcc -Os -s STANDALONE_WASM -s EXPORTED_FUNCTIONS="['_getCurrentState','_getMovesBuffer','_sideToMove_client','_isWhite_client','_isBlack_client','_isEmpty_client','_isPawn_client','_isKnight_client','_isBishop_client','_isRook_client','_isQueen_client','_isKing_client','_getMovesIndex_client','_makeMove_client','_isTerminal_client','_isWin_client','_draw']" -Wl,--no-entry "gamelogic.c" -o "gamelogic.wasm"
 ```
 
-This produces a `.wasm` with functions you can call like this:
+This produces a `.wasm` with callable functions.
+
+The first two simply fetch the memory addresses of this module's buffers:
 - `gameEngine.instance.exports.getCurrentState();` returns the address of the game-logic module's current-gamestate buffer.
 - `gameEngine.instance.exports.getMovesBuffer();` returns the address of the game-logic module's move-targets buffer.
+
+The other module functions are as follows:
 - `gameEngine.instance.exports.sideToMove_client();` returns `_WHITE_TO_MOVE` or `_BLACK_TO_MOVE`.
 - `gameEngine.instance.exports.isWhite_client(unsigned char);` returns a Boolean value indicating whether the piece at the given index belongs to the white team.
 - `gameEngine.instance.exports.isBlack_client(unsigned char);` returns a Boolean value indicating whether the piece at the given index belongs to the black team.
@@ -55,7 +61,7 @@ This produces a `.wasm` with functions you can call like this:
 - `gameEngine.instance.exports.draw();` prints the board to the browser console.
 
 ## Negamax & evaluation engines
-I have separated game logic and node evaluation from tree-search. This allows me to have a single, game-agnostic negamax engine (in C++) for two-player, non-stochastic, perfect-information games (written in whatever language). The JavaScript class `player.js` glues together and coordinates these components.
+I have separated game logic and node evaluation from tree-search. This allows me to have a single, game-agnostic negamax engine (in C++) for two-player, non-stochastic, perfect-information games (while I write the game logic and evaluation in whichever language I choose). The JavaScript class `player.js` glues together and coordinates these components.
 
 ![Negamax Schema](Negamax_Engine_Schema.png)
 
@@ -86,18 +92,22 @@ Compile the evaluation engine:
 ```
 sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c emcc -Os -s STANDALONE_WASM -s EXPORTED_FUNCTIONS="['_getInputGameStateBuffer','_getInputMoveBuffer','_getOutputGameStateBuffer','_getOutputMovesBuffer','_sideToMove','_isQuiet','_isTerminal','_isSideToMoveInCheck','_nonPawnMaterial','_makeMove','_makeNullMove','_evaluate','_getMoves']" -Wl,--no-entry "philadelphia.c" -o "eval.wasm"
 ```
-This produces a `.wasm` with functions you can load into the JavaScript Player class and call like this:
+This produces a `.wasm` with functions you can load into the JavaScript Player class and call.
+
+The first four simply fetch the memory addresses of this module's buffers:
 - `this.evaluationEngine.instance.exports.getInputGameStateBuffer();` returns the address of the evaluation module's input-gamestate buffer.
 - `this.evaluationEngine.instance.exports.getInputMoveBuffer();` returns the address of the evaluation module's input-move buffer.
 - `this.evaluationEngine.instance.exports.getOutputGameStateBuffer();` returns the address of the evaluation module's output-gamestate buffer.
 - `this.evaluationEngine.instance.exports.getOutputMovesBuffer();` returns the address of the evaluation module's output-moves buffer.
+
+The other module functions are as follows:
 - `this.evaluationEngine.instance.exports.sideToMove();` returns `'w'` or `'b'`.
 - `this.evaluationEngine.instance.exports.isQuiet();` returns a Boolean value, according to the game state bytes previously written to the evaluation module's input-gamestate buffer.
 - `this.evaluationEngine.instance.exports.isTerminal();` returns a Boolean value, according to the game state bytes previously written to the evaluation module's input-gamestate buffer.
 - `this.evaluationEngine.instance.exports.isSideToMoveInCheck();` returns a Boolean value, according to the game state bytes previously written to the evaluation module's input-gamestate buffer.
 - `this.evaluationEngine.instance.exports.nonPawnMaterial();` returns an unsigned integer value, according to the game state bytes previously written to the evaluation module's input-gamestate buffer. This function is used by the negamax module to test whether there is enough material to try null-move pruning.
-- `this.evaluationEngine.instance.exports.makeMove();` .
-- `this.evaluationEngine.instance.exports.makeNullMove();` .
+- `this.evaluationEngine.instance.exports.makeMove();` decodes and applies the move stored in `inputMoveBuffer` to the decoded game state stored in `inputGameStateBuffer`, and writes the encoded, resultant game state in `outputGameStateBuffer`.
+- `this.evaluationEngine.instance.exports.makeNullMove();` decodes the game state stored in `inputGameStateBuffer`, applies a null-move, and writes the encoded, resultant game state in `outputGameStateBuffer`.
 - `this.evaluationEngine.instance.exports.evaluate(bool);` .
 - `this.evaluationEngine.instance.exports.getMoves();` .
 
@@ -118,7 +128,7 @@ Compile the negamax engine:
 ```
 sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c em++ -I ./ -Os -s STANDALONE_WASM -s INITIAL_MEMORY=16121856 -s STACK_SIZE=1048576 -s EXPORTED_FUNCTIONS="['_getInputBuffer','_getQueryBuffer','_getOutputBuffer','_getZobristHashBuffer','_getTranspositionTableBuffer','_getNegamaxSearchBuffer','_getAuxiliaryBuffer','_getKillerMovesBuffer','_getHistoryBuffer','_initSearch','_negamax']" -Wl,--no-entry "negamax.cpp" -o "negamax.wasm"
 ```
-This produces a `.wasm` with functions you can load into the JavaScript Player class and call like this:
+This produces a `.wasm` with functions you can load into the JavaScript Player class and call.
 - `this.negamaxEngine.instance.exports.getInputBuffer();` returns the address of the negamax module's input-gamestate buffer.
 
 ## Citation
