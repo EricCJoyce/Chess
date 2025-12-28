@@ -26,6 +26,24 @@ gcc -Wall zgenerate.c -lm -o zgenerate
 ```
 
 ## Client-facing game logic module
+
+Constants for the chess engine:
+| Name  | Bytes  | Description |
+| :---:	| :----: | :---------: |
+| _GAMESTATE_BYTE_SIZE | 81 | Number of bytes needed to encode a game state |
+| _MOVE_BYTE_SIZE | 3 | Number of bytes needed to describe a move in Chess |
+| _MAX_NUM_TARGETS | 32 | A (generous) upper bound on how many distinct destinations (not distinct moves) may be available to a player from a single index |
+| _MAX_MOVES | 64 | A (generous) upper bound on how many moves may be made by a team in a single turn |
+| _KILLER_MOVE_PER_PLY | 2 | Chess engines typically store 2 killer moves per ply |
+| _KILLER_MOVE_MAX_DEPTH | 64 | Not to say that we actually search to depth 64! This is just comfortably large. |
+| _TRANSPO_RECORD_BYTE_SIZE | 91 | Number of bytes needed to store a TranspoRecord object |
+| _TRANSPO_TABLE_SIZE | 65536 | Number of TranspoRecords, each 91 bytes |
+| _TREE_SEARCH_ARRAY_SIZE | 65536 | Number of (game-state bytes, move-bytes) |
+| _NEGAMAX_NODE_BYTE_SIZE | 130 | Number of bytes needed to encode a negamax node |
+| ZHASH_TABLE_SIZE | 751 | Number of Zobrist keys |
+| _WHITE_TO_MOVE | 0 | Indication that white is to move in the current game state |
+| _BLACK_TO_MOVE | 1 | Indication that black is to move in the current game state |
+
 ![Game Logic Schema](Game_Logic_Schema.png)
 
 The **game-logic module** has *two* outward-facing buffers:
@@ -60,27 +78,13 @@ The other module functions are as follows:
 - `gameEngine.instance.exports.isWin_client();` returns an unsigned char indicating whether white has won, black has won, the game has reached stalemate, or the game is ongoing.
 - `gameEngine.instance.exports.draw();` prints the board to the browser console.
 
+## The negamax heartbeat
+For our deployment to a web page, tree-search has to become a **stack-based, continuation-passing, finite state machine**. The web page is single-threaded, so if we try to run search all at once, the rest of the page freezes. I’ve rewritten the usual recursive negamax as an explicit-stack DFS where each node carries a phase (program counter). Each "heartbeat" executes one small slice of work for the node at the top of the stack, updates the node’s phase/bookmarks, and returns control to the browser. In other words, it’s recursion turned into a continuation (resume point) stored in data. The advantages of this are that it doesn't freeze the browser, and it allows search to occur at any time, even during the human player's turn.
+
 ## Negamax & evaluation engines
-I have separated game logic and node evaluation from tree-search. This allows me to have a single, game-agnostic negamax engine (in C++) for two-player, non-stochastic, perfect-information games (while I write the game logic and evaluation in whichever language I choose). The JavaScript class `player.js` glues together and coordinates these components.
+I have separated game logic and node evaluation from tree-search. This allows me to have a single, game-agnostic negamax engine (in C++) for two-player, non-stochastic, perfect-information games, while I write the game logic and evaluation in whichever language I choose. (This work is for fun and exercise, and I am deliberately cultivating a variety of programming languages across projects.) The JavaScript class `player.js` glues together and coordinates these components.
 
 ![Negamax Schema](Negamax_Engine_Schema.png)
-
-For Chess:
-| Name  | Bytes  | Description |
-| :---:	| :----: | :---------: |
-| _GAMESTATE_BYTE_SIZE | 81 | Number of bytes needed to encode a game state |
-| _MOVE_BYTE_SIZE | 3 | Number of bytes needed to describe a move in Chess |
-| _MAX_NUM_TARGETS | 32 | A (generous) upper bound on how many distinct destinations (not distinct moves) may be available to a player from a single index |
-| _MAX_MOVES | 64 | A (generous) upper bound on how many moves may be made by a team in a single turn |
-| _KILLER_MOVE_PER_PLY | 2 | Chess engines typically store 2 killer moves per ply |
-| _KILLER_MOVE_MAX_DEPTH | 64 | Not to say that we actually search to depth 64! This is just comfortably large. |
-| _TRANSPO_RECORD_BYTE_SIZE | 91 | Number of bytes needed to store a TranspoRecord object |
-| _TRANSPO_TABLE_SIZE | 65536 | Number of TranspoRecords, each 91 bytes |
-| _TREE_SEARCH_ARRAY_SIZE | 65536 | Number of (game-state bytes, move-bytes) |
-| _NEGAMAX_NODE_BYTE_SIZE | 130 | Number of bytes needed to encode a negamax node |
-| ZHASH_TABLE_SIZE | 751 | Number of Zobrist keys |
-| _WHITE_TO_MOVE | 0 | Indication that white is to move in the current game state |
-| _BLACK_TO_MOVE | 1 | Indication that black is to move in the current game state |
 
 The **evaluation engine** has *four* outward-facing buffers:
 - `inputGameStateBuffer` is `_GAMESTATE_BYTE_SIZE` bytes long. The negamax module writes bytes here and can then ask the evaluation module things like, "What moves are available from this state?"
