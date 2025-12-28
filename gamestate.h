@@ -1174,7 +1174,7 @@ bool isEnPassantAttack(Move* move, GameState* gs)
 /* Is the given move a capture on the given GameState? */
 bool isCapture(Move* move, GameState* gs)
   {
-    return !isEmpty(move->to, gs) || bool isEnPassantAttack(move, gs);
+    return !isEmpty(move->to, gs) || isEnPassantAttack(move, gs);
   }
 
 /* If white has captured en passant, then the captured black pawn is below it.
