@@ -91,7 +91,7 @@ class Player
                 this.evaluationOutputGameStateBuffer = new Uint8Array(this.evaluationEngine.instance.exports.memory.buffer, this.evaluationOutputGameStateOffset, _GAMESTATE_BYTE_SIZE);
                                                                     //  Assign offset to output-moves buffer.
                 this.evaluationOutputMovesOffset = this.evaluationEngine.instance.exports.getOutputGameStateBuffer();
-                this.evaluationOutputMovesBuffer = new Uint8Array(this.evaluationEngine.instance.exports.memory.buffer, this.evaluationOutputMovesOffset, (4 + _MAX_MOVES * (_MOVE_BYTE_SIZE + 4));
+                this.evaluationOutputMovesBuffer = new Uint8Array(this.evaluationEngine.instance.exports.memory.buffer, this.evaluationOutputMovesOffset, (_MAX_MOVES * (_MOVE_BYTE_SIZE + 5));
 
                 elementsLoaded++;                                   //  Check evaluationEngine off our list.
                                                                     //  Load the tree-search module AFTER the evaluation module is complete.
@@ -124,7 +124,7 @@ class Player
                                      this.evaluationInputMoveBuffer[i] = this.negamaxQueryMoveBuffer[i];
                                    return;
                                  }.bind(this),
-                               _copyEvalOutput2AnswerGSBuffer: function(len)
+                               _copyEvalOutput2AnswerGSBuffer: function()
                                  {
                                    var i;                           //  Copy evaluationEngine's output buffer contents
                                                                     //  to negamaxEngine's answer-gamestate buffer.
@@ -134,12 +134,15 @@ class Player
                                  }.bind(this),
                                _copyEvalOutput2AnswerMovesBuffer: function(len)
                                  {
-                                   var i;                           //  Copy evaluationEngine's output buffer contents
-                                                                    //  to negamaxEngine's answer-moves buffer.
-                                   const size = _MOVE_BYTE_SIZE + 4;
-                                   for(i = 0; i < len * size; i++)
-                                     this.negamaxAnswerMovesBuffer[i] = this.evaluationOutputMovesBuffer[4 + i];
+                                   var i;
+                                   const size = _MOVE_BYTE_SIZE + 5;//  Copy evaluationEngine's output buffer contents
+                                   for(i = 0; i < len * size; i++)  //  to negamaxEngine's answer-moves buffer.
+                                     this.negamaxAnswerMovesBuffer[i] = this.evaluationOutputMovesBuffer[i];
                                    return;
+                                 }.bind(this),
+                               _sideToMove: function()
+                                 {
+                                   return this.evaluationEngine.instance.exports.sideToMove();
                                  }.bind(this),
                                _isQuiet: function()
                                  {
@@ -214,7 +217,7 @@ class Player
                                                                     //  Assign offset to auxiliary buffer.
                                                                     //  This is a receiving buffer, temporarily holding output from the evaluation module before converting these data to negamax nodes.
                         this.negamaxAnswerMovesOffset = this.negamaxEngine.instance.exports.getAnswerMovesBuffer();
-                        this.negamaxAnswerMovesBuffer = new Uint8Array(this.negamaxEngine.instance.exports.memory.buffer, this.negamaxAnswerMovesOffset, 4 + _MAX_MOVES * (_MOVE_BYTE_SIZE + 4));
+                        this.negamaxAnswerMovesBuffer = new Uint8Array(this.negamaxEngine.instance.exports.memory.buffer, this.negamaxAnswerMovesOffset, _MAX_MOVES * (_MOVE_BYTE_SIZE + 5));
                                                                     //  Assign offset to Zobrist hash buffer.
                                                                     //  This receives 8 * _ZHASH_TABLE_SIZE bytes. Sections of 8 bytes treated as unsigned long longs.
                         this.ZobristHashOffset = this.negamaxEngine.instance.exports.getZobristHashBuffer();
@@ -225,15 +228,19 @@ class Player
                                                                     //  Assign offset to tree-search buffer.
                                                                     //  This is a working buffer that receives bytes from the evaluation engine.
                         this.negamaxSearchOffset = this.negamaxEngine.instance.exports.getNegamaxSearchBuffer();
-                        this.negamaxSearchBuffer = new Uint8Array(this.negamaxEngine.instance.exports.memory.buffer, this.negamaxSearchOffset, _TREE_SEARCH_ARRAY_SIZE * _NEGAMAX_NODE_BYTE_SIZE);
+                        this.negamaxSearchBuffer = new Uint8Array(this.negamaxEngine.instance.exports.memory.buffer, this.negamaxSearchOffset, 4 + _TREE_SEARCH_ARRAY_SIZE * _NEGAMAX_NODE_BYTE_SIZE);
+                                                                    //  Assign offset to tree-search buffer.
+                                                                    //  This is a working buffer that receives bytes from the evaluation engine.
+                        this.negamaxMovesOffset = this.negamaxEngine.instance.exports.getNegamaxMovesBuffer();
+                        this.negamaxMovesBuffer = new Uint8Array(this.negamaxEngine.instance.exports.memory.buffer, this.negamaxMovesOffset, 4 + _TREE_SEARCH_ARRAY_SIZE * _NEGAMAX_MOVE_BYTE_SIZE);
                                                                     //  Assign offset to auxiliary buffer.
                                                                     //  This is a working buffer that holds the killer-moves table.
                         this.negamaxKillerMovesOffset = this.negamaxEngine.instance.exports.getKillerMovesTableBuffer();
-                        this.negamaxKillerMovesBuffer = new Uint8Array(this.negamaxEngine.instance.exports.memory.buffer, this.negamaxKillerMovesOffset, _KILLER_MOVE_PER_PLY * _MOVE_BYTE_SIZE * _KILLER_MOVE_MAX_DEPTH);
+                        this.negamaxKillerMovesBuffer = new Uint8Array(this.negamaxEngine.instance.exports.memory.buffer, this.negamaxKillerMovesOffset, _KILLER_MOVE_PER_PLY * 2 * _KILLER_MOVE_MAX_DEPTH);
                                                                     //  Assign offset to auxiliary buffer.
                                                                     //  This is a working buffer that holds the history-heuristic table.
                         this.negamaxHistoryHeuristicOffset = this.negamaxEngine.instance.exports.getHistoryTableBuffer();
-                        this.negamaxHistoryHeuristicBuffer = new Uint8Array(this.negamaxEngine.instance.exports.memory.buffer, this.negamaxHistoryHeuristicOffset, 2 * _NOTHING * _NOTHING);
+                        this.negamaxHistoryHeuristicBuffer = new Uint8Array(this.negamaxEngine.instance.exports.memory.buffer, this.negamaxHistoryHeuristicOffset, 2 * (_NOTHING + _NOTHING));
 
                         for(i = 0; i < 4; i++)                      //  Blank out the first four bytes; let the rest be trash.
                           this.TranspositionTableBuffer[i] = 0;
