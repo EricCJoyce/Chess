@@ -36,7 +36,7 @@ bool isRook_client(unsigned char);
 bool isQueen_client(unsigned char);
 bool isKing_client(unsigned char);
 
-void getMovesIndex_client(unsigned char);
+unsigned int getMovesIndex_client(unsigned char);
 void makeMove_client(unsigned char, unsigned char, unsigned char);
 bool isTerminal_client(void);
 unsigned char isWin_client(void);
@@ -47,9 +47,8 @@ void draw(void);
  Globals  */
 
 unsigned char currentState[_GAMESTATE_BYTE_SIZE];                   //  Global array containing the serialized game state.
-unsigned char movesBuffer[_MAX_NUM_TARGETS + 4];                    //  Global array containing an number (4 bytes) followed by
-                                                                    //  the number of unique destinations (not necessarily the
-                                                                    //  number of unique moves) available, followed by that many indices.
+unsigned char movesBuffer[_MAX_NUM_TARGETS];                        //  Global array containing the unique destination-indices
+                                                                    //  (not necessarily the number of unique moves) available.
 
 /**************************************************************************************************
  Functions  */
@@ -589,15 +588,14 @@ unsigned char isWin_client(void)
   }
 
 /* Given an index, recover the game state from the global buffer "currentState", and compute the moves available to the piece at "index."
-   The number of moves is written (as a 4-byte unsigned int) to movesBuffer[0, 3], then every following byte in "movesBuffer" will contain a destination.
+   The number of moves is returned, and that many bytes in "movesBuffer" will contain a destinations.
    This function is intended to answer queries from the human player. */
-void getMovesIndex_client(unsigned char index)
+unsigned int getMovesIndex_client(unsigned char index)
   {
     GameState gs;
     Move moves[_MAX_NUM_TARGETS];                                   //  Generous upper bound assumes that a single piece could reach half of all squares.
     unsigned int len, i = 0, j;
     unsigned int ctr;
-    unsigned char buffer4[4];
     unsigned char indices[_MAX_NUM_TARGETS];
 
     deserialize(&gs);                                               //  Recover GameState from buffer.
@@ -614,14 +612,10 @@ void getMovesIndex_client(unsigned char index)
       }
 
     i = 0;                                                          //  Reset. 'i' now iterates into 'movesBuffer'.
-    memcpy(buffer4, (unsigned char*)(&ctr), 4);                     //  Force the unsigned integer into a 4-byte temp buffer.
-    for(j = 0; j < 4; j++)                                          //  Copy bytes to serial buffer.
-      movesBuffer[i++] = buffer4[j];
-
     for(len = 0; len < ctr; len++)
       movesBuffer[i++] = indices[len];
 
-    return;
+    return ctr;
   }
 
 /* Update "currentState" according to the given move data (if those data are indeed valid!) */
