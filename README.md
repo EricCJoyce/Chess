@@ -25,9 +25,8 @@ This executable lives on the server back-end. Call it when the page loads to gen
 gcc -Wall zgenerate.c -lm -o zgenerate
 ```
 
-## Client-facing game logic module
+## Constants for the chess engine
 
-Constants for the chess engine:
 | Name  | Bytes  | Description |
 | :---:	| :----: | :---------: |
 | _GAMESTATE_BYTE_SIZE | 81 | Number of bytes needed to encode a game state |
@@ -43,6 +42,8 @@ Constants for the chess engine:
 | ZHASH_TABLE_SIZE | 751 | Number of Zobrist keys |
 | _WHITE_TO_MOVE | 0 | Indication that white is to move in the current game state |
 | _BLACK_TO_MOVE | 1 | Indication that black is to move in the current game state |
+
+## Client-facing game logic module
 
 ![Game Logic Schema](Game_Logic_Schema.png)
 
