@@ -38,7 +38,8 @@ gcc -Wall zgenerate.c -lm -o zgenerate
 | _TRANSPO_RECORD_BYTE_SIZE | 91 | Number of bytes needed to store a TranspoRecord object |
 | _TRANSPO_TABLE_SIZE | 65536 | Number of TranspoRecords, each 91 bytes |
 | _TREE_SEARCH_ARRAY_SIZE | 65536 | Number of (game-state bytes, move-bytes) |
-| _NEGAMAX_NODE_BYTE_SIZE | 130 | Number of bytes needed to encode a negamax node |
+| _NEGAMAX_NODE_BYTE_SIZE | 139 | Number of bytes needed to encode a negamax node |
+| _NEGAMAX_MOVE_BYTE_SIZE | 4 | Number of bytes needed to encode a negamax move (in their separate, global array) |
 | ZHASH_TABLE_SIZE | 751 | Number of Zobrist keys |
 | _WHITE_TO_MOVE | 0 | Indication that white is to move in the current game state |
 | _BLACK_TO_MOVE | 1 | Indication that black is to move in the current game state |
