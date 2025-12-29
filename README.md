@@ -91,7 +91,7 @@ I have separated game logic and node evaluation from tree-search. This allows me
 
 ### Evaluation Module
 
-The **evaluation engine** has *four* outward-facing buffers:
+The **evaluation module** has *four* outward-facing buffers:
 - `inputGameStateBuffer` is `_GAMESTATE_BYTE_SIZE` bytes long. The negamax module writes bytes here and can then ask the evaluation module things like, "What moves are available from this state?"
 - `inputMoveBuffer` is `_MOVE_BYTE_SIZE` bytes long. The negamax module writes bytes here and writes game-state bytes to `inputGameStateBuffer` and can then ask, "What game state results from making this move from this state?"
 - `outputGameStateBuffer` is `_GAMESTATE_BYTE_SIZE` bytes long and encodes a chess state after an operation. The negamax module reads these bytes from the evaluation module.
@@ -122,7 +122,7 @@ The other module functions are as follows:
 
 ### Negamax Module
 
-The **negamax engine** has *eleven* outward-facing buffers:
+The **negamax module** has *eleven* outward-facing buffers:
 - `inputGameStateBuffer`
 - `outputBuffer`
 - `queryGameStateBuffer`
