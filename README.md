@@ -4,7 +4,7 @@ Notes on the creation of Chess
 ## Docker container to compile C to WebAssembly
 We wish to have means to compile C code into WebAssembly modules that handle game-compute on the front-end. Since this is a specialized, project-specific use-case, I do not want to modify my system's usual toolchains. 
 
-Therefore, create a Docker container to do all this. Leave the rest of my system alone.
+Therefore, create a Docker container to compile WebAssembly modules. Leave the rest of my system alone.
 ```
 sudo docker build -t emscripten-c .
 ```
@@ -20,7 +20,7 @@ sudo docker image rm emscripten-c
 ```
 
 ## Zobrist hash generator
-This executable lives on the server back-end. Call it when the page loads to generate a random Zobrist hash for every game.
+This executable (not a WebAssembly module) lives on the server back-end. Compile using GCC. Call it when the page loads to generate a random Zobrist hash for every game.
 ```
 gcc -Wall zgenerate.c -lm -o zgenerate
 ```
@@ -44,6 +44,8 @@ gcc -Wall zgenerate.c -lm -o zgenerate
 | _BLACK_TO_MOVE | 1 | Indication that black is to move in the current game state |
 
 ## Client-facing game logic module
+
+### Game-Logic Module
 
 ![Game Logic Schema](Game_Logic_Schema.png)
 
@@ -87,6 +89,8 @@ I have separated game logic and node evaluation from tree-search. This allows me
 
 ![Negamax Schema](Negamax_Engine_Schema.png)
 
+### Evaluation Module
+
 The **evaluation engine** has *four* outward-facing buffers:
 - `inputGameStateBuffer` is `_GAMESTATE_BYTE_SIZE` bytes long. The negamax module writes bytes here and can then ask the evaluation module things like, "What moves are available from this state?"
 - `inputMoveBuffer` is `_MOVE_BYTE_SIZE` bytes long. The negamax module writes bytes here and writes game-state bytes to `inputGameStateBuffer` and can then ask, "What game state results from making this move from this state?"
@@ -115,6 +119,8 @@ The other module functions are as follows:
 - `this.evaluationEngine.instance.exports.makeNullMove();` decodes the game state stored in `inputGameStateBuffer`, applies a null-move, and writes the encoded, resultant game state in `outputGameStateBuffer`.
 - `this.evaluationEngine.instance.exports.evaluate(bool);` .
 - `this.evaluationEngine.instance.exports.getMoves();` .
+
+### Negamax Module
 
 The **negamax engine** has *eleven* outward-facing buffers:
 - `inputGameStateBuffer`
