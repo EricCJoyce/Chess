@@ -111,7 +111,7 @@ The first four simply fetch the memory addresses of this module's buffers:
 - `this.evaluationEngine.instance.exports.getOutputMovesBuffer();` returns the address of the evaluation module's output-moves buffer.
 
 The other module functions are as follows:
-- `this.evaluationEngine.instance.exports.sideToMove();` returns `'w'` or `'b'`.
+- `this.evaluationEngine.instance.exports.sideToMove();` returns `_WHITE_TO_MOVE` or `_BLACK_TO_MOVE`.
 - `this.evaluationEngine.instance.exports.isQuiet();` returns a Boolean value, according to the game state bytes previously written to the evaluation module's input-gamestate buffer.
 - `this.evaluationEngine.instance.exports.isTerminal();` returns a Boolean value, according to the game state bytes previously written to the evaluation module's input-gamestate buffer.
 - `this.evaluationEngine.instance.exports.isSideToMoveInCheck();` returns a Boolean value, according to the game state bytes previously written to the evaluation module's input-gamestate buffer.
