@@ -35,8 +35,8 @@ gcc -Wall zgenerate.c -lm -o zgenerate
 | _MAX_MOVES | 64 | A (generous) upper bound on how many moves may be made by a team in a single turn |
 | _KILLER_MOVE_PER_PLY | 2 | Chess engines typically store 2 killer moves per ply |
 | _KILLER_MOVE_MAX_DEPTH | 64 | Not to say that we actually search to depth 64! This is just comfortably large. |
-| _TRANSPO_RECORD_BYTE_SIZE | 14 | Number of bytes needed to store a TranspoRecord object |
-| _TRANSPO_TABLE_SIZE | 65536 | Number of TranspoRecords, each 14 bytes |
+| _TRANSPO_RECORD_BYTE_SIZE | 18 | Number of bytes needed to store a TranspoRecord object |
+| _TRANSPO_TABLE_SIZE | 524288 | Number of TranspoRecords, each 18 bytes |
 | _TREE_SEARCH_ARRAY_SIZE | 65536 | Number of (game-state bytes, move-bytes) |
 | _NEGAMAX_NODE_BYTE_SIZE | 139 | Number of bytes needed to encode a negamax node |
 | _NEGAMAX_MOVE_BYTE_SIZE | 4 | Number of bytes needed to encode a negamax move (in their separate, global array) |
@@ -52,7 +52,7 @@ gcc -Wall zgenerate.c -lm -o zgenerate
 
 The **game-logic module** has *two* outward-facing buffers:
 - `currentState` is `_GAMESTATE_BYTE_SIZE` bytes long. It encodes the current state of the game.
-- `movesBuffer` is `4 + _MAX_NUM_TARGETS` bytes long. Its first four bytes encode `n`, the number (unsigned int) of legal targets, then the subsequent `n` bytes are those indices on the chess board.
+- `movesBuffer` is `_MAX_NUM_TARGETS` bytes long.
 
 Compile the front-end, client-facing game-logic module. This WebAssembly module answers queries from the client-side like getting data about which pieces can move where.
 ```
@@ -76,8 +76,8 @@ The other module functions are as follows:
 - `gameEngine.instance.exports.isRook_client(unsigned char);` returns a Boolean value indicating whether the piece at the given index is a rook.
 - `gameEngine.instance.exports.isQueen_client(unsigned char);` returns a Boolean value indicating whether the piece at the given index is a queen.
 - `gameEngine.instance.exports.isKing_client(unsigned char);` returns a Boolean value indicating whether the piece at the given index is a king.
-- `gameEngine.instance.exports.getMovesIndex_client(unsigned char);` writes the number of legal targets `n` and then a run of `n` indices for the current state of the board and the piece at the given index.
-- `gameEngine.instance.exports.makeMove_client(unsigned char, unsigned char, unsigned char);` .
+- `gameEngine.instance.exports.getMovesIndex_client(unsigned char);` returns the number of legal targets `n` as an unsigned int and writes a run of `n` indices to the move-targets buffer.
+- `gameEngine.instance.exports.makeMove_client(unsigned char, unsigned char, unsigned char);` applies the given move to the current game state and overwrites its encoding in the `currentState` buffer.
 - `gameEngine.instance.exports.isTerminal_client();` returns a Boolean value indicating whether the current game state is terminal.
 - `gameEngine.instance.exports.isWin_client();` returns an unsigned char indicating whether white has won, black has won, the game has reached stalemate, or the game is ongoing.
 - `gameEngine.instance.exports.draw();` prints the board to the browser console.
