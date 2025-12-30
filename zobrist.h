@@ -6,7 +6,6 @@
 #include <string.h>
 #include <time.h>
 
-#define _GAMESTATE_BYTE_SIZE 81                                     /* Number of bytes needed to store a GameState structure. */
 #define ZHASH_TABLE_SIZE    751
 
 #define WP_A2               0                                       /* White pawns, ascending rows 2 to 7, columns A to H. */

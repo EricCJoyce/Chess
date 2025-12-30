@@ -639,11 +639,6 @@ void makeMove_client(unsigned char from, unsigned char to, unsigned char promo)
         makeMove(&move, &gs);
       }
 
-    movesBuffer[0] = 0;                                             //  Blank out the number of moves in the buffer.
-    movesBuffer[1] = 0;
-    movesBuffer[2] = 0;
-    movesBuffer[3] = 0;
-
     serialize(&gs);                                                 //  Write updated GameState back to buffer.
 
     return;

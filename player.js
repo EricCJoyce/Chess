@@ -140,42 +140,44 @@ class Player
                                      this.negamaxAnswerMovesBuffer[i] = this.evaluationOutputMovesBuffer[i];
                                    return;
                                  }.bind(this),
-                               _sideToMove: function()
+                               _sideToMove: function()              //  Returns unsigned char.
                                  {
                                    return this.evaluationEngine.instance.exports.sideToMove();
                                  }.bind(this),
-                               _isQuiet: function()
+                               _isQuiet: function()                 //  Returns bool.
                                  {
                                    return this.evaluationEngine.instance.exports.isQuiet();
                                  }.bind(this),
-                               _isTerminal: function()
+                               _isTerminal: function()              //  Returns bool.
                                  {
                                    return this.evaluationEngine.instance.exports.isTerminal();
                                  }.bind(this),
-                               _isSideToMoveInCheck: function()
+                               _isSideToMoveInCheck: function()     //  Returns bool.
                                  {
                                    return this.evaluationEngine.instance.exports.isSideToMoveInCheck();
                                  }.bind(this),
-                               _nonPawnMaterial: function()
+                               _nonPawnMaterial: function()         //  Returns unsigned char.
                                  {
                                    return this.evaluationEngine.instance.exports.nonPawnMaterial();
                                  }.bind(this),
                                _makeMove: function()
                                  {
-                                   return this.evaluationEngine.instance.exports.makeMove();
+                                   this.evaluationEngine.instance.exports.makeMove();
+                                   return;
                                  }.bind(this),
                                _makeNullMove: function()
                                  {
-                                   return this.evaluationEngine.instance.exports.makeNullMove();
+                                   this.evaluationEngine.instance.exports.makeNullMove();
+                                   return;
                                  }.bind(this),
-                               _evaluate: function()
+                               _evaluate: function()                //  Returns float.
                                  {
                                    if(this.team == 'Black')
                                      return this.evaluationEngine.instance.exports.evaluate(false);
                                    else
                                      return this.evaluationEngine.instance.exports.evaluate(true);
                                  }.bind(this),
-                               _getMoves: function()
+                               _getMoves: function()                //  Returns unsigned int.
                                  {
                                    return this.evaluationEngine.instance.exports.getMoves();
                                  }.bind(this),
@@ -224,7 +226,7 @@ class Player
                         this.ZobristHashBuffer = new Uint8Array(this.negamaxEngine.instance.exports.memory.buffer, this.ZobristHashOffset, _HASH_VALUE_BYTE_SIZE * _ZHASH_TABLE_SIZE);
                                                                     //  Assign offset to Transposition Table buffer.
                         this.TranspositionTableOffset = this.negamaxEngine.instance.exports.getTranspositionTableBuffer();
-                        this.TranspositionTableBuffer = new Uint8Array(this.negamaxEngine.instance.exports.memory.buffer, this.TranspositionTableOffset, 4 + _TRANSPO_TABLE_SIZE * (_TRANSPO_RECORD_BYTE_SIZE + _HASH_VALUE_BYTE_SIZE));
+                        this.TranspositionTableBuffer = new Uint8Array(this.negamaxEngine.instance.exports.memory.buffer, this.TranspositionTableOffset, 1 + _TRANSPO_TABLE_SIZE * _TRANSPO_RECORD_BYTE_SIZE);
                                                                     //  Assign offset to tree-search buffer.
                                                                     //  This is a working buffer that receives bytes from the evaluation engine.
                         this.negamaxSearchOffset = this.negamaxEngine.instance.exports.getNegamaxSearchBuffer();
