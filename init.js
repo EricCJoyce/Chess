@@ -8,12 +8,13 @@ var gameOutputOffset;                                               //  Address 
 var gameOutputBuffer;                                               //  Byte buffer
 const _GAMESTATE_BYTE_SIZE = 81;                                    //  Size (see C code).
 const _MOVE_BYTE_SIZE = 3;                                          //  Size (see C code).
-const _MOVEBUFFER_BYTE_SIZE = 36;                                   //  Size (see C code).
+const _MOVEBUFFER_BYTE_SIZE = 32;                                   //  Size (see C code).
 const _MAX_MOVES = 64;                                              //  Size (see C code).
 const _ZHASH_TABLE_SIZE = 751;                                      //  Size (see C code).
 const _HASH_VALUE_BYTE_SIZE = 8;                                    //  Size of long long.
 const _TRANSPO_TABLE_SIZE = 524288;                                 //  Size (see C code).
 const _TRANSPO_RECORD_BYTE_SIZE = 18;                               //  Size (see C code).
+const _PARAMETER_ARRAY_SIZE = 16;                                   //  Size (see C++ code).
 const _TREE_SEARCH_ARRAY_SIZE = 65536;                              //  Size (see C++ code).
 const _NEGAMAX_NODE_BYTE_SIZE = 139;                                //  Size (see C++ code).
 const _NEGAMAX_MOVE_BYTE_SIZE = 4;                                  //  Size (see C++ code).

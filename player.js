@@ -4,8 +4,6 @@ class Player
     constructor()
       {
         this.team = 'Black';                                        //  In {'White', 'Black'}. Default to Black.
-        this.name = 'Linear';                                       //  Default to linear model.
-        this.models = [];                                           //  All available models.
         this.ply = 3;                                               //  Depth to which this A.I. should search.
 
         this.branches = [];                                         //  Array of Objects, each {ByteArray(GameState), uchar(depth), ByteArray(Move)}.
@@ -203,6 +201,9 @@ class Player
                                                                     //  Assign offset to input buffer. This receives a game state as a byte array.
                         this.negamaxInputOffset = this.negamaxEngine.instance.exports.getInputBuffer();
                         this.negamaxInputBuffer = new Uint8Array(this.negamaxEngine.instance.exports.memory.buffer, this.negamaxInputOffset, _GAMESTATE_BYTE_SIZE);
+                                                                    //  Assign offset to parameters buffer.
+                        this.negamaxParamsOffset = this.negamaxEngine.instance.exports.getParametersBuffer();
+                        this.negamaxParamsBuffer = new Uint8Array(this.negamaxEngine.instance.exports.memory.buffer, this.negamaxParamsOffset, _PARAMETER_ARRAY_SIZE);
                                                                     //  Assign offset to output buffer.
                                                                     //  This receives a game state, a 1-byte uchar (depth achieved), a move, a 4-byte float (score).
                         this.negamaxOutputOffset = this.negamaxEngine.instance.exports.getOutputBuffer();

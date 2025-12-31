@@ -1,6 +1,6 @@
 /*
 
-sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c em++ -I ./ -Os -s STANDALONE_WASM -s INITIAL_MEMORY=17235968 -s STACK_SIZE=1048576 -s EXPORTED_FUNCTIONS="['_getInputBuffer','_getQueryBuffer','_getOutputBuffer','_getZobristHashBuffer','_getTranspositionTableBuffer','_getNegamaxSearchBuffer','_getNegamaxMovesBuffer','_getAnswerGameStateBuffer','_getAnswerMovesBuffer','_getKillerMovesBuffer','_getHistoryBuffer','_initSearch','_negamax']" -Wl,--no-entry "negamax.cpp" -o "negamax.wasm"
+sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c em++ -I ./ -Os -s STANDALONE_WASM -s INITIAL_MEMORY=17235968 -s STACK_SIZE=1048576 -s EXPORTED_FUNCTIONS="['_getInputBuffer','_getParametersBuffer','_getQueryBuffer','_getOutputBuffer','_getZobristHashBuffer','_getTranspositionTableBuffer','_getNegamaxSearchBuffer','_getNegamaxMovesBuffer','_getAnswerGameStateBuffer','_getAnswerMovesBuffer','_getKillerMovesBuffer','_getHistoryBuffer','_initSearch','_negamax']" -Wl,--no-entry "negamax.cpp" -o "negamax.wasm"
 
 */
 
@@ -11,12 +11,14 @@ sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,sourc
 #define _NONE                                   64                  /* Required as a "blank" value without #include "gamestate.h". */
 #define _NO_PROMO                                0                  /* Required as a "blank" value without #include "gamestate.h". */
 
-#define _KILLER_MOVE_PER_PLY                     2                  /* Typical for other chess engines. */
-#define _KILLER_MOVE_MAX_DEPTH                  64                  /* Simply something "comfortably large". */
+#define _PARAMETER_ARRAY_SIZE                   16                  /* Number of bytes needed to store search parameters. */
 
 #define _TREE_SEARCH_ARRAY_SIZE              65536                  /* Number of (game-state bytes, move-bytes). */
 #define _NEGAMAX_NODE_BYTE_SIZE                139                  /* Number of bytes needed to store a negamax node. */
 #define _NEGAMAX_MOVE_BYTE_SIZE                  4                  /* Number of bytes needed to store a negamax move. */
+
+#define _KILLER_MOVE_PER_PLY                     2                  /* Typical for other chess engines. */
+#define _KILLER_MOVE_MAX_DEPTH                  64                  /* Simply something "comfortably large". */
 
 #define _PHASE_ENTER_NODE                        0                  /* Go to  when entering negamax(). */
 #define _PHASE_GEN_AND_ORDER                     1                  /* Go to  when entering negamax(). */
@@ -164,6 +166,7 @@ __attribute__((import_module("env"), import_name("_incrementNodeCtr"))) void inc
 extern "C"
   {
     unsigned char* getInputBuffer(void);
+    unsigned char* getParametersBuffer(void);
     unsigned char* getOutputBuffer(void);
     unsigned char* getQueryGameStateBuffer(void);
     unsigned char* getQueryMoveBuffer(void);
@@ -207,6 +210,15 @@ void historyUpdate(unsigned char, unsigned char, unsigned char*);
                                                                     //  81 bytes.
                                                                     //  Global array containing the serialized game state:
 unsigned char inputGameStateBuffer[_GAMESTATE_BYTE_SIZE];           //  Input from Player.js to its negamaxEngine.
+
+                                                                    //  16 bytes.
+                                                                    //  Search ID:      4 bytes.
+                                                                    //  Status:         1 byte.
+                                                                    //  Control Flags:  1 byte.
+                                                                    //  Target Depth:   1 byte.
+                                                                    //  Depth Reached:  1 byte.
+                                                                    //  Deadline in ms: 4 bytes.
+unsigned char inputParametersBuffer[_PARAMETER_ARRAY_SIZE];         //  Nodes Searched: 4 bytes.
 
                                                                     //  89 bytes.
                                                                     //  Global array containing: {serialized game state (sanity check),
@@ -290,6 +302,13 @@ unsigned char historyTableBuffer[2 * _NONE * _NONE];                //          
 unsigned char* getInputBuffer(void)
   {
     return &inputGameStateBuffer[0];
+  }
+
+/* Expose the global array declared here to JavaScript.
+   Player.js reads and writes byte arrays here. */
+unsigned char* getParametersBuffer(void)
+  {
+    return &inputParametersBuffer[0];
   }
 
 /* Expose the global array declared here to JavaScript.
