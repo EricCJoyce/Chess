@@ -12,8 +12,8 @@
                                                                        524,288 = 2^19.
                                                                        1 + _TRANSPO_TABLE_SIZE * _TRANSPO_RECORD_BYTE_SIZE == 9 MB,
                                                                        deemed sensible for Mobile/Tablets */
-#define _TRANSPO_AGE_THRESHOLD        40                            /* Every time the transposition table is serialized, increment every entry's "age",
-                                                                       and shed entries older than this threshold. */
+#define _TRANSPO_AGE_THRESHOLD        40                            /* Old enough to be replaced. */
+
 #define NODE_TYPE_NONE                 0                            /* No entry. */
 #define NODE_TYPE_PV                   1                            /* Score is exact. */
 #define NODE_TYPE_ALL                  2                            /* Score is an upper bound. */
@@ -39,10 +39,11 @@ typedef struct TranspoRecordType                                    //  TOTAL: 1
  Prototypes  */
 
 bool fetchRecord(unsigned int, TranspoRecord*);
+unsigned char getGeneration(void);
+void incGeneration(void);
 unsigned int hashIndex(unsigned long long);
 void serializeTranspoRecord(TranspoRecord*, unsigned char*);
 void deserializeTranspoRecord(unsigned char*, TranspoRecord*);
-void updateTranspoTable(void);
 
 /**************************************************************************************************
  Globals  */
@@ -59,6 +60,22 @@ bool fetchRecord(unsigned int index, TranspoRecord* ttRecord)
   {
     deserializeTranspoRecord(transpositionTableBuffer + 1 + index * _TRANSPO_RECORD_BYTE_SIZE, ttRecord);
     return (ttRecord->age > 0);
+  }
+
+/* The first byte of the transposition table's byte array is the "generation" for all records created at a given time. */
+unsigned char getGeneration(void)
+  {
+    return transpositionTableBuffer[0];
+  }
+
+/* Enforce wrap-around from 255 to 1. */
+void incGeneration(void)
+  {
+    if(transpositionTableBuffer[0] == 255)
+      transpositionTableBuffer[0] = 1;
+    else
+      transpositionTableBuffer[0]++;
+    return;
   }
 
 /* Return an index into the transposition table buffer. */
@@ -121,34 +138,6 @@ void deserializeTranspoRecord(unsigned char* buffer, TranspoRecord* ttRecord)
     ttRecord->type = buffer[i++];                                   //  Restore type to the TranspoRecord.
 
     ttRecord->age = buffer[i++];                                    //  Restore age to the TranspoRecord.
-
-    return;
-  }
-
-/* Advance the 'age' field of every "live" TranspoRecord.
-   If it's past the limit, set 'age' to 0 to indicate that this slot is free.
-   Write everything back to the global byte array. */
-void updateTranspoTable(void)
-  {
-    unsigned int i;
-    unsigned int s = 0;
-    TranspoRecord ttRecord;
-
-    for(i = 0; i < _TRANSPO_TABLE_SIZE; i++)
-      {
-        deserializeTranspoRecord(transpositionTableBuffer + 4 + i * (8 + _TRANSPO_RECORD_BYTE_SIZE), &ttRecord);
-        if(ttRecord.age > 0)                                        //  "Live" entry.
-          {
-            if(++ttRecord.age >= _TRANSPO_AGE_THRESHOLD)            //  Too old?
-              ttRecord.age = 0;                                     //  Mark as available.
-            else                                                    //  Still valid: increment size counter.
-              s++;
-                                                                    //  Write updated record to byte array.
-            serializeTranspoRecord(&ttRecord, transpositionTableBuffer + 4 + i * (8 + _TRANSPO_RECORD_BYTE_SIZE));
-          }
-      }
-
-    setTableSize(s);
 
     return;
   }

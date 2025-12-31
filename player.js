@@ -203,7 +203,8 @@ class Player
                                                                     //  Assign offset to input buffer. This receives a game state as a byte array.
                         this.negamaxInputOffset = this.negamaxEngine.instance.exports.getInputBuffer();
                         this.negamaxInputBuffer = new Uint8Array(this.negamaxEngine.instance.exports.memory.buffer, this.negamaxInputOffset, _GAMESTATE_BYTE_SIZE);
-                                                                    //  Assign offset to output buffer. This receives a game state, a 1-byte uchar, a move.
+                                                                    //  Assign offset to output buffer.
+                                                                    //  This receives a game state, a 1-byte uchar (depth achieved), a move, a 4-byte float (score).
                         this.negamaxOutputOffset = this.negamaxEngine.instance.exports.getOutputBuffer();
                         this.negamaxOutputBuffer = new Uint8Array(this.negamaxEngine.instance.exports.memory.buffer, this.negamaxOutputOffset, _GAMESTATE_BYTE_SIZE + 1 + _MOVE_BYTE_SIZE + 4);
                                                                     //  Assign offset to input buffer. This receives a game state as a byte array.

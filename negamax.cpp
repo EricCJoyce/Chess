@@ -18,11 +18,12 @@ sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,sourc
 #define _NEGAMAX_NODE_BYTE_SIZE                139                  /* Number of bytes needed to store a negamax node. */
 #define _NEGAMAX_MOVE_BYTE_SIZE                  4                  /* Number of bytes needed to store a negamax move. */
 
-#define _PHASE_ENTER_NODE                        0                  /* Indicating that transpo-check, terminal-check, null move, IID, early eval/pruning are to follow. */
-#define _PHASE_GEN_AND_ORDER                     1                  /* Indicating that move-generation, basic scoring / ordering are to follow. */
-#define _PHASE_NEXT_MOVE                         2                  /* Indicating that next-move picking, reduction-decision, child-node pushing are to follow. */
-#define _PHASE_AFTER_CHILD                       3                  /* Indicating that the child-return routine (update alpha/beta, killers, history, TT) is to follow. */
-#define _PHASE_FINISH_NODE                       4                  /* Indicating that the final TT store, parent update, then pop are to follow. */
+#define _PHASE_ENTER_NODE                        0                  /* Go to  when entering negamax(). */
+#define _PHASE_GEN_AND_ORDER                     1                  /* Go to  when entering negamax(). */
+#define _PHASE_NEXT_MOVE                         2                  /* Go to  when entering negamax(). */
+#define _PHASE_AFTER_CHILD                       3                  /* Go to  when entering negamax(). */
+#define _PHASE_FINISH_NODE                       4                  /* Go to  when entering negamax(). */
+#define _PHASE_COMPLETE                          5                  /* Write to output buffer when entering negamax() and signal search completion.  */
 
 #define NN_FLAG_NULL_TRIED                    0x01                  /* Indicates that we already tried a null move here. */
 #define NN_FLAG_NULL_IN_PROGRESS              0x02                  /* Indicates that there is currently a null-move child. */
@@ -208,10 +209,10 @@ void historyUpdate(unsigned char, unsigned char, unsigned char*);
 unsigned char inputGameStateBuffer[_GAMESTATE_BYTE_SIZE];           //  Input from Player.js to its negamaxEngine.
 
                                                                     //  89 bytes.
-                                                                    //  Global array containing: {serialized game state,
-                                                                    //                            1-byte uchar,
-                                                                    //                            serialized move,
-                                                                    //                            4-byte float}:
+                                                                    //  Global array containing: {serialized game state (sanity check),
+                                                                    //                            1-byte uchar          (depth achieved),
+                                                                    //                            serialized move       (move to make in this state),
+                                                                    //                            4-byte float          (score)                      }
                                                                     //  Output from negamaxEngine to Player.js.
 unsigned char outputBuffer[_GAMESTATE_BYTE_SIZE + 1 + _MOVE_BYTE_SIZE + 4];
 
@@ -418,33 +419,15 @@ void initSearch(unsigned char depth)
    So that tree search does not overwhelm the client-side CPU, negamax must be redesigned in a "heartbeat" manner. */
 bool negamax(void)
   {
+    NegamaxNode node;
     unsigned int gsIndex;
-    NegamaxNode node, child;
+
+    unsigned char buffer4[4];
     unsigned int i, j;
-    unsigned char material;
-    signed char R, newDepth;
-    unsigned int negamaxSearchBufferLength;
-    bool b;
+
 
     gsIndex = restoreNegamaxSearchBufferLength() - 1;               //  Index for top of stack is length minus one.
     restoreNode(gsIndex, &node);                                    //  Restore the node at the top of the stack.
-
-    if(gsIndex == 0 && node.phase == _PHASE_PARENT_UPDATE)          //  If the root node has appeared at the top of the stack with this state, then we're done.
-      {                                                             //  Recover data from search and write to "outputBuffer".
-        i = 0;
-
-        for(j = 0; j < _GAMESTATE_BYTE_SIZE; j++)                   //  Copy game state to output buffer.
-          outputBuffer[i++] = node.gs[j];
-
-        outputBuffer[i++] = (unsigned char)node.depth;              //  Copy depth to output buffer.
-
-        for(j = 0; j < _MOVE_BYTE_SIZE; j++)                        //  Copy best move for this state, as determined by depth, to output buffer.
-          outputBuffer[i++] = node.bestMove[j];
-
-        //  Write the score to the last four bytes.
-
-        return true;                                                //  Indicate that search has completed.
-      }
 
     switch(node.phase)
       {
@@ -479,14 +462,30 @@ bool negamax(void)
           afterChild_step(gsIndex, &node);
           break;
 
-        //////////////////////////////////////////////////////////////  .
-        case _PHASE_FINISH_NODE:                                    //  - .
-                                                                    //  - .
+        //////////////////////////////////////////////////////////////  Write to the Transpo Table.
+        case _PHASE_FINISH_NODE:
           finishNode_step(gsIndex, &node);
+          break;
+
+        //////////////////////////////////////////////////////////////  Write to outputBuffer and signal search completion.
+        case _PHASE_COMPLETE:
+          i = 0;
+          for(j = 0; j < _GAMESTATE_BYTE_SIZE; j++)                 //  Copy game state to output buffer.
+            outputBuffer[i++] = node.gs[j];
+
+          outputBuffer[i++] = (unsigned char)node.depth;            //  Copy depth to output buffer.
+
+          for(j = 0; j < _MOVE_BYTE_SIZE; j++)                      //  Copy best move for this state, as determined by depth, to output buffer.
+            outputBuffer[i++] = node.bestMove[j];
+
+          memcpy(buffer4, (unsigned char*)(&node.value), 4);        //  Force the float into a 4-byte temp buffer.
+          for(j = 0; j < 4; j++)                                    //  Copy bytes to output buffer.
+            outputBuffer[i++] = buffer4[j];
+
           break;
       }
 
-    return false;                                                   //  Indicate that search is ongoing.
+    return (node.phase == _PHASE_COMPLETE);                         //  True: search is complete; False: search is ongoing.
   }
 
 /* HEARTBEAT NEGAMAX: _PHASE_ENTER_NODE
@@ -674,7 +673,11 @@ void transpoProbe(unsigned int gsIndex, NegamaxNode* node)
 
             if(node->alpha >= node->beta)
               {
-                node->value = ttRecord.score;                       //  This node's return value furnished by the transpo lookup.
+                if(ttRecord.type == NODE_TYPE_CUT)                  //  Lower bound caused fail-high.
+                  node->value = node->beta;
+                else                                                //  Upper bound caused fail-low.
+                  node->value = node->alpha;
+
                 node->phase = _PHASE_FINISH_NODE;                   //  Set node's phase to Parent-Update.
                 saveNode(node, gsIndex);                            //  Save the updated node.
                 return;
@@ -898,17 +901,19 @@ void afterChild_step(unsigned int gsIndex, NegamaxNode* node)
   }
 
 /* HEARTBEAT NEGAMAX: _PHASE_FINISH_NODE
-   . */
+   Write to the Transpo Table. */
 void finishNode_step(unsigned int gsIndex, NegamaxNode* node)
   {
+    TranspoRecord ttEntry;
+    unsigned char currGen;
+    unsigned char oldness;
+
     float v = node->value;
     float a0 = node->originalAlpha;
     float b = node->beta;
     unsigned char ttType;
     unsigned char depthStore;
-
-    if(node->moveCount > 0)                                         //  Only if this node generated moves at all (rather than early exiting).
-      saveNegamaxMoveBufferLength(node->moveOffset);                //  Roll back the moves arena.
+    unsigned int i;
 
     if(v <= a0)
       ttType = NODE_TYPE_ALL;                                       //  Upper bound (fail-low).
@@ -917,284 +922,39 @@ void finishNode_step(unsigned int gsIndex, NegamaxNode* node)
     else
       ttType = NODE_TYPE_PV;                                        //  Exact.
 
-    depthStore = (node->depth > 0) ? (unsigned char)node->depth : 0;//  Clamp to zero.
-
-    //
-
-    //  Write the TT entry
-    //  If root: write to outputBuffer and stop
-    //  Else: set node phase to _PHASE_AFTER_CHILD so the child updates its parent and then pops itself
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    // 1) Decide TT record type (EXACT / LOWER / UPPER)
-    float v  = node->value;
-    float a0 = node->originalAlpha;
-    float b  = node->beta;
-
-
-    // 2) Write TT entry (using node.hIndex computed earlier, or compute now)
-    //    This is where your replacement policy lives. Minimal version: overwrite slot.
+    depthStore = (node->depth > 0) ? (unsigned char)node->depth : 0;//  For storing in the transposition table; clamp to zero.
+    currGen = getGeneration();                                      //  Get the current transposition-table generation.
+                                                                    //  Recover whatever's at this address.
+    deserializeTranspoRecord(transpositionTableBuffer + 1 + node->hIndex * _TRANSPO_RECORD_BYTE_SIZE, &ttEntry);
+    oldness = currGen - ttEntry.age
+                                                                    //  Either:
+                                                                    //    This slot was free. Write.
+                                                                    //  Or:
+                                                                    //    This slot was occupied but too old to be useful anymore. Overwrite.
+                                                                    //  Or:
+                                                                    //    This slot was occupied but our information now comes from a deeper depth. Overwrite.
+    if(ttEntry.age == 0 || oldness >= _TRANSPO_AGE_THRESHOLD || ttEntry.depth <= depthStore)
       {
-        unsigned int h = node.hIndex;                   // already set during TT probe
-        TranspoRecord *rec = tt_get_ptr(h);             // pointer into transpositionTableBuffer
-
-        // Mark occupied & fresh
-        rec->age = currentAge;
-
-        // Store data
-        memcpy(rec->gs, node.gs, _GAMESTATE_BYTE_SIZE);
-        memcpy(rec->bestMove, node.bestMove, _MOVE_BYTE_SIZE);
-
-        rec->depth = (unsigned char)node.depth;         // depth remaining or searched-from, whichever you standardize on
-        rec->score = v;
-        rec->type  = ttType;
+        ttEntry.lock = node->zhash;                                 //  Lock = Zobrist key.
+        for(i = 0; i < _MOVE_BYTE_SIZE; i++)                        //  Copy the best move found for this state.
+          ttEntry.bestMove[i] = node->bestMove[i];
+        ttEntry.depth = depthStore;                                 //  Save depth.
+        ttEntry.score = node->value;                                //  Save value.
+        ttEntry.type = ttType;                                      //  Save the type.
+        ttEntry.age = currGen;                                      //  Set the age.
       }
+                                                                    //  Write this record to this sub-array.
+    serializeTranspoRecord(&ttEntry, transpositionTableBuffer + 1 + node->hIndex * _TRANSPO_RECORD_BYTE_SIZE);
 
-    // 3) Reclaim this node's move chunk (Strategy 2)
-    //    Safe because once a node is finished, we never need its move list again.
-    movesTop = node.movesTopSaved;
+    if(node->moveCount > 0)                                         //  Only if this node generated moves at all (rather than early exiting).
+      saveNegamaxMoveBufferLength(node->moveOffset);                //  Roll back the moves arena.
 
-    // Optional: clear node move bookkeeping (debug friendliness)
-    node.moveOffset = 0;
-    node.moveCount = 0;
-    node.nextMoveIndex = 0;
+    if(node->parent == gsIndex)                                     //  Only the ROOT NODE has itself as its own parent.
+      node->phase = _PHASE_COMPLETE;                                //  Prepare to write final output and report completion.
+    else                                                            //  Else: set node phase to _PHASE_AFTER_CHILD so that this child updates its parent
+      node->phase = _PHASE_AFTER_CHILD;                             //  and then pops itself.
 
-    // 4) Root output (if this is the root)
-    if(node.parent == _NO_PARENT)
-      {
-        // or nodeIndex==0, however you mark root
-        // outputBuffer = [81 bytes state][1 byte depthReached][3 bytes bestMove] (plus optional score)
-        memcpy(outputBuffer, node.gs, _GAMESTATE_BYTE_SIZE);
-        outputBuffer[_GAMESTATE_BYTE_SIZE + 0] = (unsigned char)rootTargetDepth;   // or computed “depth achieved”
-        outputBuffer[_GAMESTATE_BYTE_SIZE + 1] = node.bestMove[0];
-        outputBuffer[_GAMESTATE_BYTE_SIZE + 2] = node.bestMove[1];
-        outputBuffer[_GAMESTATE_BYTE_SIZE + 3] = node.bestMove[2];
-
-        node.phase = _PHASE_DONE;   // or idle
-        saveNode(&node, nodeIndex);
-        return;
-      }
-
-    // 5) Non-root: ready to return value to parent
-    node.phase = _PHASE_PARENT_UPDATE;   // or whatever your “return to parent” step is called
-    saveNode(&node, nodeIndex);
-
-    return;
-  }
-
-/* HEARTBEAT NEGAMAX
-   If we are given a terminal game state or if depth has run down to zero (or -1 given quiescence search) then evaluate the state.
-   This step tests the value of "node"s "depth".
-   If the conditions are right to evaluate, then evaluate the state and save it to "node"s "returnValue" field.
-   Sets "node"s phase to Parent-Update if the node was evaluated.
-   Set's "node"s phase to Expansion if the node was not evaluated. */
-void evaluation_step(unsigned int gsIndex, NegamaxNode* node)
-  {
-    bool quiet;                                                     //  Quiescence search.
-    bool terminal;                                                  //  Leaf-node testing.
-    unsigned int i;
-                                                                    //  Copy "node"s "gs" to "queryGameStateBuffer"
-    for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)                       //  for isQuiet(), isTerminal(), and evaluate().
-      queryGameStateBuffer[i] = node->gs[i];
-
-    copyQuery2EvalInput();                                          //  Copy "queryGameStateBuffer" to Evaluation Module's "inputBuffer".
-
-    quiet = isQuiet();                                              //  (Ask the Evaluation Module) Is the given game state quiet?
-    terminal = isTerminal();                                        //  (Ask the Evaluation Module) Is the given game state terminal?
-
-                                                                    //  Evaluate if: node->depth zero and state is quiet,
-                                                                    //           or  node->depth is <= 0,
-    if((node->depth == 0 && quiet) || node->depth < 0 || terminal)  //           or  this is a leaf node.
-      {
-        //  Evaluate... by WHOM? The linear model? A deep network? (Worry about this later.)
-        node->value = node->color * evaluate();                     //  Evaluate this node.
-        node->phase = _PHASE_PARENT_UPDATE;                         //  Set node's phase to Parent-Update and leave it on top of the stack.
-        saveNode(node, gsIndex);                                    //  Save the updated node.
-        incrementNodeCtr(1);                                        //  Increment node counter.
-        return;
-      }
-
-    node->phase = _PHASE_EXPANSION;                                 //  Set node's phase so that it will be expanded on the next heartbeat.
-    saveNode(node, gsIndex);                                        //  Save the updated node.
-    return;
-  }
-
-/* HEARTBEAT NEGAMAX
-   Node here is understood to be a child. */
-void parentUpdate_step(unsigned int gsIndex, NegamaxNode* node)
-  {
-    // Child should be top of stack.
-    // Root has no parent to update
-    if(child.parent == _NO_PARENT)
-      {
-        // Root already wrote output in FINISH_NODE.
-        // Either leave it on stack in DONE state, or stop pulses.
-        child.phase = _PHASE_DONE;
-        saveNode(&child, childIndex);
-        return;
-      }
-
-    unsigned int parentIndex = child.parent;
-    NegamaxNode parent;
-    loadNode(&parent, parentIndex);
-    // 1) Negamax backup: child's value is from child's perspective.
-    // Parent sees the negated value.
-    float score = -child.value;
-
-    // 2) Update parent's best value & best move
-    if(score > parent.value)
-      {
-        parent.value = score;
-        parent.bestMove[0] = child.parentMove[0];
-        parent.bestMove[1] = child.parentMove[1];
-        parent.bestMove[2] = child.parentMove[2];
-      }
-
-    // 3) Raise alpha
-    if(score > parent.alpha)
-      parent.alpha = score;
-
-    // 4) Cutoff check
-    if(parent.alpha >= parent.beta)
-      {
-        // Quiet-for-ordering cutoff? Update killers/history.
-        // Use parentMoveFlags captured at child creation time.
-        if(child.parentMoveFlags & MOVEFLAG_QUIET)
-          {
-            update_killer_move(parent.ply, child.parentMove);
-            update_history_score(
-                /*sideIndex*/ (parent.color < 0.0f),   // or whatever mapping you use
-                /*depth*/ parent.depth,
-                child.parentMove
-            );
-          }
-
-        // Parent is now done; it can go finalize / TT-store / return
-        parent.phase = _PHASE_FINISH_NODE;
-        saveNode(&parent, parentIndex);
-
-        // Pop child from node stack
-        negamaxSearchBufferLength--;
-        saveNegamaxSearchBufferLength(negamaxSearchBufferLength);
-        return;
-      }
-
-    // 5) No cutoff: parent tries next move or finishes
-    if(parent.nextMoveIndex < parent.moveCount)
-      parent.phase = _PHASE_NEXT_MOVE;
-    else
-      parent.phase = _PHASE_FINISH_NODE;
-
-    saveNode(&parent, parentIndex);
-
-    // 6) Pop child from node stack
-    negamaxSearchBufferLength--;
-    saveNegamaxSearchBufferLength(negamaxSearchBufferLength);
-
-/*
-    NegamaxNode parent;
-    TranspoRecord ttRecord;
-    unsigned int size;                                              //  Current size of the transposition table.
-    unsigned int len;
-    unsigned char i;
-
-    if(gsIndex != node->parent)                                     //  This is only the case for the root node.
-      {
-        restoreNode(node->parent, &parent);                         //  Recover the parent of the given "node".
-
-        if(-node->value > parent.value)
-          {
-            parent.value = -node->value;                            //  Update parent's "value".
-            for(i = 0; i < _MOVE_BYTE_SIZE; i++)                    //  Update best move found so far.
-              parent.bestMove[i] = node->parentMove[i];
-          }
-
-        parent.alpha = std::max(parent.alpha, parent.value);        //  Update parent's "alpha".
-
-        len = restoreNegamaxSearchBufferLength();                   //  Retreieve original stack length.
-
-        if(parent.alpha >= parent.beta)                             //  Cut-off: no need to evaluate the remaining children.
-          {                                                         //  Pop all of parent's children.
-            len -= parent.moveNextPtr;                              //  Decrease it by the number of *remaining* children of parent.
-            saveNegamaxSearchBufferLength(len);                     //  Set the new, shortened length.
-            parent.moveNextPtr = 0;                                 //  Blank out parent's children-counter.
-          }
-        else                                                        //  No cut-off: continue evaluating the remaining children.
-          {                                                         //  Pop only this present child.
-            len--;
-            saveNegamaxSearchBufferLength(len);                     //  Set the new, shortened length.
-            parent.moveNextPtr--;                                   //  Decrease the parent's child-counter.
-          }
-
-        if(parent.moveNextPtr == 0)                                 //  However it happened, we are done with all this parent's children.
-          {
-            parent.phase = _PHASE_PARENT_UPDATE;                    //  Parent node has head from all the children it needs to hear from.
-                                                                    //  It can now be used to update its own parent when it (re)appears
-                                                                    //  at the top of the stack.
-            //  Create a Transposition Table entry for the parent.
-
-            if(parent.value <= parent.originalAlpha)                //  Save as UPPER BOUND (NODE_TYPE_ALL).
-              {
-                for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)
-                  ttRecord.gs[i] = parent.gs[i];
-                for(i = 0; i < _MOVE_BYTE_SIZE; i++)
-                  ttRecord.bestMove[i] = parent.bestMove[i];
-                ttRecord.depth = (parent.depth > 0) ? (unsigned char)(parent.depth) : 0;
-                ttRecord.score = parent.value;
-                ttRecord.type  = NODE_TYPE_ALL;
-                ttRecord.age   = 1;
-              }
-            else if(parent.value >= parent.beta)                    //  Save as LOWER BOUND (NODE_TYPE_CUT).
-              {
-                for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)
-                  ttRecord.gs[i] = parent.gs[i];
-                for(i = 0; i < _MOVE_BYTE_SIZE; i++)
-                  ttRecord.bestMove[i] = parent.bestMove[i];
-                ttRecord.depth = (parent.depth > 0) ? (unsigned char)(parent.depth) : 0;
-                ttRecord.score = parent.value;
-                ttRecord.type  = NODE_TYPE_CUT;
-                ttRecord.age   = 1;
-              }
-            else                                                    //  Save as EXACT (NODE_TYPE_PV).
-              {
-                for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)
-                  ttRecord.gs[i] = parent.gs[i];
-                for(i = 0; i < _MOVE_BYTE_SIZE; i++)
-                  ttRecord.bestMove[i] = parent.bestMove[i];
-                ttRecord.depth = (parent.depth > 0) ? (unsigned char)(parent.depth) : 0;
-                ttRecord.score = parent.value;
-                ttRecord.type  = NODE_TYPE_PV;
-                ttRecord.age   = 1;
-              }
-
-            size = tableSize();                                     //  First get the current length of the table.
-            if(size < _TRANSPO_TABLE_SIZE)                          //  If there is room to add, then we are adding.
-              setTableSize(size + 1);                               //  Set the new size of the table.
-                                                                    //  Write a serialized version of the new entry directly to the global buffer.
-            serializeTranspoRecord(&ttRecord, transpositionTableBuffer + 4 + parent.hIndex * (8 + _TRANSPO_RECORD_BYTE_SIZE));
-          }
-
-        saveNode(&parent, node->parent);                            //  Write updated parent to "negamaxSearchBuffer".
-      }
-*/
+    saveNode(node, gsIndex);
     return;
   }
 
