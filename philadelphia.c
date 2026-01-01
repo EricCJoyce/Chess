@@ -1,18 +1,18 @@
 /*
 
-sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c emcc -Os -s STANDALONE_WASM -s EXPORTED_FUNCTIONS="['_getInputGameStateBuffer','_getInputMoveBuffer','_getOutputGameStateBuffer','_getOutputMovesBuffer','_isQuiet','_isTerminal','_isSideToMoveInCheck','_nonPawnMaterial','_makeMove','_makeNullMove','_evaluate','_getMoves']" -Wl,--no-entry "philadelphia.c" -o "eval.wasm"
+sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c emcc -Os -s STANDALONE_WASM -s EXPORTED_FUNCTIONS="['_getInputGameStateBuffer','_getInputMoveBuffer','_getOutputGameStateBuffer','_getOutputMovesBuffer','_sideToMove_eval','_isQuiet_eval','_isTerminal_eval','_isSideToMoveInCheck_eval','_nonPawnMaterial_eval','_makeMove_eval','_makeNullMove_eval','_evaluate_eval','_getMoves_eval']" -Wl,--no-entry "philadelphia.c" -o "eval.wasm"
 
 */
 
 #include "gamestate.h"
 #include "philadelphia.h"
 
-#define SEE_SCORE_PAWN              100                             /* Static Exchange Evaluation, rough pawn score. */
-#define SEE_SCORE_KNIGHT            300                             /* Static Exchange Evaluation, rough knight score. */
-#define SEE_SCORE_BISHOP            325                             /* Static Exchange Evaluation, rough bishop score. */
-#define SEE_SCORE_ROOK              500                             /* Static Exchange Evaluation, rough rook score. */
-#define SEE_SCORE_QUEEN             900                             /* Static Exchange Evaluation, rough queen score. */
-#define SEE_SCORE_KING            10000                             /* Static Exchange Evaluation, rough king score. */
+#define SEE_SCORE_PAWN               10                             /* Static Exchange Evaluation, rough pawn score. */
+#define SEE_SCORE_KNIGHT             30                             /* Static Exchange Evaluation, rough knight score. */
+#define SEE_SCORE_BISHOP             33                             /* Static Exchange Evaluation, rough bishop score. */
+#define SEE_SCORE_ROOK               50                             /* Static Exchange Evaluation, rough rook score. */
+#define SEE_SCORE_QUEEN              90                             /* Static Exchange Evaluation, rough queen score. */
+#define SEE_SCORE_KING             1000                             /* Static Exchange Evaluation, rough king score. */
 #define MOVE_SORTING_PROMO_BONUS    800                             /* Static Exchange Evaluation, rough promotion bonus. */
 #define MOVE_SORTING_CHECK_BONUS     50                             /* Static Exchange Evaluation, rough putting-opponent-in-check bonus. */
 
@@ -33,16 +33,17 @@ void serializeMoveToBuffer(Move*, unsigned char*);
 void deserializeGameState(GameState*);
 void deserializeMove(Move*);
 
-bool isQuiet(void);
-bool isTerminal(void);
-bool isSideToMoveInCheck(void);
-unsigned char nonPawnMaterial(void);
-void makeMove(void);
-void makeNullMove(void);
-float evaluate(bool);
-unsigned int getMoves(void);
-//void quicksort(bool, float*, Move*, unsigned int, unsigned int);
-//unsigned int partition(bool, float*, Move*, unsigned int, unsigned int);
+unsigned char sideToMove_eval(void);
+bool isQuiet_eval(void);
+bool isTerminal_eval(void);
+bool isSideToMoveInCheck_eval(void);
+unsigned char nonPawnMaterial_eval(void);
+void makeMove_eval(void);
+void makeNullMove_eval(void);
+float evaluate_eval(bool);
+unsigned int getMoves_eval(void);
+signed int SEE(Move*, GameState*);
+signed int SEE_lookup(char);
 
 /**************************************************************************************************
  Globals  */
@@ -53,11 +54,12 @@ unsigned char inputMoveBuffer[_MOVE_BYTE_SIZE];                     //  Global a
 
 unsigned char outputGameStateBuffer[_GAMESTATE_BYTE_SIZE];          //  Global array containing the serialized OUTPUT game state.
 
-                                                                    //  Global array containing an integer (4 bytes) followed by that number of moves.
+                                                                    //  Global array containing up to _MAX_MOVES moves.
+                                                                    //  Rather than encode the number of moves in the array itself, we return an integer.
                                                                     //  Each move is represented as a byte sub-array encoding:
-                                                                    //    _MOVE_BYTE_SIZE  :  (from, to, promo),
+                                                                    //    _MOVE_BYTE_SIZE  :  bytes encoding a single move,
                                                                     //    4                :  bytes for signed integer, which is rough score.
-unsigned char outputMovesBuffer[4 + _MAX_MOVES * (_MOVE_BYTE_SIZE + 4)];
+unsigned char outputMovesBuffer[_MAX_MOVES * (_MOVE_BYTE_SIZE + 5)];//    1                :  byte (should be Boolean) indicating whether move is "quiet".
 
 /**************************************************************************************************
  Functions  */
@@ -550,29 +552,38 @@ void deserializeMove(Move* move)
     return;
   }
 
-/* Answer the Negamax Module's query, "Is the GameState in the query buffer quiet?" */
-bool isQuiet(void)
+/* Answer the Negamax Module's query, "Which side is to move in the GameState in the query buffer?"
+   Return an unsigned char in {_WHITE_TO_MOVE, _BLACK_TO_MOVE}. */
+unsigned char sideToMove_eval(void)
   {
     GameState gs;
-    deserialize(&gs);                                               //  Recover GameState from buffer.
+    deserializeGameState(&gs);                                      //  Recover GameState from buffer.
+    return gs.whiteToMove ? _WHITE_TO_MOVE : _BLACK_TO_MOVE;
+  }
+
+/* Answer the Negamax Module's query, "Is the GameState in the query buffer quiet?" */
+bool isQuiet_eval(void)
+  {
+    GameState gs;
+    deserializeGameState(&gs);                                      //  Recover GameState from buffer.
     return quiet(&gs);
   }
 
 /* Answer the Negamax Module's query, "Is the GameState in the query buffer terminal?" */
-bool isTerminal(void)
+bool isTerminal_eval(void)
   {
     GameState gs;
-    deserialize(&gs);                                               //  Recover GameState from buffer.
+    deserializeGameState(&gs);                                      //  Recover GameState from buffer.
     return terminal(&gs);
   }
 
 /* Answer the Negamax Module's query, "Is the side to move in the GameState in the query buffer in check?" */
-bool isSideToMoveInCheck(void)
+bool isSideToMoveInCheck_eval(void)
   {
     GameState gs;
     unsigned char i;
 
-    deserialize(&gs);                                               //  Recover GameState from buffer.
+    deserializeGameState(&gs);                                      //  Recover GameState from buffer.
 
     if(gs.whiteToMove)                                              //  White is to move; is white in check?
       {
@@ -589,7 +600,7 @@ bool isSideToMoveInCheck(void)
   }
 
 /* Answer the Negamax Module's query, "How much non-pawn material does the side to move have in the GameState in the query buffer?" */
-unsigned char nonPawnMaterial(void)
+unsigned char nonPawnMaterial_eval(void)
   {
     GameState gs;
     unsigned char knights = 0;
@@ -598,7 +609,7 @@ unsigned char nonPawnMaterial(void)
     unsigned char queens = 0;
     unsigned char i;
 
-    deserialize(&gs);                                               //  Recover GameState from buffer.
+    deserializeGameState(&gs);                                      //  Recover GameState from buffer.
 
     if(gs.whiteToMove)
       {
@@ -640,7 +651,7 @@ unsigned char nonPawnMaterial(void)
 
 /* Answer the Negamax Module's query, "What GameState results from making the move in the input-move buffer in the game state in the input-gamestate buffer?"
    Writes to "outputGameStateBuffer". */
-void makeMove(void)
+void makeMove_eval(void)
   {
     GameState gs;
     Move move;
@@ -658,7 +669,7 @@ void makeMove(void)
 /* For use by null-move pruning in tree-search.
    Answer the Negamax Module's query, "What GameState results from a null-move in the game state in the input-gamestate buffer?"
    Writes to "outputGameStateBuffer". */
-void makeNullMove(void)
+void makeNullMove_eval(void)
   {
     GameState gs;
 
@@ -672,7 +683,7 @@ void makeNullMove(void)
   }
 
 /* Answer the Negamax Module's query, "What is the evaluation of the GameState in the input-gamestate buffer?" */
-float evaluate(bool evaluateForWhite)
+float evaluate_eval(bool evaluateForWhite)
   {
     GameState gs;
     deserializeGameState(&gs);                                      //  Recover GameState from buffer.
@@ -681,11 +692,11 @@ float evaluate(bool evaluateForWhite)
 
 /* Answer the Negamax Module's query, "What are all the moves that can be made from the GameState in the input-gamestate buffer?"
    Writes to "outputMovesBuffer":
-     [4-byte unsigned integer], [_MOVE_BYTE_SIZE bytes of move, 4 bytes of a signed int],
-                                [_MOVE_BYTE_SIZE bytes of move, 4 bytes of a signed int],
-                                                          . . .
-                                [_MOVE_BYTE_SIZE bytes of move, 4 bytes of a signed int] */
-unsigned int getMoves()
+     [_MOVE_BYTE_SIZE bytes of move, 4 bytes of a signed int, 1 byte indicating whether the move is "quiet"],
+     [_MOVE_BYTE_SIZE bytes of move, 4 bytes of a signed int, 1 byte indicating whether the move is "quiet"],
+                                                         . . .
+     [_MOVE_BYTE_SIZE bytes of move, 4 bytes of a signed int, 1 byte indicating whether the move is "quiet"] */
+unsigned int getMoves_eval()
   {
     GameState gs, child;
     Move moves[_MAX_MOVES];
@@ -721,13 +732,7 @@ unsigned int getMoves()
           scores[i] += MOVE_SORTING_CHECK_BONUS;
       }
 
-    //quicksort(!reverse, scores, moves, 0, movesLen - 1);            //  Sort according to (shallow) evaluation.
-
     i = 0;                                                          //  Point to head of output buffer.
-    memcpy(buffer4, (unsigned char*)(&movesLen), 4);                //  Force the unsigned integer into a 4-byte temp buffer.
-    for(j = 0; j < 4; j++)                                          //  Copy bytes to serial buffer.
-      outputMovesBuffer[i++] = buffer4[j];
-
     for(j = 0; j < movesLen; j++)                                   //  Write moves as bytes to output buffer, following uint total number of moves.
       {
         outputMovesBuffer[i++] = moves[j].from;                     //  Copy move to global byte array.
@@ -738,6 +743,8 @@ unsigned int getMoves()
         memcpy(buffer4, (unsigned char*)(&score), 4);               //  Force the SIGNED integer into a 4-byte temp buffer.
         for(k = 0; k < 4; k++)                                      //  Copy local SIGNED score to global output byte array.
           outputMovesBuffer[i++] = buffer4[k];
+                                                                    //  0: quiet; 1: capture or promotion.
+        outputMovesBuffer[i++] = (moves[j].promo == _NO_PROMO || !isCapture(moves + j, &gs)) ? 0 : 1;
       }
 
     return movesLen;
@@ -774,7 +781,7 @@ signed int SEE(Move* move, GameState* src)
         if(len == 0)                                                //  No further captures.
           break;
 
-        leastVal = INT_MAX;                                         //  Find the least valuable captor.
+        leastVal = SEE_SCORE_KING * 2;                              //  Find the least valuable captor.
         for(i = 0; i < len; i++)
           {
             val = SEE_lookup(gs.board[ buffer[i].from ]);
@@ -825,79 +832,3 @@ signed int SEE_lookup(char piece)
       return SEE_SCORE_KING;
     return 0;
   }
-/*
-void quicksort(bool desc, float* scores, Move* moves, unsigned int lo, unsigned int hi)
-  {
-    unsigned int p;
-
-    if(lo < hi)
-      {
-        p = partition(desc, scores, moves, lo, hi);
-
-        if(p > 0)                                                   //  PREVENT ROLL-OVER TO 0xFFFF.
-          quicksort(desc, scores, moves, lo, p - 1);                //  Left side: start quicksort.
-        if(p < 65535)                                               //  PREVENT ROLL-OVER TO 0x0000.
-          quicksort(desc, scores, moves, p + 1, hi);                //  Right side: start quicksort.
-      }
-
-    return;
-  }
-
-unsigned int partition(bool desc, float* scores, Move* moves, unsigned int lo, unsigned int hi)
-  {
-    float pivot = scores[hi];
-    unsigned int i = lo;
-    unsigned int j;
-    float tmpFloat;
-    Move tmpMove;
-    bool trigger;
-
-    for(j = lo; j < hi; j++)
-      {
-        if(desc)
-          trigger = (scores[j] > pivot);                            //  SORT DESCENDING.
-        else
-          trigger = (scores[j] < pivot);                            //  SORT ASCENDING.
-
-        if(trigger)
-          {
-            tmpFloat  = scores[i];                                  //  Swap scores[i] with scores[j].
-            scores[i] = scores[j];
-            scores[j] = tmpFloat;
-
-            tmpMove.from  = moves[i].from;                          //  tmp gets [i].
-            tmpMove.to    = moves[i].to;
-            tmpMove.promo = moves[i].promo;
-
-            moves[i].from  = moves[j].from;                         //  [i] gets [j].
-            moves[i].to    = moves[j].to;
-            moves[i].promo = moves[j].promo;
-
-            moves[j].from  = tmpMove.from;                          //  [j] gets tmp.
-            moves[j].to    = tmpMove.to;
-            moves[j].promo = tmpMove.promo;
-
-            i++;
-          }
-      }
-
-    tmpFloat   = scores[i];                                         //  Swap scores[i] with scores[hi].
-    scores[i]  = scores[hi];
-    scores[hi] = tmpFloat;
-
-    tmpMove.from  = moves[i].from;                                  //  tmp gets [i].
-    tmpMove.to    = moves[i].to;
-    tmpMove.promo = moves[i].promo;
-
-    moves[i].from  = moves[hi].from;                                //  [i] gets [hi].
-    moves[i].to    = moves[hi].to;
-    moves[i].promo = moves[hi].promo;
-
-    moves[hi].from  = tmpMove.from;                                 //  [hi] gets tmp.
-    moves[hi].to    = tmpMove.to;
-    moves[hi].promo = tmpMove.promo;
-
-    return i;
-  }
-
-*/
