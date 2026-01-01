@@ -170,8 +170,6 @@ __attribute__((import_module("env"), import_name("_evaluate"))) float evaluate()
                                                                     //  Make Evaluation Engine write a sorted list of (child-state, move) tuples
                                                                     //  to the Evaluation Engine's output buffer.
 __attribute__((import_module("env"), import_name("_getMoves"))) unsigned int getMoves();
-                                                                    //  Add a count to the running total of nodes searched.
-__attribute__((import_module("env"), import_name("_incrementNodeCtr"))) void incrementNodeCtr(unsigned int);
 
 extern "C"
   {
@@ -228,6 +226,8 @@ void killerAdd(unsigned char, unsigned char*);
 
 unsigned int historyLookup(unsigned char, unsigned char*);
 void historyUpdate(unsigned char, unsigned char, unsigned char*);
+
+void incrementNodeCtr(void);
 
 /**************************************************************************************************
  Globals  */
@@ -535,6 +535,10 @@ void initSearch(void)
     unsigned char depth;
     unsigned int i;
 
+    //  Save searchID
+    //  Save module status as RUNNING              LEFT OFF HERE !!! ****
+    //  Save target depth
+
     for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)                       //  Copy root gamestate byte array from global "inputGameStateBuffer"
       root.gs[i] = inputGameStateBuffer[i];                         //  to negamax root node.
 
@@ -592,13 +596,13 @@ bool negamax(void)
     //////////////////////////////////////////////////////////////////  Is search halting?
     if(controlFlags & CTRL_HARD_ABORT)
       {
-        //
+        //  LEFT OFF HERE TOO !!! ***
         return true;
       }
 
     if(controlFlags & CTRL_STOP_REQUESTED)
       {
-        //
+        //  LEFT OFF HERE TOO !!! ***
         return true;
       }
 
@@ -696,7 +700,7 @@ void enterNode_step(unsigned int gsIndex, NegamaxNode* node)
       {
         node->value = node->color * evaluate();                     //  This imported function handles testing the AI's side.
         node->phase = _PHASE_FINISH_NODE;                           //  Mark for the finishing phase.
-        incrementNodeCtr(1);                                        //  Increase node-evaluation counter by 1.
+        incrementNodeCtr();                                         //  Increase node-evaluation counter by 1.
         saveNode(node, gsIndex);                                    //  Save the updated node.
         return;
       }
@@ -1883,6 +1887,29 @@ void historyUpdate(unsigned char sideToMove, unsigned char depth, unsigned char*
     offset += moveByteArray[0] * _NONE + moveByteArray[1];
 
     historyTableBuffer[offset] = std::min(depth * depth, 255);
+
+    return;
+  }
+
+/**************************************************************************************************
+ Node Ctr++  */
+
+void incrementNodeCtr(void)
+  {
+    unsigned int ctr;
+    unsigned char buffer4[4];
+    unsigned char i;
+
+    for(i = 0; i < 4; i++)
+      buffer4[i] = inputParametersBuffer[PARAM_BUFFER_NODESSEARCHED_OFFSET + i];
+
+    memcpy(&ctr, buffer4, 4);                                       //  Force the 4-byte buffer into an unsigned int.
+
+    ctr++;
+
+    memcpy(buffer4, (unsigned char*)(&ctr), 4);                     //  Force the unsigned int into a 4-byte temp buffer.
+    for(i = 0; i < 4; i++)                                          //  Copy bytes to parameters buffer.
+      inputParametersBuffer[PARAM_BUFFER_NODESSEARCHED_OFFSET + i] = buffer4[i];
 
     return;
   }
