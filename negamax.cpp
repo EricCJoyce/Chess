@@ -4,7 +4,8 @@ sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,sourc
 
 */
 
-#include <limits>                                                   /* Use infinities. */
+#include <algorithm>                                                /* For std::max() and std::min(). */
+#include <limits>                                                   /* For std::numeric_limits. */
 
 #include "transposition.h"                                          /* Include the Transposition Table library. */
 #include "zobrist.h"                                                /* Include the Zobrist hasher, which is an array of unsigned long longs (64-bit ints). */
