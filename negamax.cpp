@@ -4,9 +4,13 @@ sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,sourc
 
 */
 
+#include <limits>                                                   /* Use infinities. */
+
 #include "transposition.h"                                          /* Include the Transposition Table library. */
 #include "zobrist.h"                                                /* Include the Zobrist hasher, which is an array of unsigned long longs (64-bit ints). */
 
+#define _GAMESTATE_BYTE_SIZE                    81                  /* Number of bytes needed to encode a game state. */
+#define _MOVE_BYTE_SIZE                          3                  /* Number of bytes needed to encode a move. */
 #define _MAX_MOVES                              64                  /* A (generous) upper bound on how many moves may be made by a team in a single turn. */
 #define _NONE                                   64                  /* Required as a "blank" value without #include "gamestate.h". */
 #define _NO_PROMO                                0                  /* Required as a "blank" value without #include "gamestate.h". */
@@ -589,6 +593,8 @@ bool negamax(void)
   {
     unsigned int gsIndex;
     NegamaxNode node;
+
+    unsigned char controlFlags = inputParametersBuffer[PARAM_BUFFER_COMMAND_OFFSET];
 
     unsigned char buffer4[4];
     unsigned int i, j;
