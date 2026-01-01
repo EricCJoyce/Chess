@@ -786,6 +786,6 @@
 unsigned char zobristHashBuffer[ZHASH_TABLE_SIZE * 8];              //  Global array containing the serialized Zobrist-hasher values (unsigned long longs).
                                                                     //  "Keys" are simply unisnged int values #defined above.
 
-/* Because it indexes into "treeSearchBuffer", the hash function is defined in negamax.cpp. */
+/* Because it indexes into "zobristHashBuffer", the hash function is defined in negamax.cpp. */
 
 #endif

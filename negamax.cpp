@@ -1826,8 +1826,6 @@ unsigned long long hash(unsigned char* hashInputBuffer)
     return h;
   }
 
-
-
 /**************************************************************************************************
  Killer-move functions  */
 
