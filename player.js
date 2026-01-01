@@ -155,57 +155,45 @@ class Player
                                  }.bind(this),
                                _sideToMove: function()              //  Returns unsigned char.
                                  {
-                                   return this.evaluationEngine.instance.exports.sideToMove();
+                                   return this.evaluationEngine.instance.exports.sideToMove_eval();
                                  }.bind(this),
                                _isQuiet: function()                 //  Returns bool.
                                  {
-                                   return this.evaluationEngine.instance.exports.isQuiet();
+                                   return this.evaluationEngine.instance.exports.isQuiet_eval();
                                  }.bind(this),
                                _isTerminal: function()              //  Returns bool.
                                  {
-                                   return this.evaluationEngine.instance.exports.isTerminal();
+                                   return this.evaluationEngine.instance.exports.isTerminal_eval();
                                  }.bind(this),
                                _isSideToMoveInCheck: function()     //  Returns bool.
                                  {
-                                   return this.evaluationEngine.instance.exports.isSideToMoveInCheck();
+                                   return this.evaluationEngine.instance.exports.isSideToMoveInCheck_eval();
                                  }.bind(this),
                                _nonPawnMaterial: function()         //  Returns unsigned char.
                                  {
-                                   return this.evaluationEngine.instance.exports.nonPawnMaterial();
+                                   return this.evaluationEngine.instance.exports.nonPawnMaterial_eval();
                                  }.bind(this),
                                _makeMove: function()
                                  {
-                                   this.evaluationEngine.instance.exports.makeMove();
+                                   this.evaluationEngine.instance.exports.makeMove_eval();
                                    return;
                                  }.bind(this),
                                _makeNullMove: function()
                                  {
-                                   this.evaluationEngine.instance.exports.makeNullMove();
+                                   this.evaluationEngine.instance.exports.makeNullMove_eval();
                                    return;
                                  }.bind(this),
                                _evaluate: function()                //  Returns float.
                                  {
                                    if(this.team == 'Black')
-                                     return this.evaluationEngine.instance.exports.evaluate(false);
+                                     return this.evaluationEngine.instance.exports.evaluate_eval(false);
                                    else
-                                     return this.evaluationEngine.instance.exports.evaluate(true);
+                                     return this.evaluationEngine.instance.exports.evaluate_eval(true);
                                  }.bind(this),
                                _getMoves: function()                //  Returns unsigned int.
                                  {
-                                   return this.evaluationEngine.instance.exports.getMoves();
-                                 }.bind(this),
-                               _incrementNodeCtr: function(num)
-                                 {
-                                   var ndctr = document.getElementById("node-counter");
-                                   NodeCtr += num;                  //  Add to the count.
-                                   switch(currentLang)              //  Update the DOM element.
-                                     {
-                                       case 'Spanish': ndctr.innerHTML = 'Nodos evaluados: ' + NodeCtr; break;
-                                       case 'German':  ndctr.innerHTML = 'Knoten untersucht: ' + NodeCtr; break;
-                                       case 'Polish':  ndctr.innerHTML = 'W&#281;z&#322;y rozwi&#261;zywane: ' + NodeCtr; break;
-                                       default:        ndctr.innerHTML = 'Nodes searched: ' + NodeCtr;
-                                     }
-                                 }
+                                   return this.evaluationEngine.instance.exports.getMoves_eval();
+                                 }.bind(this)
                              }
                       })
                     .then(instance =>
