@@ -210,9 +210,13 @@ extern "C"
 
 void enterNode_step(unsigned int, NegamaxNode*);
 void transpoProbe(unsigned int, NegamaxNode*);
-void evaluation_step(unsigned int, NegamaxNode*);
 void expansion_step(unsigned int, NegamaxNode*);
-void parentUpdate_step(unsigned int, NegamaxNode*);
+void nextMove_step(unsigned int, NegamaxNode*);
+void afterChild_step(unsigned int, NegamaxNode*);
+void finishNode_step(unsigned int, NegamaxNode*);
+
+void quicksort(bool, signed int*, NegamaxMove*, unsigned int, unsigned int);
+unsigned int partition(bool, signed int*, NegamaxMove*, unsigned int, unsigned int);
 
 unsigned int restoreNegamaxSearchBufferLength(void);
 unsigned int restoreNegamaxMoveBufferLength(void);
