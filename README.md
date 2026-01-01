@@ -123,8 +123,9 @@ The other module functions are as follows:
 
 ### Negamax Module
 
-The **negamax module** has *eleven* outward-facing buffers:
+The **negamax module** has *thirteen* outward-facing buffers:
 - `inputGameStateBuffer`
+- `inputParametersBuffer`
 - `outputBuffer`
 - `queryGameStateBuffer`
 - `queryMoveBuffer`
@@ -133,6 +134,7 @@ The **negamax module** has *eleven* outward-facing buffers:
 - `zobristHashBuffer`
 - `transpositionTableBuffer`
 - `negamaxSearchBuffer`
+- `negamaxMovesBuffer`
 - `killerMovesTableBuffer`
 - `historyTableBuffer`
 
