@@ -100,7 +100,7 @@ The **evaluation module** has *four* outward-facing buffers:
 
 Compile the evaluation engine:
 ```
-sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c emcc -Os -s STANDALONE_WASM -s EXPORTED_FUNCTIONS="['_getInputGameStateBuffer','_getInputMoveBuffer','_getOutputGameStateBuffer','_getOutputMovesBuffer','_sideToMove','_isQuiet','_isTerminal','_isSideToMoveInCheck','_nonPawnMaterial','_makeMove','_makeNullMove','_evaluate','_getMoves']" -Wl,--no-entry "philadelphia.c" -o "eval.wasm"
+sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c emcc -Os -s STANDALONE_WASM -s EXPORTED_FUNCTIONS="['_getInputGameStateBuffer','_getInputMoveBuffer','_getOutputGameStateBuffer','_getOutputMovesBuffer','_sideToMove_eval','_isQuiet_eval','_isTerminal_eval','_isSideToMoveInCheck_eval','_nonPawnMaterial_eval','_makeMove_eval','_makeNullMove_eval','_evaluate_eval','_getMoves_eval']" -Wl,--no-entry "philadelphia.c" -o "eval.wasm"
 ```
 This produces a `.wasm` with functions you can load into the JavaScript Player class and call.
 
@@ -111,15 +111,15 @@ The first four simply fetch the memory addresses of this module's buffers:
 - `this.evaluationEngine.instance.exports.getOutputMovesBuffer();` returns the address of the evaluation module's output-moves buffer.
 
 The other module functions are as follows:
-- `this.evaluationEngine.instance.exports.sideToMove();` returns `_WHITE_TO_MOVE` or `_BLACK_TO_MOVE`.
-- `this.evaluationEngine.instance.exports.isQuiet();` returns a Boolean value, according to the game state bytes previously written to the evaluation module's input-gamestate buffer.
-- `this.evaluationEngine.instance.exports.isTerminal();` returns a Boolean value, according to the game state bytes previously written to the evaluation module's input-gamestate buffer.
-- `this.evaluationEngine.instance.exports.isSideToMoveInCheck();` returns a Boolean value, according to the game state bytes previously written to the evaluation module's input-gamestate buffer.
-- `this.evaluationEngine.instance.exports.nonPawnMaterial();` returns an unsigned integer value, according to the game state bytes previously written to the evaluation module's input-gamestate buffer. This function is used by the negamax module to test whether there is enough material to try null-move pruning.
-- `this.evaluationEngine.instance.exports.makeMove();` decodes and applies the move stored in `inputMoveBuffer` to the decoded game state stored in `inputGameStateBuffer`, and writes the encoded, resultant game state in `outputGameStateBuffer`.
-- `this.evaluationEngine.instance.exports.makeNullMove();` decodes the game state stored in `inputGameStateBuffer`, applies a null-move, and writes the encoded, resultant game state in `outputGameStateBuffer`.
-- `this.evaluationEngine.instance.exports.evaluate(bool);` .
-- `this.evaluationEngine.instance.exports.getMoves();` .
+- `this.evaluationEngine.instance.exports.sideToMove_eval();` returns `_WHITE_TO_MOVE` or `_BLACK_TO_MOVE`.
+- `this.evaluationEngine.instance.exports.isQuiet_eval();` returns a Boolean value, according to the game state bytes previously written to the evaluation module's input-gamestate buffer.
+- `this.evaluationEngine.instance.exports.isTerminal_eval();` returns a Boolean value, according to the game state bytes previously written to the evaluation module's input-gamestate buffer.
+- `this.evaluationEngine.instance.exports.isSideToMoveInCheck_eval();` returns a Boolean value, according to the game state bytes previously written to the evaluation module's input-gamestate buffer.
+- `this.evaluationEngine.instance.exports.nonPawnMaterial_eval();` returns an unsigned integer value, according to the game state bytes previously written to the evaluation module's input-gamestate buffer. This function is used by the negamax module to test whether there is enough material to try null-move pruning.
+- `this.evaluationEngine.instance.exports.makeMove_eval();` decodes and applies the move stored in `inputMoveBuffer` to the decoded game state stored in `inputGameStateBuffer`, and writes the encoded, resultant game state in `outputGameStateBuffer`.
+- `this.evaluationEngine.instance.exports.makeNullMove_eval();` decodes the game state stored in `inputGameStateBuffer`, applies a null-move, and writes the encoded, resultant game state in `outputGameStateBuffer`.
+- `this.evaluationEngine.instance.exports.evaluate_eval(bool);` .
+- `this.evaluationEngine.instance.exports.getMoves_eval();` .
 
 ### Negamax Module
 
