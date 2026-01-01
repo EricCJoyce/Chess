@@ -1,6 +1,6 @@
 /*
 
-sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c em++ -I ./ -Os -s STANDALONE_WASM -s INITIAL_MEMORY=17235968 -s STACK_SIZE=1048576 -s EXPORTED_FUNCTIONS="['_getInputBuffer','_getParametersBuffer','_getQueryBuffer','_getOutputBuffer','_getZobristHashBuffer','_getTranspositionTableBuffer','_getNegamaxSearchBuffer','_getNegamaxMovesBuffer','_getAnswerGameStateBuffer','_getAnswerMovesBuffer','_getKillerMovesBuffer','_getHistoryBuffer','_initSearch','_negamax']" -Wl,--no-entry "negamax.cpp" -o "negamax.wasm"
+sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c em++ -I ./ -Os -s STANDALONE_WASM -s INITIAL_MEMORY=17235968 -s STACK_SIZE=1048576 -s EXPORTED_FUNCTIONS="['_getInputBuffer','_getParametersBuffer','_getQueryGameStateBuffer','_getQueryMoveBuffer','_getAnswerGameStateBuffer','_getAnswerMovesBuffer','_getOutputBuffer','_getZobristHashBuffer','_getTranspositionTableBuffer','_getNegamaxSearchBuffer','_getNegamaxMovesBuffer','_getKillerMovesBuffer','_getHistoryTableBuffer','_setSearchId','_getSearchId','_getStatus','_setControlFlag','_unsetControlFlag','_getControlByte','_setTargetDepth','_getTargetDepth','_getDepthAchieved','_setDeadline','_getDeadline','_getNodesSearched','_initSearch','_negamax']" -Wl,--no-entry "negamax.cpp" -o "negamax.wasm"
 
 */
 
@@ -19,6 +19,28 @@ sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,sourc
 
 #define _KILLER_MOVE_PER_PLY                     2                  /* Typical for other chess engines. */
 #define _KILLER_MOVE_MAX_DEPTH                  64                  /* Simply something "comfortably large". */
+
+#define PARAM_BUFFER_SEARCHID_OFFSET          0x00                  /* Bytes into "inputParametersBuffer", where the search ID begins. */
+#define PARAM_BUFFER_STATUS_OFFSET            0x04                  /* Bytes into "inputParametersBuffer", where the status byte exists. */
+#define PARAM_BUFFER_COMMAND_OFFSET           0x05                  /* Bytes into "inputParametersBuffer", where the command byte exists. */
+#define PARAM_BUFFER_TARGETDEPTH_OFFSET       0x06                  /* Bytes into "inputParametersBuffer", where the target depth byte exists. */
+#define PARAM_BUFFER_DEPTHACHIEVED_OFFSET     0x07                  /* Bytes into "inputParametersBuffer", where the depth achieved byte exists. */
+#define PARAM_BUFFER_DEADLINE_OFFSET          0x08                  /* Bytes into "inputParametersBuffer", where the deadline (milliseconds) begins. */
+#define PARAM_BUFFER_NODESSEARCHED_OFFSET     0x0C                  /* Bytes into "inputParametersBuffer", where the node count begins. */
+
+#define CTRL_STOP_REQUESTED                   0x01                  /* Set this byte in commandFlags to request that the present search stop. */
+#define CTRL_HARD_ABORT                       0x02                  /* Set this byte in commandFlags to request that the present search abort. */
+#define CTRL_TIME_ENABLED                     0x04                  /* Set this byte in commandFlags to indicate that search is timed. */
+#define CTRL_PONDERING                        0x08                  /* Set this byte in commandFlags to indicate that search occurs during opponent's turn. */
+
+#define STATUS_IDLE                           0x00                  /* No search running. Awaiting instructions. */
+#define STATUS_RUNNING                        0x01                  /* Search running. */
+#define STATUS_DONE                           0x02                  /* Search complete. */
+#define STATUS_STOP_REQUESTED                 0x03                  /* Will halt the present search at the next safe point. */
+#define STATUS_STOP_TIME                      0x04                  /* Will halt the present search at the next safe point, owing to time constraints. */
+#define STATUS_STOP_ROOT_CHANGED              0x05                  /* Will halt the present search at the next safe point, because the root has changed. */
+#define STATUS_ABORTED                        0x06                  /* Search was hard-killed: be wary of partial results. */
+#define STATUS_ERROR                          0xFF                  /* An error has occurred. */
 
 #define _PHASE_ENTER_NODE                        0                  /* Go to  when entering negamax(). */
 #define _PHASE_GEN_AND_ORDER                     1                  /* Go to  when entering negamax(). */
@@ -48,18 +70,6 @@ sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,sourc
 
 #define MOVEFLAG_QUIET                           0                  /* The move is neither a capture, nor a promotion. */
 #define MOVEFLAG_NOISY                           1                  /* The move is a capture, or a promotion (or both). */
-
-//#define _PHASE_TRANSPO_CHECK        0                               /* Indicating Transpo-Check is to follow. */
-//#define _PHASE_NULL_MOVE_PRUNING    1                               /* Indicating Null-Move Pruning is to follow. */
-//#define _PHASE_INTERNAL_ITER_DEEP   2                               /* Indicating Internal Iterative Deepening is to follow. */
-//#define _PHASE_EXPANSION            3                               /* Indicating Expansion is to follow. */
-//#define _PHASE_MOVE_ORDERING        4                               /* Indicating Move-Ordering is to follow. */
-//#define _PHASE_LATE_MOVE_REDUCTION  5                               /* Indicating Late-Move-Reduction is to follow. */
-//#define _PHASE_EVALUATION           6                               /* Indicating Evaluation is to follow. */
-//#define _PHASE_KILLER_MOVES_UPDATE  7                               /* Indicating Killer-Move Updating is to follow. */
-//#define _PHASE_HISTORY_UPDATE       8                               /* Indicating History-Updating is to follow. */
-//#define _PHASE_TRANSPO_UPDATE       9                               /* Indicating Transpo-Update is to follow. */
-//#define _PHASE_PARENT_UPDATE       10                               /* Indicating Parent-Update is to follow. */
 
 /**************************************************************************************************
  Typedefs  */
@@ -176,9 +186,23 @@ extern "C"
     unsigned char* getTranspositionTableBuffer(void);
     unsigned char* getNegamaxSearchBuffer(void);
     unsigned char* getNegamaxMovesBuffer(void);
-    unsigned char* getKillerMovesTableBuffer(void);
+    unsigned char* getKillerMovesBuffer(void);
     unsigned char* getHistoryTableBuffer(void);
-    void initSearch(unsigned char);
+
+    void setSearchId(unsigned int);
+    unsigned int getSearchId(void);
+    unsigned char getStatus(void);
+    void setControlFlag(unsigned char);
+    void unsetControlFlag(unsigned char);
+    unsigned char getControlByte(void);
+    void setTargetDepth(unsigned char);
+    unsigned char getTargetDepth(void);
+    unsigned char getDepthAchieved(void);
+    void setDeadline(unsigned int);
+    unsigned int getDeadline(void);
+    unsigned int getNodesSearched(void);
+
+    void initSearch(void);
     bool negamax(void);
   }
 
@@ -371,7 +395,7 @@ unsigned char* getNegamaxMovesBuffer(void)
   }
 
 /* Expose the global array decalred here to JavaScript (just so we can address it). */
-unsigned char* getKillerMovesTableBuffer(void)
+unsigned char* getKillerMovesBuffer(void)
   {
     return &killerMovesTableBuffer[0];
   }
@@ -383,12 +407,132 @@ unsigned char* getHistoryTableBuffer(void)
   }
 
 /**************************************************************************************************
+ Search parameter functions  */
+
+/* Set the search ID. */
+void setSearchId(unsigned int searchId)
+  {
+    unsigned char buffer4[4];
+    unsigned char i;
+
+    memcpy(buffer4, (unsigned char*)(&searchId), 4);                //  Force the unsigned int into a 4-byte temp buffer.
+    for(i = 0; i < 4; i++)                                          //  Copy bytes to parameters buffer.
+      inputParametersBuffer[PARAM_BUFFER_SEARCHID_OFFSET + i] = buffer4[i];
+
+    return;
+  }
+
+/* Retrieve the search ID from the parameters buffer. */
+unsigned int getSearchId(void)
+  {
+    unsigned int searchId;
+    unsigned char buffer4[4];
+    unsigned char i;
+
+    for(i = 0; i < 4; i++)
+      buffer4[i] = inputParametersBuffer[PARAM_BUFFER_SEARCHID_OFFSET + i];
+
+    memcpy(&searchId, buffer4, 4);                                  //  Force the 4-byte buffer into an unsigned int.
+
+    return searchId;
+  }
+
+/* Retrieve the search status from the parameters buffer. */
+unsigned char getStatus(void)
+  {
+    return inputParametersBuffer[PARAM_BUFFER_STATUS_OFFSET];
+  }
+
+/* Set a bit (or bits) in the command byte. */
+void setControlFlag(unsigned char flag)
+  {
+    inputParametersBuffer[PARAM_BUFFER_COMMAND_OFFSET] |= flag;
+    return;
+  }
+
+/* Unset a bit (or bits) in the command byte. */
+void unsetControlFlag(unsigned char flag)
+  {
+    inputParametersBuffer[PARAM_BUFFER_COMMAND_OFFSET] &= ~(flag);
+    return;
+  }
+
+/* Retrieve the command byte. */
+unsigned char getControlByte(void)
+  {
+    return inputParametersBuffer[PARAM_BUFFER_COMMAND_OFFSET];
+  }
+
+/* Set the target depth. */
+void setTargetDepth(unsigned char depth)
+  {
+    inputParametersBuffer[PARAM_BUFFER_TARGETDEPTH_OFFSET] = depth;
+    return;
+  }
+
+/* Retrieve the target depth. */
+unsigned char getTargetDepth(void)
+  {
+    return inputParametersBuffer[PARAM_BUFFER_TARGETDEPTH_OFFSET];
+  }
+
+/* Retrieve the depth achieved by search (so far). */
+unsigned char getDepthAchieved(void)
+  {
+    return inputParametersBuffer[PARAM_BUFFER_DEPTHACHIEVED_OFFSET];
+  }
+
+/* Set the search deadline in milliseconds. */
+void setDeadline(unsigned int ms)
+  {
+    unsigned char buffer4[4];
+    unsigned char i;
+
+    memcpy(buffer4, (unsigned char*)(&ms), 4);                      //  Force the unsigned int into a 4-byte temp buffer.
+    for(i = 0; i < 4; i++)                                          //  Copy bytes to parameters buffer.
+      inputParametersBuffer[PARAM_BUFFER_DEADLINE_OFFSET + i] = buffer4[i];
+
+    return;
+  }
+
+/* Retrieve the search deadline in milliseconds. */
+unsigned int getDeadline(void)
+  {
+    unsigned int ms;
+    unsigned char buffer4[4];
+    unsigned char i;
+
+    for(i = 0; i < 4; i++)
+      buffer4[i] = inputParametersBuffer[PARAM_BUFFER_DEADLINE_OFFSET + i];
+
+    memcpy(&ms, buffer4, 4);                                        //  Force the 4-byte buffer into an unsigned int.
+
+    return ms;
+  }
+
+/* Retrieve the number of nodes searched. */
+unsigned int getNodesSearched(void)
+  {
+    unsigned int ctr;
+    unsigned char buffer4[4];
+    unsigned char i;
+
+    for(i = 0; i < 4; i++)
+      buffer4[i] = inputParametersBuffer[PARAM_BUFFER_NODESSEARCHED_OFFSET + i];
+
+    memcpy(&ctr, buffer4, 4);                                       //  Force the 4-byte buffer into an unsigned int.
+
+    return ctr;
+  }
+
+/**************************************************************************************************
  Negamax-search functions  */
 
 /* Initialize the root node for (interrupatble) negamax search. */
-void initSearch(unsigned char depth)
+void initSearch(void)
   {
     NegamaxNode root;
+    unsigned char depth;
     unsigned int i;
 
     for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)                       //  Copy root gamestate byte array from global "inputGameStateBuffer"
@@ -407,7 +551,8 @@ void initSearch(unsigned char depth)
     root.moveOffset = 0;                                            //  Set offset into moves buffer for the children of root.
     root.moveCount = 0;                                             //  Set the number of children root has.
     root.moveNextPtr = 0;                                           //  Set the index to which root's children iterator currently points.
-
+                                                                    //  Retrieve target-depth parameter and clamp minimum to 1.
+    depth = inputParametersBuffer[PARAM_BUFFER_TARGETDEPTH_OFFSET] > 0 ? inputParametersBuffer[PARAM_BUFFER_TARGETDEPTH_OFFSET] : 1;
     root.depth = (signed char)depth;                                //  Set root's depth to "depth".
     root.ply = 0;                                                   //  Set root's ply to zero.
 
@@ -438,12 +583,26 @@ void initSearch(unsigned char depth)
    So that tree search does not overwhelm the client-side CPU, negamax must be redesigned in a "heartbeat" manner. */
 bool negamax(void)
   {
-    NegamaxNode node;
     unsigned int gsIndex;
+    NegamaxNode node;
 
     unsigned char buffer4[4];
     unsigned int i, j;
 
+    //////////////////////////////////////////////////////////////////  Is search halting?
+    if(controlFlags & CTRL_HARD_ABORT)
+      {
+        //
+        return true;
+      }
+
+    if(controlFlags & CTRL_STOP_REQUESTED)
+      {
+        //
+        return true;
+      }
+
+    //////////////////////////////////////////////////////////////////  Proceed.
 
     gsIndex = restoreNegamaxSearchBufferLength() - 1;               //  Index for top of stack is length minus one.
     restoreNode(gsIndex, &node);                                    //  Restore the node at the top of the stack.
@@ -491,8 +650,10 @@ bool negamax(void)
           i = 0;
           for(j = 0; j < _GAMESTATE_BYTE_SIZE; j++)                 //  Copy game state to output buffer.
             outputBuffer[i++] = node.gs[j];
-
-          outputBuffer[i++] = (unsigned char)node.depth;            //  Copy depth to output buffer.
+                                                                    //  When the root completes, the depth achieved equals the depth requested.
+          inputParametersBuffer[PARAM_BUFFER_DEPTHACHIEVED_OFFSET] = inputParametersBuffer[PARAM_BUFFER_TARGETDEPTH_OFFSET];
+                                                                    //  Copy depth to output buffer.
+          outputBuffer[i++] = inputParametersBuffer[PARAM_BUFFER_DEPTHACHIEVED_OFFSET];
 
           for(j = 0; j < _MOVE_BYTE_SIZE; j++)                      //  Copy best move for this state, as determined by depth, to output buffer.
             outputBuffer[i++] = node.bestMove[j];

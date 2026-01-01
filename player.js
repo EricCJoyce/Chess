@@ -6,6 +6,8 @@ class Player
         this.team = 'Black';                                        //  In {'White', 'Black'}. Default to Black.
         this.ply = 3;                                               //  Depth to which this A.I. should search.
 
+        this.searchId = 0;                                          //  Each negamax run gets a unique ID.
+
         this.branches = [];                                         //  Array of Objects, each {ByteArray(GameState), uchar(depth), ByteArray(Move)}.
         this.branchIterator = 0;                                    //                          The state in which    Depth to      The agent's reply.
                                                                     //                          the agent may act.    which agent   (Having searched.)
@@ -29,17 +31,39 @@ class Player
 
         //////////////////////////////////////////////////////////////  The negamax engine.
         this.negamaxEngine = null;                                  //  WebAssembly Module containing the negamax search engine.
+
         this.negamaxInputOffset = null;                             //  (Offset into Module memory.)
         this.negamaxInputBuffer = null;                             //  ByteArray: Input buffer for tree search. Encode a query-gamestate here.
                                                                     //             When Player asks negamax something.
-        this.negamaxQueryOffset = null;                             //  (Offset into Module memory.)
-        this.negamaxQueryBuffer = null;                             //  ByteArray: Input buffer for a query to the evaluation module. Encode a temp-query state here.
-                                                                    //             When negamax asks evaluation something.
-        this.negamaxSearchOffset = null;                            //  (Offset into Module memory.)
-        this.negamaxSearchBuffer = null;                            //  ByteArray: Working buffer for tree-search.
+        this.negamaxParamsOffset = null;                            //  (Offset into Module memory.)
+        this.negamaxParamsBuffer = null;                            //  ByteArray: Input buffer for search parameters.
 
-        this.negamaxAuxiliaryOffset = null;                         //  (Offset into Module memory.)
-        this.negamaxAuxiliaryBuffer = null;                         //  ByteArray: Receiving buffer for node expansion.
+        this.negamaxOutputOffset = null;                            //  (Offset into Module memory.)
+        this.negamaxOutputBuffer = null;                            //  ByteArray: Output buffer for tree search. Decode an answer from here.
+                                                                    //             When negamax answers Player.
+        this.negamaxQueryGameStateOffset = null;                    //  (Offset into Module memory.)
+        this.negamaxQueryGameStateBuffer = null;                    //  ByteArray: Used by the negamax module to pass encoded game states to the evaluation module.
+
+        this.negamaxQueryMoveOffset = null;                         //  (Offset into Module memory.)
+        this.negamaxQueryMoveBuffer = null;                         //  ByteArray: Used by the negamax module to pass encoded moves to the evaluation module.
+
+        this.negamaxAnswerGameStateOffset = null;                   //  (Offset into Module memory.)
+        this.negamaxAnswerGameStateBuffer = null;                   //  ByteArray: Used by the negamax module to receive encoded game states from the evaluation module.
+
+        this.negamaxAnswerMovesOffset = null;                       //  (Offset into Module memory.)
+        this.negamaxAnswerMovesBuffer = null;                       //  ByteArray: Used by the negamax module to receive encoded moves from the evaluation module.
+
+        this.ZobristHashOffset = null;                              //  (Offset into Module memory.)
+        this.ZobristHashBuffer = null;                              //  ByteArray representation of the Zobrist hasher.
+
+        this.TranspositionTableOffset = null;                       //  (Offset into Module memory.)
+        this.TranspositionTableBuffer = null;                       //  ByteArray representation of the transposition table.
+
+        this.negamaxSearchOffset = null;                            //  (Offset into Module memory.)
+        this.negamaxSearchBuffer = null;                            //  ByteArray: Working node buffer for tree-search.
+
+        this.negamaxMovesOffset = null;                             //  (Offset into Module memory.)
+        this.negamaxMovesBuffer = null;                             //  ByteArray: Working move buffer for tree-search.
 
         this.negamaxKillerMovesOffset = null;                       //  (Offset into Module memory.)
         this.negamaxKillerMovesBuffer = null;                       //  ByteArray representation of the killer-moves table.
@@ -47,20 +71,11 @@ class Player
         this.negamaxHistoryHeuristicOffset = null;                  //  (Offset into Module memory.)
         this.negamaxHistoryHeuristicBuffer = null;                  //  ByteArray representation of the history-heuristic table.
 
-        this.negamaxOutputOffset = null;                            //  (Offset into Module memory.)
-        this.negamaxOutputBuffer = null;                            //  ByteArray: Output buffer for tree search. Decode an answer from here.
-                                                                    //             When negamax answers Player.
-        this.ZobristHashOffset = null;                              //  (Offset into Module memory.)
-        this.ZobristHashBuffer = null;                              //  ByteArray representation of the Zobrist hasher.
-
-        this.TranspositionTableOffset = null;                       //  (Offset into Module memory.)
-        this.TranspositionTableBuffer = null;                       //  ByteArray representation of the transposition table.
-
         //////////////////////////////////////////////////////////////  Book lookup.
         this.bookLookup = new XMLHttpRequest();                     //  IE 7+, Firefox, Chrome, Opera, Safari
         this.callOut = false;                                       //  True while AJAX call has yet to return.
 
-                                                                    //  Fetch, instantiate, and connect the Evaluation Module.
+        //////////////////////////////////////////////////////////////  Fetch, instantiate, and connect the Evaluation Module.
         fetch('obj/wasm/eval.wasm', {headers: {'Content-Type': 'application/wasm'} })
         .then(response => response.arrayBuffer())
         .then(bytes =>
@@ -248,6 +263,8 @@ class Player
 
                         for(i = 0; i < 4; i++)                      //  Blank out the first four bytes; let the rest be trash.
                           this.TranspositionTableBuffer[i] = 0;
+
+                        this.TranspositionTableBuffer[0] = 1;       //  Set "generation byte" to 1.
 
                         elementsLoaded++;                           //  Check negaMaxEngine off our list.
                                                                     //  Load a Zobrist Hasher.
