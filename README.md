@@ -138,10 +138,36 @@ The **negamax module** has *eleven* outward-facing buffers:
 
 Compile the negamax engine:
 ```
-sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c em++ -I ./ -Os -s STANDALONE_WASM -s INITIAL_MEMORY=16121856 -s STACK_SIZE=1048576 -s EXPORTED_FUNCTIONS="['_getInputBuffer','_getQueryBuffer','_getOutputBuffer','_getZobristHashBuffer','_getTranspositionTableBuffer','_getNegamaxSearchBuffer','_getAuxiliaryBuffer','_getKillerMovesBuffer','_getHistoryBuffer','_initSearch','_negamax']" -Wl,--no-entry "negamax.cpp" -o "negamax.wasm"
+sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c em++ -I ./ -Os -s STANDALONE_WASM -s INITIAL_MEMORY=17235968 -s STACK_SIZE=1048576 -s EXPORTED_FUNCTIONS="['_getInputBuffer','_getParametersBuffer','_getQueryGameStateBuffer','_getQueryMoveBuffer','_getAnswerGameStateBuffer','_getAnswerMovesBuffer','_getOutputBuffer','_getZobristHashBuffer','_getTranspositionTableBuffer','_getNegamaxSearchBuffer','_getNegamaxMovesBuffer','_getKillerMovesBuffer','_getHistoryTableBuffer','_setSearchId','_getSearchId','_getStatus','_setControlFlag','_unsetControlFlag','_getControlByte','_setTargetDepth','_getTargetDepth','_getDepthAchieved','_setDeadline','_getDeadline','_getNodesSearched','_initSearch','_negamax']" -Wl,--no-entry "negamax.cpp" -o "negamax.wasm"
 ```
 This produces a `.wasm` with functions you can load into the JavaScript Player class and call.
 - `this.negamaxEngine.instance.exports.getInputBuffer();` returns the address of the negamax module's input-gamestate buffer.
+- `this.negamaxEngine.instance.exports.getParametersBuffer();`
+- `this.negamaxEngine.instance.exports.getQueryGameStateBuffer();`
+- `this.negamaxEngine.instance.exports.getQueryMoveBuffer();`
+- `this.negamaxEngine.instance.exports.getAnswerGameStateBuffer();`
+- `this.negamaxEngine.instance.exports.getAnswerMovesBuffer();`
+- `this.negamaxEngine.instance.exports.getOutputBuffer();`
+- `this.negamaxEngine.instance.exports.getZobristHashBuffer();`
+- `this.negamaxEngine.instance.exports.getTranspositionTableBuffer();`
+- `this.negamaxEngine.instance.exports.getNegamaxSearchBuffer();`
+- `this.negamaxEngine.instance.exports.getNegamaxMovesBuffer();`
+- `this.negamaxEngine.instance.exports.getKillerMovesBuffer();`
+- `this.negamaxEngine.instance.exports.getHistoryTableBuffer();`
+- `this.negamaxEngine.instance.exports.setSearchId();`
+- `this.negamaxEngine.instance.exports.getSearchId();`
+- `this.negamaxEngine.instance.exports.getStatus();`
+- `this.negamaxEngine.instance.exports.setControlFlag();`
+- `this.negamaxEngine.instance.exports.unsetControlFlag();`
+- `this.negamaxEngine.instance.exports.getControlByte();`
+- `this.negamaxEngine.instance.exports.setTargetDepth();`
+- `this.negamaxEngine.instance.exports.getTargetDepth();`
+- `this.negamaxEngine.instance.exports.getDepthAchieved();`
+- `this.negamaxEngine.instance.exports.setDeadline();`
+- `this.negamaxEngine.instance.exports.getDeadline();`
+- `this.negamaxEngine.instance.exports.getNodesSearched();`
+- `this.negamaxEngine.instance.exports.initSearch();`
+- `this.negamaxEngine.instance.exports.negamax();`
 
 ## Citation
 If this code was helpful to you, please cite this repository.
