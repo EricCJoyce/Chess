@@ -141,29 +141,33 @@ Compile the negamax engine:
 sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c em++ -I ./ -Os -s STANDALONE_WASM -s INITIAL_MEMORY=17235968 -s STACK_SIZE=1048576 -s EXPORTED_FUNCTIONS="['_getInputBuffer','_getParametersBuffer','_getQueryGameStateBuffer','_getQueryMoveBuffer','_getAnswerGameStateBuffer','_getAnswerMovesBuffer','_getOutputBuffer','_getZobristHashBuffer','_getTranspositionTableBuffer','_getNegamaxSearchBuffer','_getNegamaxMovesBuffer','_getKillerMovesBuffer','_getHistoryTableBuffer','_setSearchId','_getSearchId','_getStatus','_setControlFlag','_unsetControlFlag','_getControlByte','_setTargetDepth','_getTargetDepth','_getDepthAchieved','_setDeadline','_getDeadline','_getNodesSearched','_initSearch','_negamax']" -Wl,--no-entry "negamax.cpp" -o "negamax.wasm"
 ```
 This produces a `.wasm` with functions you can load into the JavaScript Player class and call.
+
+The following are simply buffer-retrieval functions used by the Player class to wire the WebAssembly module to JavaScript byte arrays.
 - `this.negamaxEngine.instance.exports.getInputBuffer();` returns the address of the negamax module's input-gamestate buffer.
-- `this.negamaxEngine.instance.exports.getParametersBuffer();`
-- `this.negamaxEngine.instance.exports.getQueryGameStateBuffer();`
-- `this.negamaxEngine.instance.exports.getQueryMoveBuffer();`
-- `this.negamaxEngine.instance.exports.getAnswerGameStateBuffer();`
-- `this.negamaxEngine.instance.exports.getAnswerMovesBuffer();`
-- `this.negamaxEngine.instance.exports.getOutputBuffer();`
-- `this.negamaxEngine.instance.exports.getZobristHashBuffer();`
-- `this.negamaxEngine.instance.exports.getTranspositionTableBuffer();`
-- `this.negamaxEngine.instance.exports.getNegamaxSearchBuffer();`
-- `this.negamaxEngine.instance.exports.getNegamaxMovesBuffer();`
-- `this.negamaxEngine.instance.exports.getKillerMovesBuffer();`
-- `this.negamaxEngine.instance.exports.getHistoryTableBuffer();`
-- `this.negamaxEngine.instance.exports.setSearchId();`
+- `this.negamaxEngine.instance.exports.getParametersBuffer();` returns the address of the negamax module's parameters buffer.
+- `this.negamaxEngine.instance.exports.getQueryGameStateBuffer();` returns the address of the negamax module's query gamestate buffer.
+- `this.negamaxEngine.instance.exports.getQueryMoveBuffer();` returns the address of the negamax module's query move buffer.
+- `this.negamaxEngine.instance.exports.getAnswerGameStateBuffer();` returns the address of the negamax module's answer gamestate buffer.
+- `this.negamaxEngine.instance.exports.getAnswerMovesBuffer();` returns the address of the negamax module's answer moves buffer.
+- `this.negamaxEngine.instance.exports.getOutputBuffer();` returns the address of the negamax module's output buffer.
+- `this.negamaxEngine.instance.exports.getZobristHashBuffer();` returns the address of the negamax module's Zobrist hash buffer.
+- `this.negamaxEngine.instance.exports.getTranspositionTableBuffer();` returns the address of the negamax module's transposition-table buffer.
+- `this.negamaxEngine.instance.exports.getNegamaxSearchBuffer();` returns the address of the negamax module's negamax search buffer.
+- `this.negamaxEngine.instance.exports.getNegamaxMovesBuffer();` returns the address of the negamax module's negamax moves buffer.
+- `this.negamaxEngine.instance.exports.getKillerMovesBuffer();` returns the address of the negamax module's killer moves buffer.
+- `this.negamaxEngine.instance.exports.getHistoryTableBuffer();` returns the address of the negamax module's history heuristic buffer.
+
+The following functios are used to control tree-search.
+- `this.negamaxEngine.instance.exports.setSearchId(unsigned int);`
 - `this.negamaxEngine.instance.exports.getSearchId();`
 - `this.negamaxEngine.instance.exports.getStatus();`
-- `this.negamaxEngine.instance.exports.setControlFlag();`
-- `this.negamaxEngine.instance.exports.unsetControlFlag();`
+- `this.negamaxEngine.instance.exports.setControlFlag(unsigned char);`
+- `this.negamaxEngine.instance.exports.unsetControlFlag(unsigned char);`
 - `this.negamaxEngine.instance.exports.getControlByte();`
-- `this.negamaxEngine.instance.exports.setTargetDepth();`
+- `this.negamaxEngine.instance.exports.setTargetDepth(unsigned char);`
 - `this.negamaxEngine.instance.exports.getTargetDepth();`
 - `this.negamaxEngine.instance.exports.getDepthAchieved();`
-- `this.negamaxEngine.instance.exports.setDeadline();`
+- `this.negamaxEngine.instance.exports.setDeadline(unsigned int);`
 - `this.negamaxEngine.instance.exports.getDeadline();`
 - `this.negamaxEngine.instance.exports.getNodesSearched();`
 - `this.negamaxEngine.instance.exports.initSearch();`
