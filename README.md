@@ -98,7 +98,7 @@ The **evaluation module** has *four* outward-facing buffers:
 - `outputGameStateBuffer` is `_GAMESTATE_BYTE_SIZE` bytes long and encodes a chess state after an operation. The negamax module reads these bytes from the evaluation module.
 - `outputMovesBuffer` is `_MAX_MOVES` * (`_MOVE_BYTE_SIZE` + 4 + 1) bytes long. Each set of (`_MOVE_BYTE_SIZE` + 4 + 1) bytes encode the move (`_MOVE_BYTE_SIZE`), the rough score (4) computed using SEE, promotions, and checks, and a flag (1) indicating whether the move is "quiet"--meaning neither a capture nor a promotion. The negamax module reads these, updates their scores for better move-ordering, and turns them into search nodes. The "quiet" flag is also used laster to update killer moves and the history heuristic. Note that we do *not* encode the number of moves in the buffer using the first 4 bytes: rather, the number of moves is the value returned by this function.
 
-Compile the evaluation engine:
+Compile the evaluation module:
 ```
 sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c emcc -Os -s STANDALONE_WASM -s EXPORTED_FUNCTIONS="['_getInputGameStateBuffer','_getInputMoveBuffer','_getOutputGameStateBuffer','_getOutputMovesBuffer','_sideToMove_eval','_isQuiet_eval','_isTerminal_eval','_isSideToMoveInCheck_eval','_nonPawnMaterial_eval','_makeMove_eval','_makeNullMove_eval','_evaluate_eval','_getMoves_eval']" -Wl,--no-entry "philadelphia.c" -o "eval.wasm"
 ```
@@ -138,7 +138,7 @@ The **negamax module** has *thirteen* outward-facing buffers:
 - `killerMovesTableBuffer`
 - `historyTableBuffer`
 
-Compile the negamax engine:
+Compile the negamax module:
 ```
 sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c em++ -I ./ -Os -s STANDALONE_WASM -s INITIAL_MEMORY=17235968 -s STACK_SIZE=1048576 -s EXPORTED_FUNCTIONS="['_getInputBuffer','_getParametersBuffer','_getQueryGameStateBuffer','_getQueryMoveBuffer','_getAnswerGameStateBuffer','_getAnswerMovesBuffer','_getOutputBuffer','_getZobristHashBuffer','_getTranspositionTableBuffer','_getNegamaxSearchBuffer','_getNegamaxMovesBuffer','_getKillerMovesBuffer','_getHistoryTableBuffer','_setSearchId','_getSearchId','_getStatus','_setControlFlag','_unsetControlFlag','_getControlByte','_setTargetDepth','_getTargetDepth','_getDepthAchieved','_setDeadline','_getDeadline','_getNodesSearched','_initSearch','_negamax']" -Wl,--no-entry "negamax.cpp" -o "negamax.wasm"
 ```
