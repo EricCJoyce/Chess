@@ -1050,6 +1050,7 @@ void afterChild_step(unsigned int gsIndex, NegamaxNode* node)
     NegamaxMove move;
     unsigned int moveIndex;
     unsigned int negamaxSearchBufferLength;
+    unsigned char toMove;
     float score;
     unsigned int i;
 
@@ -1058,6 +1059,11 @@ void afterChild_step(unsigned int gsIndex, NegamaxNode* node)
 
     if(parentIndex == gsIndex)                                      //  Make sure this isn't the root node.
       return;
+
+    for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)                       //  Copy "parent"s "gs" to "queryGameStateBuffer" for sideToMove().
+      queryGameStateBuffer[i] = parent.gs[i];
+    copyQuery2EvalGSInput();                                        //  Copy Negamax Module's "queryGameStateBuffer" to Evaluation Module's "inputBuffer".
+    toMove = sideToMove();                                          //  (Ask the Evaluation Module) Which side is to move?
 
     moveIndex = parent.moveOffset + parent.moveNextPtr - 1;         //  Retrieve the index of the move the parent made to reach this node.
     restoreMove(moveIndex, &move);                                  //  Restore the move.
@@ -1078,7 +1084,7 @@ void afterChild_step(unsigned int gsIndex, NegamaxNode* node)
           {
             killerAdd(parent.ply, move.moveByteArray);              //  This is a KILLER MOVE!
                                                                     //  Update the HISTORY HEURISTIC.
-            historyUpdate(sideToMove, parent.ply, move.moveByteArray);
+            historyUpdate(toMove, parent.ply, move.moveByteArray);
           }
 
         parent.phase = _PHASE_FINISH_NODE;                          //  Parent's work is done.
