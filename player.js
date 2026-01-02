@@ -104,7 +104,7 @@ class Player
                 this.evaluationOutputGameStateBuffer = new Uint8Array(this.evaluationEngine.instance.exports.memory.buffer, this.evaluationOutputGameStateOffset, _GAMESTATE_BYTE_SIZE);
                                                                     //  Assign offset to output-moves buffer.
                 this.evaluationOutputMovesOffset = this.evaluationEngine.instance.exports.getOutputGameStateBuffer();
-                this.evaluationOutputMovesBuffer = new Uint8Array(this.evaluationEngine.instance.exports.memory.buffer, this.evaluationOutputMovesOffset, (_MAX_MOVES * (_MOVE_BYTE_SIZE + 5));
+                this.evaluationOutputMovesBuffer = new Uint8Array(this.evaluationEngine.instance.exports.memory.buffer, this.evaluationOutputMovesOffset, _MAX_MOVES * (_MOVE_BYTE_SIZE + 5));
 
                 elementsLoaded++;                                   //  Check evaluationEngine off our list.
                                                                     //  Load the tree-search module AFTER the evaluation module is complete.
@@ -242,7 +242,7 @@ class Player
                         this.negamaxMovesBuffer = new Uint8Array(this.negamaxEngine.instance.exports.memory.buffer, this.negamaxMovesOffset, 4 + _TREE_SEARCH_ARRAY_SIZE * _NEGAMAX_MOVE_BYTE_SIZE);
                                                                     //  Assign offset to auxiliary buffer.
                                                                     //  This is a working buffer that holds the killer-moves table.
-                        this.negamaxKillerMovesOffset = this.negamaxEngine.instance.exports.getKillerMovesTableBuffer();
+                        this.negamaxKillerMovesOffset = this.negamaxEngine.instance.exports.getKillerMovesBuffer();
                         this.negamaxKillerMovesBuffer = new Uint8Array(this.negamaxEngine.instance.exports.memory.buffer, this.negamaxKillerMovesOffset, _KILLER_MOVE_PER_PLY * 2 * _KILLER_MOVE_MAX_DEPTH);
                                                                     //  Assign offset to auxiliary buffer.
                                                                     //  This is a working buffer that holds the history-heuristic table.
@@ -325,7 +325,7 @@ class Player
           this.evaluationInputGameStateBuffer[i] = gameStateBuffer[i];
                                                                     //  Tell the evaluation engine to get a sorted list of possible moves.
                                                                     //  Sort DESCENDING.
-        len = this.evaluationEngine.instance.exports.getSortedMoves(false);
+        len = this.evaluationEngine.instance.exports.getMoves_eval();
 
         this.branches = [];                                         //  Reset the array.
         for(i = 0; i < len; i++)                                    //  Transfer results from the evaluation engine to the array of objects.
