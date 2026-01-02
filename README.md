@@ -159,7 +159,7 @@ The following are simply buffer-retrieval functions used by the Player class to 
 - `this.negamaxEngine.instance.exports.getKillerMovesBuffer();` returns the address of the negamax module's killer moves buffer.
 - `this.negamaxEngine.instance.exports.getHistoryTableBuffer();` returns the address of the negamax module's history heuristic buffer.
 
-The following functios are used to control tree-search.
+The following functios are used to control and monitor tree-search.
 - `this.negamaxEngine.instance.exports.setSearchId(unsigned int);`
 - `this.negamaxEngine.instance.exports.getSearchId();`
 - `this.negamaxEngine.instance.exports.getStatus();`
@@ -172,6 +172,8 @@ The following functios are used to control tree-search.
 - `this.negamaxEngine.instance.exports.setDeadline(unsigned int);`
 - `this.negamaxEngine.instance.exports.getDeadline();`
 - `this.negamaxEngine.instance.exports.getNodesSearched();`
+
+Especially important:
 - `this.negamaxEngine.instance.exports.initSearch();`
 - `this.negamaxEngine.instance.exports.negamax();`
 
