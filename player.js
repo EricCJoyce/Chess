@@ -340,21 +340,23 @@ class Player
             moves[moves.length - 1].score = dv.getUint32(0, true);  //  Little-endian.
           }
 
-        console.log(moves);
+        moves.sort((a, b) => b.score - a.score);                    //  Sort descending by score.
 
         this.branches = [];                                         //  Reset the array.
         for(i = 0; i < len; i++)                                    //  Transfer results from the evaluation engine to the array of objects.
           {
-
-
-
             this.branches.push( {gamestate: new Uint8Array(_GAMESTATE_BYTE_SIZE),
                                  depth:     0,
                                  move:      new Uint8Array(_MOVE_BYTE_SIZE)} );
 
-            //for(j = 0; j < _GAMESTATE_BYTE_SIZE; j++)
-            //  this.branches[this.branches.length - 1].gamestate[j] = this.evaluationOutputBuffer[4 + i * (_GAMESTATE_BYTE_SIZE + _MOVE_BYTE_SIZE) + j];
+            for(j = 0; j < _MOVE_BYTE_SIZE; j++)                    //  Copy the candidate move to the evaluation module's move-input.
+              this.evaluationInputMoveBuffer[j] = moves[i].move[j];
 
+            this.evaluationEngine.instance.exports.makeMove_eval(); //  Apply the candidate move to the game state still in Evaluation's input buffer.
+
+            for(j = 0; j < _GAMESTATE_BYTE_SIZE; j++)               //  Copy the encoded, resultant game state from Evaluation's output to the branch object.
+              this.branches[this.branches.length - 1].gamestate[j] = this.evaluationOutputGameStateBuffer[j];
+                                                                    //  Write a blank Best-Move-Found-So-Far to the branch object.
             this.branches[this.branches.length - 1].move[0] = _NOTHING;
             this.branches[this.branches.length - 1].move[1] = _NOTHING;
             this.branches[this.branches.length - 1].move[2] = 0;
@@ -362,6 +364,8 @@ class Player
 
         this.branchIterator = 0;                                    //  Reset the branch iterator, point to the first (assumed best) move.
         console.log(len+' branches');
+        for(i = 0; i < len; i++)
+          console.log('  '+this.branches[i].gamestate)
 
         return;
       }
