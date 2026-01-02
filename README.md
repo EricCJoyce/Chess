@@ -33,6 +33,7 @@ gcc -Wall zgenerate.c -lm -o zgenerate
 | _MOVE_BYTE_SIZE | 3 | Number of bytes needed to describe a move in Chess |
 | _MAX_NUM_TARGETS | 32 | A (generous) upper bound on how many distinct destinations (not distinct moves) may be available to a player from a single index |
 | _MAX_MOVES | 64 | A (generous) upper bound on how many moves may be made by a team in a single turn |
+| _PARAMETER_ARRAY_SIZE | 16 | Encodes values that are written to and read from the the search process |
 | _KILLER_MOVE_PER_PLY | 2 | Chess engines typically store 2 killer moves per ply |
 | _KILLER_MOVE_MAX_DEPTH | 64 | Not to say that we actually search to depth 64! This is just comfortably large. |
 | _TRANSPO_RECORD_BYTE_SIZE | 18 | Number of bytes needed to store a TranspoRecord object |
@@ -124,19 +125,19 @@ The other module functions are as follows:
 ### Negamax Module
 
 The **negamax module** has *thirteen* outward-facing buffers:
-- `inputGameStateBuffer`
-- `inputParametersBuffer`
-- `outputBuffer`
-- `queryGameStateBuffer`
-- `queryMoveBuffer`
-- `answerGameStateBuffer`
-- `answerMovesBuffer`
-- `zobristHashBuffer`
-- `transpositionTableBuffer`
-- `negamaxSearchBuffer`
-- `negamaxMovesBuffer`
-- `killerMovesTableBuffer`
-- `historyTableBuffer`
+- `inputGameStateBuffer` is `_GAMESTATE_BYTE_SIZE` bytes long. It encodes a game state to be treated as the root node in negamax search.
+- `inputParametersBuffer` is `_PARAMETER_ARRAY_SIZE` bytes long. It encodes a negamax search's ID, status, control flags, target depth, depth achieved, and deadline in milliseconds (if applicable).
+- `outputBuffer` is `_GAMESTATE_BYTE_SIZE` + 1 + `_MOVE_BYTE_SIZE` + 4 bytes long. It encodes the results of negamax search. See below.
+- `queryGameStateBuffer` is `_GAMESTATE_BYTE_SIZE` bytes long. The negamax module writes a game state encoding here, and the JavaScript Player class copies these bytes to the evaluation module's input-game-state buffer.
+- `queryMoveBuffer` is `_MOVE_BYTE_SIZE` bytes long. The negamax module writes a move encoding here, and the JavaScript Player class copies these bytes to the evaluation module's input-move buffer.
+- `answerGameStateBuffer` is `_GAMESTATE_BYTE_SIZE` bytes long. The evaluation module writes an encoded, resultant game state to its output-game-state buffer, and the JavaScript Player class copies these bytes here. 
+- `answerMovesBuffer` is `` bytes long.
+- `zobristHashBuffer` is `` bytes long.
+- `transpositionTableBuffer` is `` bytes long.
+- `negamaxSearchBuffer` is `` bytes long.
+- `negamaxMovesBuffer` is `` bytes long.
+- `killerMovesTableBuffer` is `` bytes long.
+- `historyTableBuffer` is `` bytes long.
 
 Compile the negamax module:
 ```
