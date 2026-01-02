@@ -126,18 +126,18 @@ The other module functions are as follows:
 
 The **negamax module** has *thirteen* outward-facing buffers:
 - `inputGameStateBuffer` is `_GAMESTATE_BYTE_SIZE` bytes long. It encodes a game state to be treated as the root node in negamax search.
-- `inputParametersBuffer` is `_PARAMETER_ARRAY_SIZE` bytes long. It encodes a negamax search's ID, status, control flags, target depth, depth achieved, and deadline in milliseconds (if applicable).
+- `inputParametersBuffer` is `_PARAMETER_ARRAY_SIZE` bytes long. It encodes a negamax search's ID, status, control flags, target depth, depth achieved, deadline in milliseconds (if applicable), and number of nodes evaluated.
 - `outputBuffer` is `_GAMESTATE_BYTE_SIZE` + 1 + `_MOVE_BYTE_SIZE` + 4 bytes long. It encodes the results of negamax search. See below.
 - `queryGameStateBuffer` is `_GAMESTATE_BYTE_SIZE` bytes long. The negamax module writes a game state encoding here, and the JavaScript Player class copies these bytes to the evaluation module's input-game-state buffer.
 - `queryMoveBuffer` is `_MOVE_BYTE_SIZE` bytes long. The negamax module writes a move encoding here, and the JavaScript Player class copies these bytes to the evaluation module's input-move buffer.
 - `answerGameStateBuffer` is `_GAMESTATE_BYTE_SIZE` bytes long. The evaluation module writes an encoded, resultant game state to its output-game-state buffer, and the JavaScript Player class copies these bytes here. 
-- `answerMovesBuffer` is `` bytes long.
-- `zobristHashBuffer` is `` bytes long.
-- `transpositionTableBuffer` is `` bytes long.
-- `negamaxSearchBuffer` is `` bytes long.
-- `negamaxMovesBuffer` is `` bytes long.
-- `killerMovesTableBuffer` is `` bytes long.
-- `historyTableBuffer` is `` bytes long.
+- `answerMovesBuffer` is `_MAX_MOVES` * (`_MOVE_BYTE_SIZE` + 4 + 1) bytes long. It encodes moves, rough scores (4-byte signed int) to be used for move ordering, and a 1-byte flag indicating whether the move is "quiet", here meaning "neither a capture nor a promotion".
+- `zobristHashBuffer` is `ZHASH_TABLE_SIZE` * 8 bytes long. Eight bytes is the size of an unsigned long long.
+- `transpositionTableBuffer` is 1 + `_TRANSPO_TABLE_SIZE` * `_TRANSPO_RECORD_BYTE_SIZE` bytes long. The first byte encodes the current "generation" for new records.
+- `negamaxSearchBuffer` is 4 + `_TREE_SEARCH_ARRAY_SIZE` * `_NEGAMAX_NODE_BYTE_SIZE` bytes long.
+- `negamaxMovesBuffer` is 4 + `_TREE_SEARCH_ARRAY_SIZE` * `_NEGAMAX_MOVE_BYTE_SIZE` bytes long.
+- `killerMovesTableBuffer` is `_KILLER_MOVE_PER_PLY` * 2 * `_KILLER_MOVE_MAX_DEPTH` bytes long.
+- `historyTableBuffer` is 2 * 64 * 64 bytes long.
 
 Compile the negamax module:
 ```
@@ -162,17 +162,17 @@ The following are simply buffer-retrieval functions used by the Player class to 
 
 The following functios are used to control and monitor tree-search.
 - `this.negamaxEngine.instance.exports.setSearchId(unsigned int);`
-- `this.negamaxEngine.instance.exports.getSearchId();`
-- `this.negamaxEngine.instance.exports.getStatus();`
+- `this.negamaxEngine.instance.exports.getSearchId();` returns an unsigned int.
+- `this.negamaxEngine.instance.exports.getStatus();` returns an unsigned char.
 - `this.negamaxEngine.instance.exports.setControlFlag(unsigned char);`
 - `this.negamaxEngine.instance.exports.unsetControlFlag(unsigned char);`
-- `this.negamaxEngine.instance.exports.getControlByte();`
+- `this.negamaxEngine.instance.exports.getControlByte();` returns an unsigned char.
 - `this.negamaxEngine.instance.exports.setTargetDepth(unsigned char);`
-- `this.negamaxEngine.instance.exports.getTargetDepth();`
-- `this.negamaxEngine.instance.exports.getDepthAchieved();`
+- `this.negamaxEngine.instance.exports.getTargetDepth();` returns an unsigned char.
+- `this.negamaxEngine.instance.exports.getDepthAchieved();` returns an unsigned char.
 - `this.negamaxEngine.instance.exports.setDeadline(unsigned int);`
-- `this.negamaxEngine.instance.exports.getDeadline();`
-- `this.negamaxEngine.instance.exports.getNodesSearched();`
+- `this.negamaxEngine.instance.exports.getDeadline();` returns an unsigned int.
+- `this.negamaxEngine.instance.exports.getNodesSearched();` returns an unsigned int.
 
 Especially important:
 - `this.negamaxEngine.instance.exports.initSearch();`
