@@ -49,7 +49,7 @@ void deserializeTranspoRecord(unsigned char*, TranspoRecord*);
  Globals  */
                                                                     //  9,437,185 bytes = 1 + 524,288 * 18.
                                                                     //  Global array containing the serialized transposition table:
-                                                                    //  generation-byte + sizeof(TranspoRecord) * size-of-table.
+                                                                    //  Generation-Byte + sizeof(TranspoRecord) * size-of-table.
 unsigned char transpositionTableBuffer[1 + _TRANSPO_TABLE_SIZE * _TRANSPO_RECORD_BYTE_SIZE];
 
 /**************************************************************************************************
