@@ -1411,7 +1411,7 @@ void saveNode(NegamaxNode* node, unsigned int index)
     for(j = 0; j < 4; j++)                                          //  Append 4-byte buffer to buffer.
       buffer[i++] = buffer4[j];                                     //  NODE.MOVECOUNT
 
-    ui4 = node->moveCtr;                                            //  Copy the node's move-to-try-next to the buffer.
+    ui4 = node->moveNextPtr;                                        //  Copy the node's move-to-try-next to the buffer.
     memcpy(buffer4, (unsigned char*)(&ui4), 4);                     //  Force unsigned int into 4-byte unsigned char buffer.
     for(j = 0; j < 4; j++)                                          //  Append 4-byte buffer to buffer.
       buffer[i++] = buffer4[j];                                     //  NODE.MOVENEXTPTR
@@ -1856,13 +1856,14 @@ unsigned long long hash(unsigned char* hashInputBuffer)
    If the given move, at the given depth is not found, return 0. */
 unsigned char killerLookup(unsigned char depth, unsigned char* moveByteArray)
   {
-    unsigned int offset = depth * _KILLER_MOVE_PER_PLY * 2;
+    unsigned int offset;
 
+    offset = depth * _KILLER_MOVE_PER_PLY * 2;
     if(killerMovesTableBuffer[offset] == moveByteArray[0] && killerMovesTableBuffer[offset + 1] == moveByteArray[1])
       return KILLER_FOUND_FIRST;
 
     offset += 2;
-    else if(killerMovesTableBuffer[offset] == moveByteArray[0] && killerMovesTableBuffer[offset + 1] == moveByteArray[1])
+    if(killerMovesTableBuffer[offset] == moveByteArray[0] && killerMovesTableBuffer[offset + 1] == moveByteArray[1])
       return KILLER_FOUND_SECOND;
 
     return KILLER_NOT_FOUND;
