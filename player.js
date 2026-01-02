@@ -1,3 +1,8 @@
+const STATUS_UNSEARCHED = 0;
+const STATUS_SEARCHING = 1;
+const STATUS_DONE_BOOK = 2;
+const STATUS_DONE_SEARCH = 3;
+
 /* A.I. Player class for CHESS. */
 class Player
   {
@@ -345,9 +350,15 @@ class Player
         this.branches = [];                                         //  Reset the array.
         for(i = 0; i < len; i++)                                    //  Transfer results from the evaluation engine to the array of objects.
           {
+                                                                    //  Game state.
+                                                                    //  Best move found for this state.
+                                                                    //  Depth searched/achieved.
+                                                                    //  Whether we already tried the DB lookup.
             this.branches.push( {gamestate: new Uint8Array(_GAMESTATE_BYTE_SIZE),
+                                 bestMove:  new Uint8Array(_MOVE_BYTE_SIZE),
                                  depth:     0,
-                                 move:      new Uint8Array(_MOVE_BYTE_SIZE)} );
+                                 status:    STATUS_UNSEARCHED,
+                                 score:     0.0} );
 
             for(j = 0; j < _MOVE_BYTE_SIZE; j++)                    //  Copy the candidate move to the evaluation module's move-input.
               this.evaluationInputMoveBuffer[j] = moves[i].move[j];
@@ -357,15 +368,13 @@ class Player
             for(j = 0; j < _GAMESTATE_BYTE_SIZE; j++)               //  Copy the encoded, resultant game state from Evaluation's output to the branch object.
               this.branches[this.branches.length - 1].gamestate[j] = this.evaluationOutputGameStateBuffer[j];
                                                                     //  Write a blank Best-Move-Found-So-Far to the branch object.
-            this.branches[this.branches.length - 1].move[0] = _NOTHING;
-            this.branches[this.branches.length - 1].move[1] = _NOTHING;
-            this.branches[this.branches.length - 1].move[2] = 0;
+            this.branches[this.branches.length - 1].bestMove[0] = _NOTHING;
+            this.branches[this.branches.length - 1].bestMove[1] = _NOTHING;
+            this.branches[this.branches.length - 1].bestMove[2] = 0;
           }
 
         this.branchIterator = 0;                                    //  Reset the branch iterator, point to the first (assumed best) move.
         console.log(len+' branches');
-        for(i = 0; i < len; i++)
-          console.log('  '+this.branches[i].gamestate)
 
         return;
       }
@@ -377,8 +386,8 @@ class Player
 
         if(this.branches[ this.branchIterator ].depth < this.ply)   //  Is search necessary?
           {
-            //  First, copy the byte array from this.branches[ this.branchIterator ] to "this.negamaxInputBuffer".
-            for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)
+                                                                    //  First, copy the byte array from this.branches[ this.branchIterator ]
+            for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)               //  to "this.negamaxInputBuffer".
               this.negamaxInputBuffer[i] = this.branches[ this.branchIterator ].gamestate[i];
 
             //  Next, attempt to look up this game state in the server-side opening book.
