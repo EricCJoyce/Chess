@@ -1131,7 +1131,7 @@ void finishNode_step(unsigned int gsIndex, NegamaxNode* node)
     currGen = getGeneration();                                      //  Get the current transposition-table generation.
                                                                     //  Recover whatever's at this address.
     deserializeTranspoRecord(transpositionTableBuffer + 1 + node->hIndex * _TRANSPO_RECORD_BYTE_SIZE, &ttEntry);
-    oldness = currGen - ttEntry.age
+    oldness = ((int)currGen - (int)ttEntry.age) & 0xFF;
                                                                     //  Either:
                                                                     //    This slot was free. Write.
                                                                     //  Or:
