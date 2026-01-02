@@ -103,7 +103,7 @@ class Player
                 this.evaluationOutputGameStateOffset = this.evaluationEngine.instance.exports.getOutputGameStateBuffer();
                 this.evaluationOutputGameStateBuffer = new Uint8Array(this.evaluationEngine.instance.exports.memory.buffer, this.evaluationOutputGameStateOffset, _GAMESTATE_BYTE_SIZE);
                                                                     //  Assign offset to output-moves buffer.
-                this.evaluationOutputMovesOffset = this.evaluationEngine.instance.exports.getOutputGameStateBuffer();
+                this.evaluationOutputMovesOffset = this.evaluationEngine.instance.exports.getOutputMovesBuffer();
                 this.evaluationOutputMovesBuffer = new Uint8Array(this.evaluationEngine.instance.exports.memory.buffer, this.evaluationOutputMovesOffset, _MAX_MOVES * (_MOVE_BYTE_SIZE + 5));
 
                 elementsLoaded++;                                   //  Check evaluationEngine off our list.
@@ -320,22 +320,40 @@ class Player
     branch()
       {
         var i, j, len;
+        var moves;
+        var buffer4 = new Uint8Array(4);
 
         for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)                   //  Copy the current game-state byte-array to the player's evaluation engine's input buffer.
           this.evaluationInputGameStateBuffer[i] = gameStateBuffer[i];
-                                                                    //  Tell the evaluation engine to get a sorted list of possible moves.
-                                                                    //  Sort DESCENDING.
+                                                                    //  Tell the evaluation engine to get a list of possible moves.
         len = this.evaluationEngine.instance.exports.getMoves_eval();
+
+        moves = [];                                                 //  Parse encoded moves and metadata.
+        for(i = 0; i < len; i++)
+          {
+            moves.push( {move: new Uint8Array(_MOVE_BYTE_SIZE), score: 0} );
+            for(j = 0; j < _MOVE_BYTE_SIZE; j++)
+              moves[moves.length - 1].move[j] = this.evaluationOutputMovesBuffer[i * (_MOVE_BYTE_SIZE + 5) + j];
+            for(j = 0; j < 4; j++)
+              buffer4[j] = this.evaluationOutputMovesBuffer[i * (_MOVE_BYTE_SIZE + 5) + _MOVE_BYTE_SIZE + j];
+            const dv = new DataView(buffer4.buffer, buffer4.byteOffset, 4);
+            moves[moves.length - 1].score = dv.getUint32(0, true);  //  Little-endian.
+          }
+
+        console.log(moves);
 
         this.branches = [];                                         //  Reset the array.
         for(i = 0; i < len; i++)                                    //  Transfer results from the evaluation engine to the array of objects.
           {
+
+
+
             this.branches.push( {gamestate: new Uint8Array(_GAMESTATE_BYTE_SIZE),
                                  depth:     0,
-                                 move:      new Uint8Array(3)} );
+                                 move:      new Uint8Array(_MOVE_BYTE_SIZE)} );
 
-            for(j = 0; j < _GAMESTATE_BYTE_SIZE; j++)
-              this.branches[this.branches.length - 1].gamestate[j] = this.evaluationOutputBuffer[4 + i * (_GAMESTATE_BYTE_SIZE + _MOVE_BYTE_SIZE) + j];
+            //for(j = 0; j < _GAMESTATE_BYTE_SIZE; j++)
+            //  this.branches[this.branches.length - 1].gamestate[j] = this.evaluationOutputBuffer[4 + i * (_GAMESTATE_BYTE_SIZE + _MOVE_BYTE_SIZE) + j];
 
             this.branches[this.branches.length - 1].move[0] = _NOTHING;
             this.branches[this.branches.length - 1].move[1] = _NOTHING;
