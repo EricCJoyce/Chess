@@ -1019,17 +1019,17 @@ void nextMove_step(unsigned int gsIndex, NegamaxNode* node)
     child.bestMove[1] = _NONE;
     child.bestMove[2] = _NO_PROMO;
 
-    child.moveOffset    = 0;                                        //  Blank.
-    child.moveCount     = 0;
-    child.nextMoveIndex = 0;
+    child.moveOffset = 0;                                           //  Blank.
+    child.moveCount = 0;
+    child.moveNextPtr = 0;
 
     child.depth = (signed char)(node->depth - 1);                   //  Depth/ply bookkeeping.
-    child.ply   = (unsigned char)(node->ply + 1);
+    child.ply = (unsigned char)(node->ply + 1);
 
     child.originalAlpha = -node->beta;                              //  Negamax window flip.
-    child.alpha         = -node->beta;
-    child.beta          = -node->alpha;
-    child.color         = -node->color;
+    child.alpha = -node->beta;
+    child.beta = -node->alpha;
+    child.color = -node->color;
     child.value = -std::numeric_limits<float>::infinity();
 
     child.phase = _PHASE_ENTER_NODE;                                //  Receive at this phase.
