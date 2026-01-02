@@ -988,7 +988,7 @@ void nextMove_step(unsigned int gsIndex, NegamaxNode* node)
         return;                                                     //  End heartbeat.
       }
 
-    globalMoveIndex = mode->moveOffset + node->moveNextPtr;         //  Index into "negamaxMovesBuffer".
+    globalMoveIndex = node->moveOffset + node->moveNextPtr;         //  Index into "negamaxMovesBuffer".
     restoreMove(globalMoveIndex, &move);                            //  Recover the NegamaxMove struct from the global byte-array.
 
     node->moveNextPtr++;                                            //  Point to the next move.
