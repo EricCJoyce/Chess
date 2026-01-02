@@ -24,6 +24,9 @@ sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,sourc
 
 #define _KILLER_MOVE_PER_PLY                     2                  /* Typical for other chess engines. */
 #define _KILLER_MOVE_MAX_DEPTH                  64                  /* Simply something "comfortably large". */
+#define KILLER_NOT_FOUND                         0
+#define KILLER_FOUND_FIRST                       1
+#define KILLER_FOUND_SECOND                      2
 
 #define PARAM_BUFFER_SEARCHID_OFFSET          0x00                  /* Bytes into "inputParametersBuffer", where the search ID begins. */
 #define PARAM_BUFFER_STATUS_OFFSET            0x04                  /* Bytes into "inputParametersBuffer", where the status byte exists. */
@@ -893,6 +896,7 @@ void expansion_step(unsigned int gsIndex, NegamaxNode* node)
     NegamaxMove movesBuffer[_MAX_MOVES];                            //  Local storage to be filled, sorted, then appended to "negamaxMovesBuffer".
     signed int scores[_MAX_MOVES];                                  //  Scores furnished by both Evaluation Module (SEE, promotion, check)
                                                                     //  and by Negamax Module (TT best move, killer move, history heuristic).
+    unsigned char killerFlag;
 
     unsigned char buffer4[4];                                       //  Convert 4-byte arrays to their proper data types.
     signed int si4;
@@ -939,9 +943,9 @@ void expansion_step(unsigned int gsIndex, NegamaxNode* node)
           {
                                                                     //  Killer-move look-up.
             killerFlag = killerLookup(node->depth - 1, movesBuffer[i].moveByteArray);
-            if(killerFlag == 1)                                     //  Fresh!
+            if(killerFlag == KILLER_FOUND_FIRST)                    //  Fresh!
               scores[i] += MOVE_SORTING_KILLER_MOVE_1_BONUS;
-            else if(killerFlag == 2)                                //  Less fresh.
+            else if(killerFlag == KILLER_FOUND_SECOND)              //  Less fresh.
               scores[i] += MOVE_SORTING_KILLER_MOVE_2_BONUS;
                                                                     //  History-heuristic look-up.
                                                                     //  Was this move (by this side) useful in the past?
@@ -1847,14 +1851,15 @@ unsigned long long hash(unsigned char* hashInputBuffer)
 unsigned char killerLookup(unsigned char depth, unsigned char* moveByteArray)
   {
     unsigned int offset = depth * _KILLER_MOVE_PER_PLY * 2;
+
     if(killerMovesTableBuffer[offset] == moveByteArray[0] && killerMovesTableBuffer[offset + 1] == moveByteArray[1])
-      return 1;
+      return KILLER_FOUND_FIRST;
 
     offset += 2;
     else if(killerMovesTableBuffer[offset] == moveByteArray[0] && killerMovesTableBuffer[offset + 1] == moveByteArray[1])
-      return 2;
+      return KILLER_FOUND_SECOND;
 
-    return 0;
+    return KILLER_NOT_FOUND;
   }
 
 /* Add the given killer move at the given depth.
