@@ -355,7 +355,7 @@ class Player
                                                                     //  Depth searched/achieved.
                                                                     //  Whether we already tried the DB lookup.
             this.branches.push( {gamestate: new Uint8Array(_GAMESTATE_BYTE_SIZE),
-                                 bestMove:  new Uint8Array(_MOVE_BYTE_SIZE),
+                                 bestMove:  [_NOTHING, _NOTHING, _NO_PROMO],
                                  depth:     0,
                                  status:    STATUS_UNSEARCHED,
                                  score:     0.0} );
@@ -367,10 +367,6 @@ class Player
 
             for(j = 0; j < _GAMESTATE_BYTE_SIZE; j++)               //  Copy the encoded, resultant game state from Evaluation's output to the branch object.
               this.branches[this.branches.length - 1].gamestate[j] = this.evaluationOutputGameStateBuffer[j];
-                                                                    //  Write a blank Best-Move-Found-So-Far to the branch object.
-            this.branches[this.branches.length - 1].bestMove[0] = _NOTHING;
-            this.branches[this.branches.length - 1].bestMove[1] = _NOTHING;
-            this.branches[this.branches.length - 1].bestMove[2] = 0;
           }
 
         this.branchIterator = 0;                                    //  Reset the branch iterator, point to the first (assumed best) move.

@@ -36,6 +36,7 @@ var panelOpen = false;                                              //  Whether 
 //////////////////////////////////////////////////////////////////////  HUD / DOCKED-HUD
 var hud;                                                            //  CSS, created and destroyed
 var dockedhud = document.getElementById('dockedhud');               //  HTML, hidden and revealed
+const _NO_PROMO = 0;
 const _KNIGHT = 1;
 const _BISHOP = 2;
 const _ROOK = 3;
