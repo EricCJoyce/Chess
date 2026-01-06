@@ -29,7 +29,7 @@ gcc -Wall zgenerate.c -lm -o zgenerate
 
 | Name  | Bytes  | Description |
 | :---:	| :----: | :---------: |
-| _GAMESTATE_BYTE_SIZE | 81 | Number of bytes needed to encode a game state |
+| _GAMESTATE_BYTE_SIZE | 67 | Number of bytes needed to encode a game state |
 | _MOVE_BYTE_SIZE | 3 | Number of bytes needed to describe a move in Chess |
 | _MAX_NUM_TARGETS | 32 | A (generous) upper bound on how many distinct destinations (not distinct moves) may be available to a player from a single index |
 | _MAX_MOVES | 64 | A (generous) upper bound on how many moves may be made by a team in a single turn |
@@ -39,7 +39,7 @@ gcc -Wall zgenerate.c -lm -o zgenerate
 | _TRANSPO_RECORD_BYTE_SIZE | 18 | Number of bytes needed to store a TranspoRecord object |
 | _TRANSPO_TABLE_SIZE | 524288 | Number of TranspoRecords, each 18 bytes |
 | _TREE_SEARCH_ARRAY_SIZE | 65536 | Number of (game-state bytes, move-bytes) |
-| _NEGAMAX_NODE_BYTE_SIZE | 139 | Number of bytes needed to encode a negamax node |
+| _NEGAMAX_NODE_BYTE_SIZE | 125 | Number of bytes needed to encode a negamax node |
 | _NEGAMAX_MOVE_BYTE_SIZE | 4 | Number of bytes needed to encode a negamax move (in their separate, global array) |
 | ZHASH_TABLE_SIZE | 751 | Number of Zobrist keys |
 | _WHITE_TO_MOVE | 0 | Indication that white is to move in the current game state |
