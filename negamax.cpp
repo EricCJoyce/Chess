@@ -1,6 +1,6 @@
 /*
 
-sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c em++ -I ./ -Os -s STANDALONE_WASM -s INITIAL_MEMORY=19922944 -s STACK_SIZE=1048576 -s EXPORTED_FUNCTIONS="['_getInputBuffer','_getParametersBuffer','_getQueryGameStateBuffer','_getQueryMoveBuffer','_getAnswerGameStateBuffer','_getAnswerMovesBuffer','_getOutputBuffer','_getZobristHashBuffer','_getTranspositionTableBuffer','_getNegamaxSearchBuffer','_getNegamaxMovesBuffer','_getKillerMovesBuffer','_getHistoryTableBuffer','_setSearchId','_getSearchId','_getStatus','_setControlFlag','_unsetControlFlag','_getControlByte','_setTargetDepth','_getTargetDepth','_getDepthAchieved','_setDeadline','_getDeadline','_getNodesSearched','_initSearch','_negamax']" -Wl,--no-entry "negamax.cpp" -o "negamax.wasm"
+sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c em++ -I ./ -Os -s STANDALONE_WASM -s INITIAL_MEMORY=9568256 -s STACK_SIZE=1048576 -s EXPORTED_FUNCTIONS="['_getInputBuffer','_getParametersBuffer','_getQueryGameStateBuffer','_getQueryMoveBuffer','_getAnswerGameStateBuffer','_getAnswerMovesBuffer','_getOutputBuffer','_getZobristHashBuffer','_getTranspositionTableBuffer','_getNegamaxSearchBuffer','_getNegamaxMovesBuffer','_getKillerMovesBuffer','_getHistoryTableBuffer','_setSearchId','_getSearchId','_getStatus','_setControlFlag','_unsetControlFlag','_getControlByte','_setTargetDepth','_getTargetDepth','_getDepthAchieved','_setDeadline','_getDeadline','_getNodesSearched','_initSearch','_negamax']" -Wl,--no-entry "negamax.cpp" -o "negamax.wasm"
 
 */
 
@@ -10,7 +10,7 @@ sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,sourc
 #include "transposition.h"                                          /* Include the Transposition Table library. */
 #include "zobrist.h"                                                /* Include the Zobrist hasher, which is an array of unsigned long longs (64-bit ints). */
 
-#define _GAMESTATE_BYTE_SIZE                    81                  /* Number of bytes needed to encode a game state. */
+#define _GAMESTATE_BYTE_SIZE                    67                  /* Number of bytes needed to encode a game state. */
 #define _MOVE_BYTE_SIZE                          3                  /* Number of bytes needed to encode a move. */
 #define _MAX_MOVES                              64                  /* A (generous) upper bound on how many moves may be made by a team in a single turn. */
 #define _NONE                                   64                  /* Required as a "blank" value without #include "gamestate.h". */
@@ -19,7 +19,7 @@ sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,sourc
 #define _PARAMETER_ARRAY_SIZE                   16                  /* Number of bytes needed to store search parameters. */
 
 #define _TREE_SEARCH_ARRAY_SIZE              65536                  /* Number of (game-state bytes, move-bytes). */
-#define _NEGAMAX_NODE_BYTE_SIZE                139                  /* Number of bytes needed to store a negamax node. */
+#define _NEGAMAX_NODE_BYTE_SIZE                125                  /* Number of bytes needed to store a negamax node. */
 #define _NEGAMAX_MOVE_BYTE_SIZE                  4                  /* Number of bytes needed to store a negamax move. */
 
 #define _KILLER_MOVE_PER_PLY                     2                  /* Typical for other chess engines. */
@@ -82,9 +82,9 @@ sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,sourc
 /**************************************************************************************************
  Typedefs  */
 
-typedef struct NegamaxNodeType                                      //  TOTAL: 139 = _NEGAMAX_NODE_BYTE_SIZE bytes.
+typedef struct NegamaxNodeType                                      //  TOTAL: 125 = _NEGAMAX_NODE_BYTE_SIZE bytes.
   {
-    unsigned char gs[_GAMESTATE_BYTE_SIZE];                         //  (81 bytes) The given gamestate as a byte array.
+    unsigned char gs[_GAMESTATE_BYTE_SIZE];                         //  (67 bytes) The given gamestate as a byte array.
     unsigned int parent;                                            //  (4 bytes) Index into "negamaxSearchBuffer" of this node's parent.
     unsigned char parentMove[_MOVE_BYTE_SIZE];                      //  (3 bytes) Describe the move that led from "parent" to this node.
     unsigned char bestMove[_MOVE_BYTE_SIZE];                        //  (3 bytes) Best move found so far from this node.
@@ -243,7 +243,7 @@ void incrementNodeCtr(void);
 
 /**************************************************************************************************
  Globals  */
-                                                                    //  81 bytes.
+                                                                    //  67 bytes.
                                                                     //  Global array containing the serialized game state:
 unsigned char inputGameStateBuffer[_GAMESTATE_BYTE_SIZE];           //  Input from Player.js to its negamaxEngine.
 
@@ -256,7 +256,7 @@ unsigned char inputGameStateBuffer[_GAMESTATE_BYTE_SIZE];           //  Input fr
                                                                     //  Deadline in ms: 4 bytes.
 unsigned char inputParametersBuffer[_PARAMETER_ARRAY_SIZE];         //  Nodes Searched: 4 bytes.
 
-                                                                    //  89 bytes.
+                                                                    //  75 bytes.
                                                                     //  Global array containing: {serialized game state (sanity check),
                                                                     //                            1-byte uchar          (depth achieved),
                                                                     //                            serialized move       (move to make in this state),
@@ -264,7 +264,7 @@ unsigned char inputParametersBuffer[_PARAMETER_ARRAY_SIZE];         //  Nodes Se
                                                                     //  Output from negamaxEngine to Player.js.
 unsigned char outputBuffer[_GAMESTATE_BYTE_SIZE + 1 + _MOVE_BYTE_SIZE + 4];
 
-                                                                    //  81 bytes.
+                                                                    //  67 bytes.
                                                                     //  Global array containing the serialized (query) game state:
 unsigned char queryGameStateBuffer[_GAMESTATE_BYTE_SIZE];           //  Input from negamaxEngine to evaluationEngine.
 
@@ -272,7 +272,7 @@ unsigned char queryGameStateBuffer[_GAMESTATE_BYTE_SIZE];           //  Input fr
                                                                     //  Global array containing the serialized (query) move:
 unsigned char queryMoveBuffer[_MOVE_BYTE_SIZE];                     //  Input from negamaxEngine to evaluationEngine.
 
-                                                                    //  81 bytes.
+                                                                    //  67 bytes.
                                                                     //  Global array containing a serialized (answer) game state:
 unsigned char answerGameStateBuffer[_GAMESTATE_BYTE_SIZE];          //  Output from evaluationEngine to negamaxEngine.
 
@@ -287,7 +287,7 @@ unsigned char answerMovesBuffer[_MAX_MOVES * (_MOVE_BYTE_SIZE + 5)];//  The actu
                                                                     //  9,437,185 bytes.
                                                                     //  For "transpositionTableBuffer" included in "transposition.h".
 
-                                                                    //  9,109,508 bytes.
+                                                                    //  8,192,004 bytes.
                                                                     //  Flat, global array that behaves like a DFS stack for negamax nodes.
                                                                     //  First four bytes are for an unsigned int: the length of the array.
 unsigned char negamaxSearchBuffer[4 + _TREE_SEARCH_ARRAY_SIZE * _NEGAMAX_NODE_BYTE_SIZE];
@@ -325,10 +325,10 @@ unsigned char killerMovesTableBuffer[_KILLER_MOVE_PER_PLY * 2 * _KILLER_MOVE_MAX
                                                                     //                                 . . .
 unsigned char historyTableBuffer[2 * _NONE * _NONE];                //                   From-index 63, To-indices 0 .. 63  ]
 
-                                                                    //  SUBTOTAL:  18,824,160 bytes.
+                                                                    //  SUBTOTAL:  8,478,852 bytes.
                                                                     //  Give the stack 1,048,576 bytes.
-                                                                    //  TOTAL:     19,872,736 bytes.
-                                                                    //  Round to:  19,922,944 = 304 pages (cover units of 65,536).
+                                                                    //  TOTAL:     9,527,428 bytes.
+                                                                    //  Round to:  9,568,256 = 146 pages (cover units of 65,536).
 
 /**************************************************************************************************
  Pointer-retrieval functions  */

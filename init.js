@@ -6,7 +6,7 @@ var gameStateOffset;                                                //  Address 
 var gameStateBuffer;                                                //  Byte buffer
 var gameOutputOffset;                                               //  Address of read/write memory in gameEngine.
 var gameOutputBuffer;                                               //  Byte buffer
-const _GAMESTATE_BYTE_SIZE = 81;                                    //  Size (see C code).
+const _GAMESTATE_BYTE_SIZE = 67;                                    //  Size (see C code).
 const _MOVE_BYTE_SIZE = 3;                                          //  Size (see C code).
 const _MOVEBUFFER_BYTE_SIZE = 32;                                   //  Size (see C code).
 const _MAX_MOVES = 64;                                              //  Size (see C code).
@@ -16,7 +16,7 @@ const _TRANSPO_TABLE_SIZE = 524288;                                 //  Size (se
 const _TRANSPO_RECORD_BYTE_SIZE = 18;                               //  Size (see C code).
 const _PARAMETER_ARRAY_SIZE = 16;                                   //  Size (see C++ code).
 const _TREE_SEARCH_ARRAY_SIZE = 65536;                              //  Size (see C++ code).
-const _NEGAMAX_NODE_BYTE_SIZE = 139;                                //  Size (see C++ code).
+const _NEGAMAX_NODE_BYTE_SIZE = 125;                                //  Size (see C++ code).
 const _NEGAMAX_MOVE_BYTE_SIZE = 4;                                  //  Size (see C++ code).
 const _KILLER_MOVE_PER_PLY = 2;                                     //  Size (see C++ code).
 const _KILLER_MOVE_MAX_DEPTH = 64;                                  //  Size (see C++ code).

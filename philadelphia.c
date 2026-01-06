@@ -91,256 +91,82 @@ unsigned char* getOutputMovesBuffer(void)
 /* Write the given game state to the given buffer. */
 void serializeGameStateToBuffer(GameState* gs, unsigned char* buffer)
   {
-    unsigned char i = 0, j, k;
-    unsigned char ch, mask;
-    unsigned char wKingPos, bKingPos;
+    unsigned char i = 0, j;
+    unsigned char ch;
 
-    wKingPos = 0;
-    while(wKingPos < _NONE && gs->board[wKingPos] != 'K')           //  Locate white king.
-      wKingPos++;
-
-    bKingPos = 0;
-    while(bKingPos < _NONE && gs->board[bKingPos] != 'k')           //  Locate black king.
-      bKingPos++;
-
-    //////////////////////////////////////////////////////////////////  Encode white pawns, castling data, and the previous pawn double-move indicator.
+    //////////////////////////////////////////////////////////////////  (1 byte) Encode side to move and castling data.
     ch = 0;
     if(gs->whiteToMove)                                             //  Set bit: white to move.
       ch |= 128;
-    mask = 64;
-    for(j = 1; j < 7; j++)
-      {
-        if(isWhite(j * 8, gs) && isPawn(j * 8, gs))
-          ch |= mask;                                               //  Set bit: white pawn on j-th row of column A.
-        mask = mask >> 1;
-      }
-    ch |= (gs->previousDoublePawnMove & 128) >> 7;                  //  Set bit: previous pawn double-move occurred on column A.
-    buffer[i++] = ch;                                               //  Write byte.
-
-    ch = 0;
     if(gs->whiteKingsidePrivilege)                                  //  Set bit: white's kingside castling privilege.
-      ch |= 128;
-    mask = 64;
-    for(j = 1; j < 7; j++)
-      {
-        if(isWhite(1 + j * 8, gs) && isPawn(1 + j * 8, gs))
-          ch |= mask;                                               //  Set bit: white pawn on j-th row of column B.
-        mask = mask >> 1;
-      }
-    ch |= (gs->previousDoublePawnMove & 64) >> 6;                   //  Set bit: previous pawn double-move occurred on column B.
-    buffer[i++] = ch;                                               //  Write byte.
-
-    ch = 0;
+      ch |= 64;
     if(gs->whiteQueensidePrivilege)                                 //  Set bit: white's queenside castling privilege.
-      ch |= 128;
-    mask = 64;
-    for(j = 1; j < 7; j++)
-      {
-        if(isWhite(2 + j * 8, gs) && isPawn(2 + j * 8, gs))
-          ch |= mask;                                               //  Set bit: white pawn on j-th row of column C.
-        mask = mask >> 1;
-      }
-    ch |= (gs->previousDoublePawnMove & 32) >> 5;                   //  Set bit: previous pawn double-move occurred on column C.
-    buffer[i++] = ch;                                               //  Write byte.
-
-    ch = 0;
+      ch |= 32;
     if(gs->whiteCastled)                                            //  Set bit: white has castled.
-      ch |= 128;
-    mask = 64;
-    for(j = 1; j < 7; j++)
-      {
-        if(isWhite(3 + j * 8, gs) && isPawn(3 + j * 8, gs))
-          ch |= mask;                                               //  Set bit: white pawn on j-th row of column D.
-        mask = mask >> 1;
-      }
-    ch |= (gs->previousDoublePawnMove & 16) >> 4;                   //  Set bit: previous pawn double-move occurred on column D.
-    buffer[i++] = ch;                                               //  Write byte.
-
-    ch = 0;
+      ch |= 16;
     if(gs->blackKingsidePrivilege)                                  //  Set bit: black's kingside castling privilege.
-      ch |= 128;
-    mask = 64;
-    for(j = 1; j < 7; j++)
-      {
-        if(isWhite(4 + j * 8, gs) && isPawn(4 + j * 8, gs))
-          ch |= mask;                                               //  Set bit: white pawn on j-th row of column E.
-        mask = mask >> 1;
-      }
-    ch |= (gs->previousDoublePawnMove & 8) >> 3;                    //  Set bit: previous pawn double-move occurred on column E.
-    buffer[i++] = ch;                                               //  Write byte.
-
-    ch = 0;
+      ch |= 8;
     if(gs->blackQueensidePrivilege)                                 //  Set bit: black's queenside castling privilege.
-      ch |= 128;
-    mask = 64;
-    for(j = 1; j < 7; j++)
-      {
-        if(isWhite(5 + j * 8, gs) && isPawn(5 + j * 8, gs))
-          ch |= mask;                                               //  Set bit: white pawn on j-th row of column F.
-        mask = mask >> 1;
-      }
-    ch |= (gs->previousDoublePawnMove & 4) >> 2;                    //  Set bit: previous pawn double-move occurred on column F.
-    buffer[i++] = ch;                                               //  Write byte.
-
-    ch = 0;
+      ch |= 4;
     if(gs->blackCastled)                                            //  Set bit: black has castled.
-      ch |= 128;
-    mask = 64;
-    for(j = 1; j < 7; j++)
-      {
-        if(isWhite(6 + j * 8, gs) && isPawn(6 + j * 8, gs))
-          ch |= mask;                                               //  Set bit: white pawn on j-th row of column G.
-        mask = mask >> 1;
-      }
-    ch |= (gs->previousDoublePawnMove & 2) >> 1;                    //  Set bit: previous pawn double-move occurred on column G.
+      ch |= 2;
+
     buffer[i++] = ch;                                               //  Write byte.
 
+    //////////////////////////////////////////////////////////////////  (1 byte) Encode previous pawn double move data.
     ch = 0;
-    mask = 64;
-    for(j = 1; j < 7; j++)
-      {
-        if(isWhite(7 + j * 8, gs) && isPawn(7 + j * 8, gs))
-          ch |= mask;                                               //  Set bit: white pawn on j-th row of column H.
-        mask = mask >> 1;
-      }
+    ch |= (gs->previousDoublePawnMove & 128);                       //  Set bit: previous pawn double-move occurred on column A.
+    ch |= (gs->previousDoublePawnMove & 64);                        //  Set bit: previous pawn double-move occurred on column B.
+    ch |= (gs->previousDoublePawnMove & 32);                        //  Set bit: previous pawn double-move occurred on column C.
+    ch |= (gs->previousDoublePawnMove & 16);                        //  Set bit: previous pawn double-move occurred on column D.
+    ch |= (gs->previousDoublePawnMove & 8);                         //  Set bit: previous pawn double-move occurred on column E.
+    ch |= (gs->previousDoublePawnMove & 4);                         //  Set bit: previous pawn double-move occurred on column F.
+    ch |= (gs->previousDoublePawnMove & 2);                         //  Set bit: previous pawn double-move occurred on column G.
     ch |= (gs->previousDoublePawnMove & 1);                         //  Set bit: previous pawn double-move occurred on column H.
     buffer[i++] = ch;                                               //  Write byte.
 
-    //////////////////////////////////////////////////////////////////  Encode black pawns, white king's location, and black king's location.
-    for(j = 0; j < 8; j++)
+    //////////////////////////////////////////////////////////////////  (64 bytes) Encode the board.
+    for(j = 0; j < _NONE; j++)
       {
         ch = 0;
-        mask = 64;
-        for(k = 1; k < 7; k++)
+        if(isWhite(j, gs))
           {
-            if(isBlack(j + k * 8, gs) && isPawn(j + k * 8, gs))
-              ch |= mask;                                           //  Set bit: black pawn on k-th row of j-th column.
-            mask = mask >> 1;
+            if(isPawn(j, gs))
+              ch = _WHITE_PAWN;
+            else if(isKnight(j, gs))
+              ch = _WHITE_KNIGHT;
+            else if(isBishop(j, gs))
+              ch = _WHITE_BISHOP;
+            else if(isRook(j, gs))
+              ch = _WHITE_ROOK;
+            else if(isQueen(j, gs))
+              ch = _WHITE_QUEEN;
+            else
+              ch = _WHITE_KING;
           }
-        mask = 128 >> j;
-        if((wKingPos & mask) == mask)                               //  Set bit in unsigned char: white king's location.
-          ch |= 128;
-        if((bKingPos & mask) == mask)                               //  Set bit in unsigned char: black king's location.
-          ch |= 1;
+        else if(isBlack(j, gs))
+          {
+            if(isPawn(j, gs))
+              ch = _BLACK_PAWN;
+            else if(isKnight(j, gs))
+              ch = _BLACK_KNIGHT;
+            else if(isBishop(j, gs))
+              ch = _BLACK_BISHOP;
+            else if(isRook(j, gs))
+              ch = _BLACK_ROOK;
+            else if(isQueen(j, gs))
+              ch = _BLACK_QUEEN;
+            else
+              ch = _BLACK_KING;
+          }
+
         buffer[i++] = ch;                                           //  Write byte.
       }
 
-    //////////////////////////////////////////////////////////////////  Encode white knights.
-    for(j = 0; j < 8; j++)
-      {
-        ch = 0;
-        mask = 128;
-        for(k = 0; k < 8; k++)
-          {
-            if(isWhite(j + k * 8, gs) && isKnight(j + k * 8, gs))
-              ch |= mask;
-            mask = mask >> 1;
-          }
-        buffer[i++] = ch;                                           //  Write byte.
-      }
-
-    //////////////////////////////////////////////////////////////////  Encode black knights.
-    for(j = 0; j < 8; j++)
-      {
-        ch = 0;
-        mask = 128;
-        for(k = 0; k < 8; k++)
-          {
-            if(isBlack(j + k * 8, gs) && isKnight(j + k * 8, gs))
-              ch |= mask;
-            mask = mask >> 1;
-          }
-        buffer[i++] = ch;                                           //  Write byte.
-      }
-
-    //////////////////////////////////////////////////////////////////  Encode white bishops.
-    for(j = 0; j < 8; j++)
-      {
-        ch = 0;
-        mask = 128;
-        for(k = 0; k < 8; k++)
-          {
-            if(isWhite(j + k * 8, gs) && isBishop(j + k * 8, gs))
-              ch |= mask;
-            mask = mask >> 1;
-          }
-        buffer[i++] = ch;                                           //  Write byte.
-      }
-
-    //////////////////////////////////////////////////////////////////  Encode black bishops.
-    for(j = 0; j < 8; j++)
-      {
-        ch = 0;
-        mask = 128;
-        for(k = 0; k < 8; k++)
-          {
-            if(isBlack(j + k * 8, gs) && isBishop(j + k * 8, gs))
-              ch |= mask;
-            mask = mask >> 1;
-          }
-        buffer[i++] = ch;                                           //  Write byte.
-      }
-
-    //////////////////////////////////////////////////////////////////  Encode white rooks.
-    for(j = 0; j < 8; j++)
-      {
-        ch = 0;
-        mask = 128;
-        for(k = 0; k < 8; k++)
-          {
-            if(isWhite(j + k * 8, gs) && isRook(j + k * 8, gs))
-              ch |= mask;
-            mask = mask >> 1;
-          }
-        buffer[i++] = ch;                                           //  Write byte.
-      }
-
-    //////////////////////////////////////////////////////////////////  Encode black rooks.
-    for(j = 0; j < 8; j++)
-      {
-        ch = 0;
-        mask = 128;
-        for(k = 0; k < 8; k++)
-          {
-            if(isBlack(j + k * 8, gs) && isRook(j + k * 8, gs))
-              ch |= mask;
-            mask = mask >> 1;
-          }
-        buffer[i++] = ch;                                           //  Write byte.
-      }
-
-    //////////////////////////////////////////////////////////////////  Encode white queen(s).
-    for(j = 0; j < 8; j++)
-      {
-        ch = 0;
-        mask = 128;
-        for(k = 0; k < 8; k++)
-          {
-            if(isWhite(j + k * 8, gs) && isQueen(j + k * 8, gs))
-              ch |= mask;
-            mask = mask >> 1;
-          }
-        buffer[i++] = ch;                                           //  Write byte.
-      }
-
-    //////////////////////////////////////////////////////////////////  Encode black queen(s).
-    for(j = 0; j < 8; j++)
-      {
-        ch = 0;
-        mask = 128;
-        for(k = 0; k < 8; k++)
-          {
-            if(isBlack(j + k * 8, gs) && isQueen(j + k * 8, gs))
-              ch |= mask;
-            mask = mask >> 1;
-          }
-        buffer[i++] = ch;                                           //  Write byte.
-      }
-
-    //////////////////////////////////////////////////////////////////  Encode move counter.
+    //////////////////////////////////////////////////////////////////  (1 byte) Encode the move counter.
     buffer[i++] = gs->moveCtr;
 
-    return;
+    return;                                                         //  TOTAL: 67 bytes.
   }
 
 /* Write the given move to the given buffer. */
@@ -358,189 +184,80 @@ void serializeMoveToBuffer(Move* move, unsigned char* buffer)
 /* Recover a GameState from the unsigned-char buffer "inputGameStateBuffer". */
 void deserializeGameState(GameState* gs)
   {
-    unsigned char i, j, k;
-    unsigned char ch, mask;
-    unsigned char wKingPos = 0, bKingPos = 0;
+    unsigned char i, j;
 
     for(i = 0; i < _NONE; i++)                                      //  Fill-in/blank-out.
       gs->board[i] = 'e';
     gs->previousDoublePawnMove = 0;
 
-    gs->whiteToMove = ((inputGameStateBuffer[0] & 128) == 128);     //  Recover side to move.
-                                                                    //  Recover white's castling data.
-    gs->whiteKingsidePrivilege = ((inputGameStateBuffer[1] & 128) == 128);
-    gs->whiteQueensidePrivilege = ((inputGameStateBuffer[2] & 128) == 128);
-    gs->whiteCastled = ((inputGameStateBuffer[3] & 128) == 128);
-                                                                    //  Recover black's castling data.
-    gs->blackKingsidePrivilege = ((inputGameStateBuffer[4] & 128) == 128);
-    gs->blackQueensidePrivilege = ((inputGameStateBuffer[5] & 128) == 128);
-    gs->blackCastled = ((inputGameStateBuffer[6] & 128) == 128);
-                                                                    //  Recover en-passant data.
-    gs->previousDoublePawnMove |= (inputGameStateBuffer[0] & 1) << 7;
-    gs->previousDoublePawnMove |= (inputGameStateBuffer[1] & 1) << 6;
-    gs->previousDoublePawnMove |= (inputGameStateBuffer[2] & 1) << 5;
-    gs->previousDoublePawnMove |= (inputGameStateBuffer[3] & 1) << 4;
-    gs->previousDoublePawnMove |= (inputGameStateBuffer[4] & 1) << 3;
-    gs->previousDoublePawnMove |= (inputGameStateBuffer[5] & 1) << 2;
-    gs->previousDoublePawnMove |= (inputGameStateBuffer[6] & 1) << 1;
-    gs->previousDoublePawnMove |= (inputGameStateBuffer[7] & 1);
+    //////////////////////////////////////////////////////////////////  (1 byte) Decode side to move and castling data.
+    gs->whiteToMove = ((currentState[0] & 128) == 128);             //  Recover side to move.
 
-    wKingPos |= (inputGameStateBuffer[8] & 128);                    //  Recover white king's position.
-    wKingPos |= (inputGameStateBuffer[9] & 128) >> 1;
-    wKingPos |= (inputGameStateBuffer[10] & 128) >> 2;
-    wKingPos |= (inputGameStateBuffer[11] & 128) >> 3;
-    wKingPos |= (inputGameStateBuffer[12] & 128) >> 4;
-    wKingPos |= (inputGameStateBuffer[13] & 128) >> 5;
-    wKingPos |= (inputGameStateBuffer[14] & 128) >> 6;
-    wKingPos |= (inputGameStateBuffer[15] & 128) >> 7;
+    gs->whiteKingsidePrivilege = ((currentState[0] & 64) == 64);    //  Recover white's castling data.
+    gs->whiteQueensidePrivilege = ((currentState[0] & 32) == 32);
+    gs->whiteCastled = ((currentState[0] & 16) == 16);
 
-    bKingPos |= (inputGameStateBuffer[8] & 1) << 7;                 //  Recover black king's position.
-    bKingPos |= (inputGameStateBuffer[9] & 1) << 6;
-    bKingPos |= (inputGameStateBuffer[10] & 1) << 5;
-    bKingPos |= (inputGameStateBuffer[11] & 1) << 4;
-    bKingPos |= (inputGameStateBuffer[12] & 1) << 3;
-    bKingPos |= (inputGameStateBuffer[13] & 1) << 2;
-    bKingPos |= (inputGameStateBuffer[14] & 1) << 1;
-    bKingPos |= (inputGameStateBuffer[15] & 1);
+    gs->blackKingsidePrivilege = ((currentState[0] & 8) == 8);      //  Recover black's castling data.
+    gs->blackQueensidePrivilege = ((currentState[0] & 4) == 4);
+    gs->blackCastled = ((currentState[0] & 2) == 2);
 
-    i = 0;                                                          //  Reset to head of byte array.
+    //////////////////////////////////////////////////////////////////  (1 byte) Decode en-passant data.
+    gs->previousDoublePawnMove |= (currentState[1] & 128);
+    gs->previousDoublePawnMove |= (currentState[1] & 64);
+    gs->previousDoublePawnMove |= (currentState[1] & 32);
+    gs->previousDoublePawnMove |= (currentState[1] & 16);
+    gs->previousDoublePawnMove |= (currentState[1] & 8);
+    gs->previousDoublePawnMove |= (currentState[1] & 4);
+    gs->previousDoublePawnMove |= (currentState[1] & 2);
+    gs->previousDoublePawnMove |= (currentState[1] & 1);
 
-    for(j = 0; j < 8; j++)                                          //  Recover white pawns.
+    if(!(gs->previousDoublePawnMove == 128 ||
+         gs->previousDoublePawnMove == 64  ||
+         gs->previousDoublePawnMove == 32  ||
+         gs->previousDoublePawnMove == 16  ||
+         gs->previousDoublePawnMove == 8   ||
+         gs->previousDoublePawnMove == 4   ||
+         gs->previousDoublePawnMove == 2   ||
+         gs->previousDoublePawnMove == 1   ||
+         gs->previousDoublePawnMove == 0   ))
+      gs->previousDoublePawnMove = 0;                               //  "There can be only one!"
+
+    //////////////////////////////////////////////////////////////////  (64 bytes) Decode the board.
+    i = 2;
+    for(j = 0; j < _NONE; j++)
       {
-        ch = 0;
-        mask = 64;
-        for(k = 1; k < 7; k++)
-          {
-            if((inputGameStateBuffer[i] & mask) == mask)
-              gs->board[j + k * 8] = 'P';
-            mask = mask >> 1;
-          }
+        if(currentState[i] == _WHITE_PAWN)
+          gs->board[j] = 'P';
+        else if(currentState[i] == _WHITE_KNIGHT)
+          gs->board[j] = 'N';
+        else if(currentState[i] == _WHITE_BISHOP)
+          gs->board[j] = 'B';
+        else if(currentState[i] == _WHITE_ROOK)
+          gs->board[j] = 'R';
+        else if(currentState[i] == _WHITE_QUEEN)
+          gs->board[j] = 'Q';
+        else if(currentState[i] == _WHITE_KING)
+          gs->board[j] = 'K';
+        else if(currentState[i] == _BLACK_PAWN)
+          gs->board[j] = 'p';
+        else if(currentState[i] == _BLACK_KNIGHT)
+          gs->board[j] = 'n';
+        else if(currentState[i] == _BLACK_BISHOP)
+          gs->board[j] = 'b';
+        else if(currentState[i] == _BLACK_ROOK)
+          gs->board[j] = 'r';
+        else if(currentState[i] == _BLACK_QUEEN)
+          gs->board[j] = 'q';
+        else if(currentState[i] == _BLACK_KING)
+          gs->board[j] = 'k';
+
         i++;
       }
 
-    for(j = 0; j < 8; j++)                                          //  Recover black pawns.
-      {
-        ch = 0;
-        mask = 64;
-        for(k = 1; k < 7; k++)
-          {
-            if((inputGameStateBuffer[i] & mask) == mask)
-              gs->board[j + k * 8] = 'p';
-            mask = mask >> 1;
-          }
-        i++;
-      }
+    //////////////////////////////////////////////////////////////////  (1 byte) Decode the move counter.
+    gs->moveCtr = currentState[i++];
 
-    for(j = 0; j < 8; j++)                                          //  Recover white knights.
-      {
-        ch = 0;
-        mask = 128;
-        for(k = 0; k < 8; k++)
-          {
-            if((inputGameStateBuffer[i] & mask) == mask)
-              gs->board[j + k * 8] = 'N';
-            mask = mask >> 1;
-          }
-        i++;
-      }
-
-    for(j = 0; j < 8; j++)                                          //  Recover black knights.
-      {
-        ch = 0;
-        mask = 128;
-        for(k = 0; k < 8; k++)
-          {
-            if((inputGameStateBuffer[i] & mask) == mask)
-              gs->board[j + k * 8] = 'n';
-            mask = mask >> 1;
-          }
-        i++;
-      }
-
-    for(j = 0; j < 8; j++)                                          //  Recover white bishops.
-      {
-        ch = 0;
-        mask = 128;
-        for(k = 0; k < 8; k++)
-          {
-            if((inputGameStateBuffer[i] & mask) == mask)
-              gs->board[j + k * 8] = 'B';
-            mask = mask >> 1;
-          }
-        i++;
-      }
-
-    for(j = 0; j < 8; j++)                                          //  Recover black bishops.
-      {
-        ch = 0;
-        mask = 128;
-        for(k = 0; k < 8; k++)
-          {
-            if((inputGameStateBuffer[i] & mask) == mask)
-              gs->board[j + k * 8] = 'b';
-            mask = mask >> 1;
-          }
-        i++;
-      }
-
-    for(j = 0; j < 8; j++)                                          //  Recover white rooks.
-      {
-        ch = 0;
-        mask = 128;
-        for(k = 0; k < 8; k++)
-          {
-            if((inputGameStateBuffer[i] & mask) == mask)
-              gs->board[j + k * 8] = 'R';
-            mask = mask >> 1;
-          }
-        i++;
-      }
-
-    for(j = 0; j < 8; j++)                                          //  Recover black rooks.
-      {
-        ch = 0;
-        mask = 128;
-        for(k = 0; k < 8; k++)
-          {
-            if((inputGameStateBuffer[i] & mask) == mask)
-              gs->board[j + k * 8] = 'r';
-            mask = mask >> 1;
-          }
-        i++;
-      }
-
-    for(j = 0; j < 8; j++)                                          //  Recover white queen(s).
-      {
-        ch = 0;
-        mask = 128;
-        for(k = 0; k < 8; k++)
-          {
-            if((inputGameStateBuffer[i] & mask) == mask)
-              gs->board[j + k * 8] = 'Q';
-            mask = mask >> 1;
-          }
-        i++;
-      }
-
-    for(j = 0; j < 8; j++)                                          //  Recover black queen(s).
-      {
-        ch = 0;
-        mask = 128;
-        for(k = 0; k < 8; k++)
-          {
-            if((inputGameStateBuffer[i] & mask) == mask)
-              gs->board[j + k * 8] = 'q';
-            mask = mask >> 1;
-          }
-        i++;
-      }
-
-    gs->board[ wKingPos ] = 'K';                                    //  Restore white king.
-    gs->board[ bKingPos ] = 'k';                                    //  Restore black king.
-
-    gs->moveCtr = inputGameStateBuffer[i++];                        //  Recover move counter.
-
-    return;
+    return;                                                         //  TOTAL: 67 bytes.
   }
 
 /* Recover a Move from the unsigned-char buffer "inputMoveBuffer". */

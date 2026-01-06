@@ -24,7 +24,7 @@
 #define GAME_OVER_BLACK_WINS      2
 #define GAME_OVER_STALEMATE       3
 
-#define _GAMESTATE_BYTE_SIZE     81                                 /* Number of bytes needed to store a GameState structure. */
+#define _GAMESTATE_BYTE_SIZE     67                                 /* Number of bytes needed to store a GameState structure. */
 #define _MOVE_BYTE_SIZE           3                                 /* Number of bytes needed to store a Move structure. */
 #define _MAX_NUM_TARGETS         32                                 /* A (generous) upper bound on how many distinct destinations (not distinct moves)
                                                                        may be available to a player from a single index. */
@@ -33,7 +33,7 @@
 /**************************************************************************************************
  Typedefs  */
 
-typedef struct GameStateType
+typedef struct GameStateType                                        //  TOTAL: 67 bytes.
   {
     bool whiteToMove;                                               //  True: white to move. False: black to move.
     char board[_NONE];                                              //  Array of characters.
