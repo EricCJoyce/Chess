@@ -16,6 +16,19 @@
 #define _PROMO_ROOK               3
 #define _PROMO_QUEEN              4
 
+#define _WHITE_PAWN            0x01
+#define _WHITE_KNIGHT          0x02
+#define _WHITE_BISHOP          0x03
+#define _WHITE_ROOK            0x04
+#define _WHITE_QUEEN           0x05
+#define _WHITE_KING            0x06
+#define _BLACK_PAWN            0x07
+#define _BLACK_KNIGHT          0x08
+#define _BLACK_BISHOP          0x09
+#define _BLACK_ROOK            0x0A
+#define _BLACK_QUEEN           0x0B
+#define _BLACK_KING            0x0C
+
 #define _WHITE_TO_MOVE            0
 #define _BLACK_TO_MOVE            1
 

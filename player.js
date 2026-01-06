@@ -9,7 +9,7 @@ class Player
     constructor()
       {
         this.team = 'Black';                                        //  In {'White', 'Black'}. Default to Black.
-        this.ply = 3;                                               //  Depth to which this A.I. should search.
+        this.ply = 1;                                               //  Depth to which this A.I. should search.
 
         this.searchId = 0;                                          //  Each negamax run gets a unique ID.
 
@@ -123,8 +123,8 @@ class Player
                         env: {
                                memoryBase: 0,
                                tableBase: 0,
-                                                                    //  Compiled with -s INITIAL_MEMORY=16121856 = 246 pages.
-                               memory: new WebAssembly.Memory({initial: 246}),
+                                                                    //  Compiled with -s INITIAL_MEMORY=19005440 = 290 pages.
+                               memory: new WebAssembly.Memory({initial: 290}),
                                table: new WebAssembly.Table({initial: 1, element: 'anyfunc'}),
                                _copyQuery2EvalGSInput: function()
                                  {

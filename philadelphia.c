@@ -191,25 +191,25 @@ void deserializeGameState(GameState* gs)
     gs->previousDoublePawnMove = 0;
 
     //////////////////////////////////////////////////////////////////  (1 byte) Decode side to move and castling data.
-    gs->whiteToMove = ((currentState[0] & 128) == 128);             //  Recover side to move.
-
-    gs->whiteKingsidePrivilege = ((currentState[0] & 64) == 64);    //  Recover white's castling data.
-    gs->whiteQueensidePrivilege = ((currentState[0] & 32) == 32);
-    gs->whiteCastled = ((currentState[0] & 16) == 16);
-
-    gs->blackKingsidePrivilege = ((currentState[0] & 8) == 8);      //  Recover black's castling data.
-    gs->blackQueensidePrivilege = ((currentState[0] & 4) == 4);
-    gs->blackCastled = ((currentState[0] & 2) == 2);
+    gs->whiteToMove = ((inputGameStateBuffer[0] & 128) == 128);     //  Recover side to move.
+                                                                    //  Recover white's castling data.
+    gs->whiteKingsidePrivilege = ((inputGameStateBuffer[0] & 64) == 64);
+    gs->whiteQueensidePrivilege = ((inputGameStateBuffer[0] & 32) == 32);
+    gs->whiteCastled = ((inputGameStateBuffer[0] & 16) == 16);
+                                                                    //  Recover black's castling data.
+    gs->blackKingsidePrivilege = ((inputGameStateBuffer[0] & 8) == 8);
+    gs->blackQueensidePrivilege = ((inputGameStateBuffer[0] & 4) == 4);
+    gs->blackCastled = ((inputGameStateBuffer[0] & 2) == 2);
 
     //////////////////////////////////////////////////////////////////  (1 byte) Decode en-passant data.
-    gs->previousDoublePawnMove |= (currentState[1] & 128);
-    gs->previousDoublePawnMove |= (currentState[1] & 64);
-    gs->previousDoublePawnMove |= (currentState[1] & 32);
-    gs->previousDoublePawnMove |= (currentState[1] & 16);
-    gs->previousDoublePawnMove |= (currentState[1] & 8);
-    gs->previousDoublePawnMove |= (currentState[1] & 4);
-    gs->previousDoublePawnMove |= (currentState[1] & 2);
-    gs->previousDoublePawnMove |= (currentState[1] & 1);
+    gs->previousDoublePawnMove |= (inputGameStateBuffer[1] & 128);
+    gs->previousDoublePawnMove |= (inputGameStateBuffer[1] & 64);
+    gs->previousDoublePawnMove |= (inputGameStateBuffer[1] & 32);
+    gs->previousDoublePawnMove |= (inputGameStateBuffer[1] & 16);
+    gs->previousDoublePawnMove |= (inputGameStateBuffer[1] & 8);
+    gs->previousDoublePawnMove |= (inputGameStateBuffer[1] & 4);
+    gs->previousDoublePawnMove |= (inputGameStateBuffer[1] & 2);
+    gs->previousDoublePawnMove |= (inputGameStateBuffer[1] & 1);
 
     if(!(gs->previousDoublePawnMove == 128 ||
          gs->previousDoublePawnMove == 64  ||
@@ -226,36 +226,36 @@ void deserializeGameState(GameState* gs)
     i = 2;
     for(j = 0; j < _NONE; j++)
       {
-        if(currentState[i] == _WHITE_PAWN)
+        if(inputGameStateBuffer[i] == _WHITE_PAWN)
           gs->board[j] = 'P';
-        else if(currentState[i] == _WHITE_KNIGHT)
+        else if(inputGameStateBuffer[i] == _WHITE_KNIGHT)
           gs->board[j] = 'N';
-        else if(currentState[i] == _WHITE_BISHOP)
+        else if(inputGameStateBuffer[i] == _WHITE_BISHOP)
           gs->board[j] = 'B';
-        else if(currentState[i] == _WHITE_ROOK)
+        else if(inputGameStateBuffer[i] == _WHITE_ROOK)
           gs->board[j] = 'R';
-        else if(currentState[i] == _WHITE_QUEEN)
+        else if(inputGameStateBuffer[i] == _WHITE_QUEEN)
           gs->board[j] = 'Q';
-        else if(currentState[i] == _WHITE_KING)
+        else if(inputGameStateBuffer[i] == _WHITE_KING)
           gs->board[j] = 'K';
-        else if(currentState[i] == _BLACK_PAWN)
+        else if(inputGameStateBuffer[i] == _BLACK_PAWN)
           gs->board[j] = 'p';
-        else if(currentState[i] == _BLACK_KNIGHT)
+        else if(inputGameStateBuffer[i] == _BLACK_KNIGHT)
           gs->board[j] = 'n';
-        else if(currentState[i] == _BLACK_BISHOP)
+        else if(inputGameStateBuffer[i] == _BLACK_BISHOP)
           gs->board[j] = 'b';
-        else if(currentState[i] == _BLACK_ROOK)
+        else if(inputGameStateBuffer[i] == _BLACK_ROOK)
           gs->board[j] = 'r';
-        else if(currentState[i] == _BLACK_QUEEN)
+        else if(inputGameStateBuffer[i] == _BLACK_QUEEN)
           gs->board[j] = 'q';
-        else if(currentState[i] == _BLACK_KING)
+        else if(inputGameStateBuffer[i] == _BLACK_KING)
           gs->board[j] = 'k';
 
         i++;
       }
 
     //////////////////////////////////////////////////////////////////  (1 byte) Decode the move counter.
-    gs->moveCtr = currentState[i++];
+    gs->moveCtr = inputGameStateBuffer[i++];
 
     return;                                                         //  TOTAL: 67 bytes.
   }
