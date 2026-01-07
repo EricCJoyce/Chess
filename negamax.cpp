@@ -1510,73 +1510,52 @@ unsigned long long hash(unsigned char* hashInputBuffer)
     unsigned int i;
     unsigned char j, k, l;
     unsigned char mask;
-    unsigned char wKingPos = 0, bKingPos = 0;
     unsigned char buffer8[8];                                       //  Byte array to hold byte array version of unsigned long long.
     unsigned long long ull8;                                        //  The unsigned long long we will actually use to hash.
 
-    wKingPos |= (hashInputBuffer[8] & 128);                         //  Recover white king's position.
-    wKingPos |= (hashInputBuffer[9] & 128) >> 1;
-    wKingPos |= (hashInputBuffer[10] & 128) >> 2;
-    wKingPos |= (hashInputBuffer[11] & 128) >> 3;
-    wKingPos |= (hashInputBuffer[12] & 128) >> 4;
-    wKingPos |= (hashInputBuffer[13] & 128) >> 5;
-    wKingPos |= (hashInputBuffer[14] & 128) >> 6;
-    wKingPos |= (hashInputBuffer[15] & 128) >> 7;
-
-    bKingPos |= (hashInputBuffer[8] & 1) << 7;                      //  Recover black king's position.
-    bKingPos |= (hashInputBuffer[9] & 1) << 6;
-    bKingPos |= (hashInputBuffer[10] & 1) << 5;
-    bKingPos |= (hashInputBuffer[11] & 1) << 4;
-    bKingPos |= (hashInputBuffer[12] & 1) << 3;
-    bKingPos |= (hashInputBuffer[13] & 1) << 2;
-    bKingPos |= (hashInputBuffer[14] & 1) << 1;
-    bKingPos |= (hashInputBuffer[15] & 1);
-
-    if((hashInputBuffer[0] & 128) == 128)                           //  Hash side to move.
+    if((hashInputBuffer[0] & 128) == 128)                           //  Hash the side to move.
       {
         for(l = 0; l < 8; l++)                                      //  Copy 8 bytes from the serial buffer.
           buffer8[l] = zobristHashBuffer[W_TO_MOVE * 8 + l];
         memcpy(&ull8, buffer8, 8);                                  //  Force the 8-byte buffer into an unsigned long long.
         h ^= ull8;
       }
-
-    if((hashInputBuffer[1] & 128) == 128)                           //  Hash white's castling data.
+    if((hashInputBuffer[0] & 64) == 64)                             //  Hash white's castling data.
       {
         for(l = 0; l < 8; l++)                                      //  Copy 8 bytes from the serial buffer.
           buffer8[l] = zobristHashBuffer[W_KINGSIDE_CASTLE * 8 + l];
         memcpy(&ull8, buffer8, 8);                                  //  Force the 8-byte buffer into an unsigned long long.
         h ^= ull8;
       }
-    if((hashInputBuffer[2] & 128) == 128)
+    if((hashInputBuffer[0] & 32) == 32)
       {
         for(l = 0; l < 8; l++)                                      //  Copy 8 bytes from the serial buffer.
           buffer8[l] = zobristHashBuffer[W_QUEENSIDE_CASTLE * 8 + l];
         memcpy(&ull8, buffer8, 8);                                  //  Force the 8-byte buffer into an unsigned long long.
         h ^= ull8;
       }
-    if((hashInputBuffer[3] & 128) == 128)
+    if((hashInputBuffer[0] & 16) == 16)
       {
         for(l = 0; l < 8; l++)                                      //  Copy 8 bytes from the serial buffer.
           buffer8[l] = zobristHashBuffer[W_CASTLED * 8 + l];
         memcpy(&ull8, buffer8, 8);                                  //  Force the 8-byte buffer into an unsigned long long.
         h ^= ull8;
       }
-
-    if((hashInputBuffer[4] & 128) == 128)                           //  Hash black's castling data.
+    if((hashInputBuffer[0] & 8) == 8)                               //  Hash black's castling data.
       {
         for(l = 0; l < 8; l++)                                      //  Copy 8 bytes from the serial buffer.
           buffer8[l] = zobristHashBuffer[B_KINGSIDE_CASTLE * 8 + l];
         memcpy(&ull8, buffer8, 8);                                  //  Force the 8-byte buffer into an unsigned long long.
         h ^= ull8;
       }
-    if((hashInputBuffer[5] & 128) == 128)
+    if((hashInputBuffer[0] & 4) == 4)
       {
         for(l = 0; l < 8; l++)                                      //  Copy 8 bytes from the serial buffer.
           buffer8[l] = zobristHashBuffer[B_QUEENSIDE_CASTLE * 8 + l];
         memcpy(&ull8, buffer8, 8);                                  //  Force the 8-byte buffer into an unsigned long long.
         h ^= ull8;
       }
-    if((hashInputBuffer[6] & 128) == 128)
+    if((hashInputBuffer[0] & 2) == 2)
       {
         for(l = 0; l < 8; l++)                                      //  Copy 8 bytes from the serial buffer.
           buffer8[l] = zobristHashBuffer[B_CASTLED * 8 + l];
@@ -1584,56 +1563,56 @@ unsigned long long hash(unsigned char* hashInputBuffer)
         h ^= ull8;
       }
 
-    if((hashInputBuffer[0] & 1) == 1)                               //  Hash whether a pawn's doulbe move previously occurred in column A.
+    if((hashInputBuffer[1] & 128) == 128)                           //  Hash whether a pawn's doulbe move previously occurred in column A.
       {
         for(l = 0; l < 8; l++)                                      //  Copy 8 bytes from the serial buffer.
           buffer8[l] = zobristHashBuffer[PREV_DOUBLE_COL_A * 8 + l];
         memcpy(&ull8, buffer8, 8);                                  //  Force the 8-byte buffer into an unsigned long long.
         h ^= ull8;
       }
-    else if((hashInputBuffer[1] & 1) == 1)                          //  Hash whether a pawn's doulbe move previously occurred in column B.
+    else if((hashInputBuffer[1] & 64) == 64)                        //  Hash whether a pawn's doulbe move previously occurred in column B.
       {
         for(l = 0; l < 8; l++)                                      //  Copy 8 bytes from the serial buffer.
           buffer8[l] = zobristHashBuffer[PREV_DOUBLE_COL_B * 8 + l];
         memcpy(&ull8, buffer8, 8);                                  //  Force the 8-byte buffer into an unsigned long long.
         h ^= ull8;
       }
-    else if((hashInputBuffer[2] & 1) == 1)                          //  Hash whether a pawn's doulbe move previously occurred in column C.
+    else if((hashInputBuffer[1] & 32) == 32)                        //  Hash whether a pawn's doulbe move previously occurred in column C.
       {
         for(l = 0; l < 8; l++)                                      //  Copy 8 bytes from the serial buffer.
           buffer8[l] = zobristHashBuffer[PREV_DOUBLE_COL_C * 8 + l];
         memcpy(&ull8, buffer8, 8);                                  //  Force the 8-byte buffer into an unsigned long long.
         h ^= ull8;
       }
-    else if((hashInputBuffer[3] & 1) == 1)                          //  Hash whether a pawn's doulbe move previously occurred in column D.
+    else if((hashInputBuffer[1] & 16) == 16)                        //  Hash whether a pawn's doulbe move previously occurred in column D.
       {
         for(l = 0; l < 8; l++)                                      //  Copy 8 bytes from the serial buffer.
           buffer8[l] = zobristHashBuffer[PREV_DOUBLE_COL_D * 8 + l];
         memcpy(&ull8, buffer8, 8);                                  //  Force the 8-byte buffer into an unsigned long long.
         h ^= ull8;
       }
-    else if((hashInputBuffer[4] & 1) == 1)                          //  Hash whether a pawn's doulbe move previously occurred in column E.
+    else if((hashInputBuffer[1] & 8) == 8)                          //  Hash whether a pawn's doulbe move previously occurred in column E.
       {
         for(l = 0; l < 8; l++)                                      //  Copy 8 bytes from the serial buffer.
           buffer8[l] = zobristHashBuffer[PREV_DOUBLE_COL_E * 8 + l];
         memcpy(&ull8, buffer8, 8);                                  //  Force the 8-byte buffer into an unsigned long long.
         h ^= ull8;
       }
-    else if((hashInputBuffer[5] & 1) == 1)                          //  Hash whether a pawn's doulbe move previously occurred in column F.
+    else if((hashInputBuffer[1] & 4) == 4)                          //  Hash whether a pawn's doulbe move previously occurred in column F.
       {
         for(l = 0; l < 8; l++)                                      //  Copy 8 bytes from the serial buffer.
           buffer8[l] = zobristHashBuffer[PREV_DOUBLE_COL_F * 8 + l];
         memcpy(&ull8, buffer8, 8);                                  //  Force the 8-byte buffer into an unsigned long long.
         h ^= ull8;
       }
-    else if((hashInputBuffer[6] & 1) == 1)                          //  Hash whether a pawn's doulbe move previously occurred in column G.
+    else if((hashInputBuffer[1] & 2) == 2)                          //  Hash whether a pawn's doulbe move previously occurred in column G.
       {
         for(l = 0; l < 8; l++)                                      //  Copy 8 bytes from the serial buffer.
           buffer8[l] = zobristHashBuffer[PREV_DOUBLE_COL_G * 8 + l];
         memcpy(&ull8, buffer8, 8);                                  //  Force the 8-byte buffer into an unsigned long long.
         h ^= ull8;
       }
-    else if((hashInputBuffer[7] & 1) == 1)                          //  Hash whether a pawn's doulbe move previously occurred in column H.
+    else if((hashInputBuffer[1] & 1) == 1)                          //  Hash whether a pawn's doulbe move previously occurred in column H.
       {
         for(l = 0; l < 8; l++)                                      //  Copy 8 bytes from the serial buffer.
           buffer8[l] = zobristHashBuffer[PREV_DOUBLE_COL_H * 8 + l];
@@ -1641,208 +1620,98 @@ unsigned long long hash(unsigned char* hashInputBuffer)
         h ^= ull8;
       }
 
-    index = 0;                                                      //  Reset to head of byte array.
-
-    i = WP_A2;                                                      //  Ascend from rows 2 to 7, over columns A to H.
-    for(j = 0; j < 8; j++)                                          //  Hash white pawns.
+    i = 2;
+    for(index = 0; index < _NONE; index++)
       {
-        mask = 64;
-        for(k = 1; k < 7; k++)
+                                                                    //  There can be no pawns on row 1 or row 8.
+        if(hashInputBuffer[i] == _WHITE_PAWN && index >= 8 && index < 56)
           {
-            if((hashInputBuffer[index] & mask) == mask)
-              {
-                for(l = 0; l < 8; l++)                              //  Copy 8 bytes from the serial buffer.
-                  buffer8[l] = zobristHashBuffer[i * 8 + l];
-                memcpy(&ull8, buffer8, 8);                          //  Force the 8-byte buffer into an unsigned long long.
-                h ^= ull8;
-              }
-            mask = mask >> 1;
-            i++;
+            for(l = 0; l < 8; l++)                                  //  Copy 8 bytes from the serial buffer.
+              buffer8[l] = zobristHashBuffer[(WP_A2 + index - 8) * 8 + l];
+            memcpy(&ull8, buffer8, 8);                              //  Force the 8-byte buffer into an unsigned long long.
+            h ^= ull8;
           }
-        index++;
-      }
-
-    i = BP_A2;                                                      //  Ascend from rows 2 to 7, over columns A to H.
-    for(j = 0; j < 8; j++)                                          //  Hash black pawns.
-      {
-        mask = 64;
-        for(k = 1; k < 7; k++)
+        else if(hashInputBuffer[i] == _WHITE_KNIGHT)
           {
-            if((hashInputBuffer[index] & mask) == mask)
-              {
-                for(l = 0; l < 8; l++)                              //  Copy 8 bytes from the serial buffer.
-                  buffer8[l] = zobristHashBuffer[i * 8 + l];
-                memcpy(&ull8, buffer8, 8);                          //  Force the 8-byte buffer into an unsigned long long.
-                h ^= ull8;
-              }
-            mask = mask >> 1;
-            i++;
+            for(l = 0; l < 8; l++)                                  //  Copy 8 bytes from the serial buffer.
+              buffer8[l] = zobristHashBuffer[(WN_A1 + index) * 8 + l];
+            memcpy(&ull8, buffer8, 8);                              //  Force the 8-byte buffer into an unsigned long long.
+            h ^= ull8;
           }
-        index++;
-      }
-
-    i = WN_A1;                                                      //  Ascend from rows 1 to 8, over columns A to H.
-    for(j = 0; j < 8; j++)                                          //  Hash white knights.
-      {
-        mask = 128;
-        for(k = 0; k < 8; k++)
+        else if(hashInputBuffer[i] == _WHITE_BISHOP)
           {
-            if((hashInputBuffer[index] & mask) == mask)
-              {
-                for(l = 0; l < 8; l++)                              //  Copy 8 bytes from the serial buffer.
-                  buffer8[l] = zobristHashBuffer[i * 8 + l];
-                memcpy(&ull8, buffer8, 8);                          //  Force the 8-byte buffer into an unsigned long long.
-                h ^= ull8;
-              }
-            mask = mask >> 1;
-            i++;
+            for(l = 0; l < 8; l++)                                  //  Copy 8 bytes from the serial buffer.
+              buffer8[l] = zobristHashBuffer[(WB_A1 + index) * 8 + l];
+            memcpy(&ull8, buffer8, 8);                              //  Force the 8-byte buffer into an unsigned long long.
+            h ^= ull8;
           }
-        index++;
-      }
-
-    i = BN_A1;                                                      //  Ascend from rows 1 to 8, over columns A to H.
-    for(j = 0; j < 8; j++)                                          //  Hash black knights.
-      {
-        mask = 128;
-        for(k = 0; k < 8; k++)
+        else if(hashInputBuffer[i] == _WHITE_ROOK)
           {
-            if((hashInputBuffer[index] & mask) == mask)
-              {
-                for(l = 0; l < 8; l++)                              //  Copy 8 bytes from the serial buffer.
-                  buffer8[l] = zobristHashBuffer[i * 8 + l];
-                memcpy(&ull8, buffer8, 8);                          //  Force the 8-byte buffer into an unsigned long long.
-                h ^= ull8;
-              }
-            mask = mask >> 1;
-            i++;
+            for(l = 0; l < 8; l++)                                  //  Copy 8 bytes from the serial buffer.
+              buffer8[l] = zobristHashBuffer[(WR_A1 + index) * 8 + l];
+            memcpy(&ull8, buffer8, 8);                              //  Force the 8-byte buffer into an unsigned long long.
+            h ^= ull8;
           }
-        index++;
-      }
-
-    i = WB_A1;                                                      //  Ascend from rows 1 to 8, over columns A to H.
-    for(j = 0; j < 8; j++)                                          //  Hash white bishops.
-      {
-        mask = 128;
-        for(k = 0; k < 8; k++)
+        else if(hashInputBuffer[i] == _WHITE_QUEEN)
           {
-            if((hashInputBuffer[index] & mask) == mask)
-              {
-                for(l = 0; l < 8; l++)                              //  Copy 8 bytes from the serial buffer.
-                  buffer8[l] = zobristHashBuffer[i * 8 + l];
-                memcpy(&ull8, buffer8, 8);                          //  Force the 8-byte buffer into an unsigned long long.
-                h ^= ull8;
-              }
-            mask = mask >> 1;
-            i++;
+            for(l = 0; l < 8; l++)                                  //  Copy 8 bytes from the serial buffer.
+              buffer8[l] = zobristHashBuffer[(WQ_A1 + index) * 8 + l];
+            memcpy(&ull8, buffer8, 8);                              //  Force the 8-byte buffer into an unsigned long long.
+            h ^= ull8;
           }
-        index++;
-      }
-
-    i = BB_A1;                                                      //  Ascend from rows 1 to 8, over columns A to H.
-    for(j = 0; j < 8; j++)                                          //  Hash black bishops.
-      {
-        mask = 128;
-        for(k = 0; k < 8; k++)
+        else if(hashInputBuffer[i] == _WHITE_KING)
           {
-            if((hashInputBuffer[index] & mask) == mask)
-              {
-                for(l = 0; l < 8; l++)                              //  Copy 8 bytes from the serial buffer.
-                  buffer8[l] = zobristHashBuffer[i * 8 + l];
-                memcpy(&ull8, buffer8, 8);                          //  Force the 8-byte buffer into an unsigned long long.
-                h ^= ull8;
-              }
-            mask = mask >> 1;
-            i++;
+            for(l = 0; l < 8; l++)                                  //  Copy 8 bytes from the serial buffer.
+              buffer8[l] = zobristHashBuffer[(WK_A1 + index) * 8 + l];
+            memcpy(&ull8, buffer8, 8);                              //  Force the 8-byte buffer into an unsigned long long.
+            h ^= ull8;
           }
-        index++;
-      }
-
-    i = WR_A1;                                                      //  Ascend from rows 1 to 8, over columns A to H.
-    for(j = 0; j < 8; j++)                                          //  Hash white rooks.
-      {
-        mask = 128;
-        for(k = 0; k < 8; k++)
+                                                                    //  There can be no pawns on row 1 or row 8.
+        else if(hashInputBuffer[i] == _BLACK_PAWN && index >= 8 && index < 56)
           {
-            if((hashInputBuffer[index] & mask) == mask)
-              {
-                for(l = 0; l < 8; l++)                              //  Copy 8 bytes from the serial buffer.
-                  buffer8[l] = zobristHashBuffer[i * 8 + l];
-                memcpy(&ull8, buffer8, 8);                          //  Force the 8-byte buffer into an unsigned long long.
-                h ^= ull8;
-              }
-            mask = mask >> 1;
-            i++;
+            for(l = 0; l < 8; l++)                                  //  Copy 8 bytes from the serial buffer.
+              buffer8[l] = zobristHashBuffer[(BP_A2 + index - 8) * 8 + l];
+            memcpy(&ull8, buffer8, 8);                              //  Force the 8-byte buffer into an unsigned long long.
+            h ^= ull8;
           }
-        index++;
-      }
-
-    i = BR_A1;                                                      //  Ascend from rows 1 to 8, over columns A to H.
-    for(j = 0; j < 8; j++)                                          //  Hash black rooks.
-      {
-        mask = 128;
-        for(k = 0; k < 8; k++)
+        else if(hashInputBuffer[i] == _BLACK_KNIGHT)
           {
-            if((hashInputBuffer[index] & mask) == mask)
-              {
-                for(l = 0; l < 8; l++)                              //  Copy 8 bytes from the serial buffer.
-                  buffer8[l] = zobristHashBuffer[i * 8 + l];
-                memcpy(&ull8, buffer8, 8);                          //  Force the 8-byte buffer into an unsigned long long.
-                h ^= ull8;
-              }
-            mask = mask >> 1;
-            i++;
+            for(l = 0; l < 8; l++)                                  //  Copy 8 bytes from the serial buffer.
+              buffer8[l] = zobristHashBuffer[(BN_A1 + index) * 8 + l];
+            memcpy(&ull8, buffer8, 8);                              //  Force the 8-byte buffer into an unsigned long long.
+            h ^= ull8;
           }
-        index++;
-      }
-
-    i = WQ_A1;                                                      //  Ascend from rows 1 to 8, over columns A to H.
-    for(j = 0; j < 8; j++)                                          //  Hash white queen(s).
-      {
-        mask = 128;
-        for(k = 0; k < 8; k++)
+        else if(hashInputBuffer[i] == _BLACK_BISHOP)
           {
-            if((hashInputBuffer[index] & mask) == mask)
-              {
-                for(l = 0; l < 8; l++)                              //  Copy 8 bytes from the serial buffer.
-                  buffer8[l] = zobristHashBuffer[i * 8 + l];
-                memcpy(&ull8, buffer8, 8);                          //  Force the 8-byte buffer into an unsigned long long.
-                h ^= ull8;
-              }
-            mask = mask >> 1;
-            i++;
+            for(l = 0; l < 8; l++)                                  //  Copy 8 bytes from the serial buffer.
+              buffer8[l] = zobristHashBuffer[(BB_A1 + index) * 8 + l];
+            memcpy(&ull8, buffer8, 8);                              //  Force the 8-byte buffer into an unsigned long long.
+            h ^= ull8;
           }
-        index++;
-      }
-
-    i = BQ_A1;                                                      //  Ascend from rows 1 to 8, over columns A to H.
-    for(j = 0; j < 8; j++)                                          //  Hash black queen(s).
-      {
-        mask = 128;
-        for(k = 0; k < 8; k++)
+        else if(hashInputBuffer[i] == _BLACK_ROOK)
           {
-            if((hashInputBuffer[index] & mask) == mask)
-              {
-                for(l = 0; l < 8; l++)                              //  Copy 8 bytes from the serial buffer.
-                  buffer8[l] = zobristHashBuffer[i * 8 + l];
-                memcpy(&ull8, buffer8, 8);                          //  Force the 8-byte buffer into an unsigned long long.
-                h ^= ull8;
-              }
-            mask = mask >> 1;
-            i++;
+            for(l = 0; l < 8; l++)                                  //  Copy 8 bytes from the serial buffer.
+              buffer8[l] = zobristHashBuffer[(BR_A1 + index) * 8 + l];
+            memcpy(&ull8, buffer8, 8);                              //  Force the 8-byte buffer into an unsigned long long.
+            h ^= ull8;
           }
-        index++;
-      }
+        else if(hashInputBuffer[i] == _BLACK_QUEEN)
+          {
+            for(l = 0; l < 8; l++)                                  //  Copy 8 bytes from the serial buffer.
+              buffer8[l] = zobristHashBuffer[(BQ_A1 + index) * 8 + l];
+            memcpy(&ull8, buffer8, 8);                              //  Force the 8-byte buffer into an unsigned long long.
+            h ^= ull8;
+          }
+        else if(hashInputBuffer[i] == _BLACK_KING)
+          {
+            for(l = 0; l < 8; l++)                                  //  Copy 8 bytes from the serial buffer.
+              buffer8[l] = zobristHashBuffer[(BK_A1 + index) * 8 + l];
+            memcpy(&ull8, buffer8, 8);                              //  Force the 8-byte buffer into an unsigned long long.
+            h ^= ull8;
+          }
 
-                                                                    //  Hash white king position.
-    for(l = 0; l < 8; l++)                                          //  Copy 8 bytes from the serial buffer.
-      buffer8[l] = zobristHashBuffer[(WK_A1 + wKingPos) * 8 + l];
-    memcpy(&ull8, buffer8, 8);                                      //  Force the 8-byte buffer into an unsigned long long.
-    h ^= ull8;
-                                                                    //  Hash black king position.
-    for(l = 0; l < 8; l++)                                          //  Copy 8 bytes from the serial buffer.
-      buffer8[l] = zobristHashBuffer[(BK_A1 + bKingPos) * 8 + l];
-    memcpy(&ull8, buffer8, 8);                                      //  Force the 8-byte buffer into an unsigned long long.
-    h ^= ull8;
+        i++;
+      }
 
     return h;
   }

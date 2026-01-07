@@ -711,9 +711,6 @@ function updateGUIlabels()
 
                         document.getElementById('tech-details').innerHTML = techDetails_en;
       }
-
-    updateNodeCounter();
-    loadComments();
   }
 
 function toggleParticleEffect(b)
