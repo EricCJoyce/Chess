@@ -141,7 +141,7 @@ The **negamax module** has *thirteen* outward-facing buffers:
 
 Compile the negamax module:
 ```
-sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c em++ -I ./ -Os -s STANDALONE_WASM -s INITIAL_MEMORY=19005440 -s STACK_SIZE=1048576 -s EXPORTED_FUNCTIONS="['_getInputBuffer','_getParametersBuffer','_getQueryGameStateBuffer','_getQueryMoveBuffer','_getAnswerGameStateBuffer','_getAnswerMovesBuffer','_getOutputBuffer','_getZobristHashBuffer','_getTranspositionTableBuffer','_getNegamaxSearchBuffer','_getNegamaxMovesBuffer','_getKillerMovesBuffer','_getHistoryTableBuffer','_setSearchId','_getSearchId','_getStatus','_setControlFlag','_unsetControlFlag','_getControlByte','_setTargetDepth','_getTargetDepth','_getDepthAchieved','_setDeadline','_getDeadline','_getNodesSearched','_initSearch','_negamax']" -Wl,--no-entry "negamax.cpp" -o "negamax.wasm"
+sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c em++ -I ./ -Os -s STANDALONE_WASM -s INITIAL_MEMORY=19005440 -s STACK_SIZE=1048576 -s EXPORTED_FUNCTIONS="['_getInputBuffer','_getParametersBuffer','_getQueryGameStateBuffer','_getQueryMoveBuffer','_getAnswerGameStateBuffer','_getAnswerMovesBuffer','_getOutputBuffer','_getZobristHashBuffer','_getTranspositionTableBuffer','_getNegamaxSearchBuffer','_getNegamaxMovesBuffer','_getKillerMovesBuffer','_getHistoryTableBuffer','_setSearchId','_getSearchId','_getStatus','_setControlFlag','_unsetControlFlag','_getControlByte','_setTargetDepth','_getTargetDepth','_getDepthAchieved','_setDeadline','_getDeadline','_resetNodesSearched','_getNodesSearched','_initSearch','_negamax']" -Wl,--no-entry "negamax.cpp" -o "negamax.wasm"
 ```
 This produces a `.wasm` with functions you can load into the JavaScript Player class and call.
 
@@ -172,6 +172,7 @@ The following functios are used to control and monitor tree-search.
 - `this.negamaxEngine.instance.exports.getDepthAchieved();` returns an unsigned char.
 - `this.negamaxEngine.instance.exports.setDeadline(unsigned int);`
 - `this.negamaxEngine.instance.exports.getDeadline();` returns an unsigned int.
+- `this.negamaxEngine.instance.exports.resetNodesSearched();` returns nothing.
 - `this.negamaxEngine.instance.exports.getNodesSearched();` returns an unsigned int.
 
 Especially important:
