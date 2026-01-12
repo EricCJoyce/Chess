@@ -1,6 +1,6 @@
 /*
 
-sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c em++ -I ./ -Os -s STANDALONE_WASM -s INITIAL_MEMORY=19005440 -s STACK_SIZE=1048576 -s EXPORTED_FUNCTIONS="['_getInputBuffer','_getParametersBuffer','_getQueryGameStateBuffer','_getQueryMoveBuffer','_getAnswerGameStateBuffer','_getAnswerMovesBuffer','_getOutputBuffer','_getZobristHashBuffer','_getTranspositionTableBuffer','_getNegamaxSearchBuffer','_getNegamaxMovesBuffer','_getKillerMovesBuffer','_getHistoryTableBuffer','_setSearchId','_getSearchId','_getStatus','_setControlFlag','_unsetControlFlag','_getControlByte','_setTargetDepth','_getTargetDepth','_getDepthAchieved','_setDeadline','_getDeadline','_getNodesSearched','_initSearch','_negamax']" -Wl,--no-entry "negamax.cpp" -o "negamax.wasm"
+sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c em++ -I ./ -Os -s STANDALONE_WASM -s INITIAL_MEMORY=19005440 -s STACK_SIZE=1048576 -s EXPORTED_FUNCTIONS="['_getInputBuffer','_getParametersBuffer','_getQueryGameStateBuffer','_getQueryMoveBuffer','_getAnswerGameStateBuffer','_getAnswerMovesBuffer','_getOutputBuffer','_getZobristHashBuffer','_getTranspositionTableBuffer','_getNegamaxSearchBuffer','_getNegamaxMovesBuffer','_getKillerMovesBuffer','_getHistoryTableBuffer','_setSearchId','_getSearchId','_getStatus','_setControlFlag','_unsetControlFlag','_getControlByte','_setTargetDepth','_getTargetDepth','_getDepthAchieved','_setDeadline','_getDeadline','_resetNodesSearched','_getNodesSearched','_getNodeStackSize','_getMovesArenaSize','_initSearch','_negamax']" -Wl,--no-entry "negamax.cpp" -o "negamax.wasm"
 
 */
 
@@ -36,11 +36,6 @@ sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,sourc
 #define PARAM_BUFFER_DEADLINE_OFFSET          0x08                  /* Bytes into "inputParametersBuffer", where the deadline (milliseconds) begins. */
 #define PARAM_BUFFER_NODESSEARCHED_OFFSET     0x0C                  /* Bytes into "inputParametersBuffer", where the node count begins. */
 
-#define CTRL_STOP_REQUESTED                   0x01                  /* Set this byte in commandFlags to request that the present search stop. */
-#define CTRL_HARD_ABORT                       0x02                  /* Set this byte in commandFlags to request that the present search abort. */
-#define CTRL_TIME_ENABLED                     0x04                  /* Set this byte in commandFlags to indicate that search is timed. */
-#define CTRL_PONDERING                        0x08                  /* Set this byte in commandFlags to indicate that search occurs during opponent's turn. */
-
 #define STATUS_IDLE                           0x00                  /* No search running. Awaiting instructions. */
 #define STATUS_RUNNING                        0x01                  /* Search running. */
 #define STATUS_DONE                           0x02                  /* Search complete. */
@@ -49,6 +44,11 @@ sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,sourc
 #define STATUS_STOP_ROOT_CHANGED              0x05                  /* Will halt the present search at the next safe point, because the root has changed. */
 #define STATUS_ABORTED                        0x06                  /* Search was hard-killed: be wary of partial results. */
 #define STATUS_ERROR                          0xFF                  /* An error has occurred. */
+
+#define CTRL_STOP_REQUESTED                   0x01                  /* Set this byte in commandFlags to request that the present search stop. */
+#define CTRL_HARD_ABORT                       0x02                  /* Set this byte in commandFlags to request that the present search abort. */
+#define CTRL_TIME_ENABLED                     0x04                  /* Set this byte in commandFlags to indicate that search is timed. */
+#define CTRL_PONDERING                        0x08                  /* Set this byte in commandFlags to indicate that search occurs during opponent's turn. */
 
 #define _PHASE_ENTER_NODE                        0                  /* Go to  when entering negamax(). */
 #define _PHASE_GEN_AND_ORDER                     1                  /* Go to  when entering negamax(). */
@@ -206,7 +206,10 @@ extern "C"
     unsigned char getDepthAchieved(void);
     void setDeadline(unsigned int);
     unsigned int getDeadline(void);
+    void resetNodesSearched(void);
     unsigned int getNodesSearched(void);
+    unsigned int getNodeStackSize(void);
+    unsigned int getMovesArenaSize(void);
 
     void initSearch(void);
     bool negamax(void);
@@ -522,6 +525,22 @@ unsigned int getDeadline(void)
     return ms;
   }
 
+/* Reset the number of nodes searched to zero. */
+void resetNodesSearched(void)
+  {
+    unsigned int ctr;
+    unsigned char buffer4[4];
+    unsigned char i;
+
+    ctr = 0;
+
+    memcpy(buffer4, (unsigned char*)(&ctr), 4);                     //  Force the unsigned int into a 4-byte temp buffer.
+    for(i = 0; i < 4; i++)                                          //  Copy bytes to parameters buffer.
+      inputParametersBuffer[PARAM_BUFFER_NODESSEARCHED_OFFSET + i] = buffer4[i];
+
+    return;
+  }
+
 /* Retrieve the number of nodes searched. */
 unsigned int getNodesSearched(void)
   {
@@ -537,6 +556,18 @@ unsigned int getNodesSearched(void)
     return ctr;
   }
 
+/* (Diagnostic) */
+unsigned int getNodeStackSize(void)
+  {
+    return restoreNegamaxSearchBufferLength();
+  }
+
+/* (Diagnostic) */
+unsigned int getMovesArenaSize(void)
+  {
+    return restoreNegamaxMoveBufferLength();
+  }
+
 /**************************************************************************************************
  Negamax-search functions  */
 
@@ -546,10 +577,8 @@ void initSearch(void)
     NegamaxNode root;
     unsigned char depth;
     unsigned int i;
-
-    //  Save searchID
-    //  Save module status as RUNNING              LEFT OFF HERE !!! ****
-    //  Save target depth
+                                                                    //  Set status to RUNNING.
+    inputParametersBuffer[PARAM_BUFFER_STATUS_OFFSET] = STATUS_RUNNING;
 
     for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)                       //  Copy root gamestate byte array from global "inputGameStateBuffer"
       root.gs[i] = inputGameStateBuffer[i];                         //  to negamax root node.
@@ -679,6 +708,9 @@ bool negamax(void)
           memcpy(buffer4, (unsigned char*)(&node.value), 4);        //  Force the float into a 4-byte temp buffer.
           for(j = 0; j < 4; j++)                                    //  Copy bytes to output buffer.
             outputBuffer[i++] = buffer4[j];
+
+                                                                    //  Indicate that search is DONE.
+          inputParametersBuffer[PARAM_BUFFER_STATUS_OFFSET] = STATUS_DONE;
 
           break;
       }
@@ -1247,6 +1279,7 @@ unsigned int restoreNegamaxSearchBufferLength(void)
     return ui4;                                                     //  Return the unsigned int.
   }
 
+/* Read the first 4 bytes from "negamaxMovesBuffer" and return the unsigned int they describe. */
 unsigned int restoreNegamaxMoveBufferLength(void)
   {
     unsigned char buffer4[4];

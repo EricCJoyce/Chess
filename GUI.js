@@ -495,7 +495,7 @@ function updatePlies()
     var x = parseInt(document.getElementById('plies-slider').value);
     document.getElementById('plies-num').innerHTML = x;
 
-    philadelphia.ply = x;                                           //  Change the number of ply
+    philadelphia.maxPly = x;                                        //  Change the number of ply.
   }
 
 //  Toggle A.I. side to play
@@ -505,7 +505,7 @@ function updateAIPlaysBlack()
 
     if(!gameOver)
       {
-        switch_mp3.play();                                          //  Play the sound effect
+        switch_mp3.play();                                          //  Play the sound effect.
 
         if(philadelphia.team == 'Black')
           {

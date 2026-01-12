@@ -1,7 +1,21 @@
-const STATUS_UNSEARCHED = 0;
-const STATUS_SEARCHING = 1;
-const STATUS_DONE_BOOK = 2;
-const STATUS_DONE_SEARCH = 3;
+const STATUS_UNSEARCHED = 0;                                        //  Branch object has not been examined at all.
+const STATUS_BOOK_LOOKUP = 1;                                       //  Call to back-end book-lookup is currently out.
+const STATUS_SEARCHING = 2;                                         //  This branch has been pushed/initialized as root, and negamax is in some state.
+const STATUS_DONE_SEARCH = 3;                                       //  This branch has been searched as deeply as we want.
+
+const NEGAMAX_STATUS_IDLE              = 0x00;                      //  (See C++ code) No search running. Awaiting instructions.
+const NEGAMAX_STATUS_RUNNING           = 0x01;                      //  (See C++ code) Search running.
+const NEGAMAX_STATUS_DONE              = 0x02;                      //  (See C++ code) Search complete.
+const NEGAMAX_STATUS_STOP_REQUESTED    = 0x03;                      //  (See C++ code) Will halt the present search at the next safe point.
+const NEGAMAX_STATUS_STOP_TIME         = 0x04;                      //  (See C++ code) Will halt the present search at the next safe point, owing to time constraints.
+const NEGAMAX_STATUS_STOP_ROOT_CHANGED = 0x05;                      //  (See C++ code) Will halt the present search at the next safe point, because the root has changed.
+const NEGAMAX_STATUS_ABORTED           = 0x06;                      //  (See C++ code) Search was hard-killed: be wary of partial results.
+const NEGAMAX_STATUS_ERROR             = 0xFF;                      //  (See C++ code) An error has occurred.
+
+const NEGAMAX_CTRL_STOP_REQUESTED      = 0x01;                      //  (See C++ code) Set this byte in commandFlags to request that the present search stop.
+const NEGAMAX_CTRL_HARD_ABORT          = 0x02;                      //  (See C++ code) Set this byte in commandFlags to request that the present search abort.
+const NEGAMAX_CTRL_TIME_ENABLED        = 0x04;                      //  (See C++ code) Set this byte in commandFlags to indicate that search is timed.
+const NEGAMAX_CTRL_PONDERING           = 0x08;                      //  (See C++ code) Set this byte in commandFlags to indicate that search occurs during opponent's turn.
 
 /* A.I. Player class for CHESS. */
 class Player
@@ -9,7 +23,8 @@ class Player
     constructor()
       {
         this.team = 'Black';                                        //  In {'White', 'Black'}. Default to Black.
-        this.ply = 1;                                               //  Depth to which this A.I. should search.
+        this.currentPly = 1;                                        //  The depth to which the A.I. should search ON THE CURRENT ITERATION.
+        this.maxPly = 1;                                            //  Maximum depth to which this A.I. should search.
 
         this.searchId = 0;                                          //  Each negamax run gets a unique ID.
 
@@ -77,7 +92,8 @@ class Player
         this.negamaxHistoryHeuristicBuffer = null;                  //  ByteArray representation of the history-heuristic table.
 
         //////////////////////////////////////////////////////////////  Book lookup.
-        this.bookLookup = new XMLHttpRequest();                     //  IE 7+, Firefox, Chrome, Opera, Safari
+        this.bookLookup = new XMLHttpRequest();                     //  IE 7+, Firefox, Chrome, Opera, Safari.
+        this.bookLookup.Parent = this;                              //  Add reference to the Player object containing this XMLHttpRequest.
         this.callOut = false;                                       //  True while AJAX call has yet to return.
 
         //////////////////////////////////////////////////////////////  Fetch, instantiate, and connect the Evaluation Module.
@@ -321,6 +337,82 @@ class Player
           });
       }
 
+    /*  */
+    step()
+      {
+        var status, nodesSearched, targetDepth;
+        /*
+        const STATUS_UNSEARCHED = 0;                                        //  Branch object has not been examined at all.
+        const STATUS_BOOK_LOOKUP = 1;                                       //  Call to back-end book-lookup is currently out.
+        const STATUS_SEARCHING = 2;                                         //  This branch has been pushed/initialized as root, and negamax is in some state.
+        const STATUS_DONE_SEARCH = 3;                                       //  This branch has been searched as deeply as we want.
+        */
+        if(CurrentTurn == this.team)                                //  This A.I.'s turn.
+          {
+            //  Check game state matches!
+            console.log(gameStateBuffer);
+
+            //if(this.branches.length == 0)                           //  The branch/condition on which we must act does NOT exist.
+            //else                                                    //  The branch/condition on which we must act DOES exist.
+          }
+        else                                                        //  Opponent's turn (this A.I. ponders).
+          {
+            //  Check game state matches!
+
+            if(this.branches.length == 0)                           //  Do branches exist?
+              this.branch();                                        //  Fan out branches. Point this.branchIterator at 0-th element.
+            else
+              {
+                switch(this.branches[this.branchIterator].status)
+                  {
+                    case STATUS_UNSEARCHED:                         //  Nothing has been done with this branch yet.
+                      this.lookup();                                //  First attempt a book lookup.
+                      break;
+
+                    case STATUS_BOOK_LOOKUP:                        //  A call is out.
+                      break;
+
+                    case STATUS_SEARCHING:                          //  Negamax pulse-search is underway.
+                      this.negamaxEngine.instance.exports.negamax();//  Advance the algorithm.
+
+                      status = this.negamaxEngine.instance.exports.getStatus();
+                      targetDepth = this.negamaxEngine.instance.exports.getTargetDepth();
+                      nodesSearched = this.negamaxEngine.instance.exports.getNodesSearched();
+
+                      console.log('Status: ' + status);
+                      console.log('  @ targetDepth ' + targetDepth + ', nodes searched: ' + nodesSearched);
+                      //  Has pulse-negamax completed?
+                      //  Did it reach the depth we want? ==> Set status to STATUS_DONE_SEARCH.
+                      break;
+
+                    case STATUS_DONE_SEARCH:                        //  Search for this branch is done; iterate (or loop around) to the next.
+                      if(++this.branchIterator == this.branches.length)
+                        {
+                          this.branchIterator = 0;                  //  Loop around to the beginning of this.branches.
+                          if(this.currentPly < this.maxPly)         //  If we have not yet searched as deeply as we intend to search,
+                            this.currentPly++;                      //  then increment the iterative depth.
+                        }
+                      break;
+                  }
+              }
+          }
+
+        //  If myTurn == true
+        //      -
+        //  Else
+        //      Do branches exist?
+        //      NO:  Call branch()
+        //      YES:
+        //           Is heartbeat in progress?
+        //           YES: Is heartbeat finished?
+        //                NO:
+        //                YES:
+        //           NO:
+        //                - Try a book lookup
+        //                - Initialize search, branches[branchIterator] as root
+        //                - Start negamax heartbeat
+      }
+
     /* Collect all moves the opponent might make, and prepare for each, an Object for the negamax search routine. */
     branch()
       {
@@ -355,6 +447,7 @@ class Player
                                                                     //  Depth searched/achieved.
                                                                     //  Whether we already tried the DB lookup.
             this.branches.push( {gamestate: new Uint8Array(_GAMESTATE_BYTE_SIZE),
+                                 id:        this.searchId,
                                  bestMove:  [_NOTHING, _NOTHING, _NO_PROMO],
                                  depth:     0,
                                  status:    STATUS_UNSEARCHED,
@@ -367,67 +460,20 @@ class Player
 
             for(j = 0; j < _GAMESTATE_BYTE_SIZE; j++)               //  Copy the encoded, resultant game state from Evaluation's output to the branch object.
               this.branches[this.branches.length - 1].gamestate[j] = this.evaluationOutputGameStateBuffer[j];
+
+            this.searchId++;                                        //  Increment ID.
           }
 
         this.branchIterator = 0;                                    //  Reset the branch iterator, point to the first (assumed best) move.
+        this.currentPly = 1;                                        //  Reset iterative deepening to 1.
+        this.negamaxEngine.instance.exports.resetNodesSearched();   //  Reset the number of nodes counted.
         console.log(len+' branches');
 
         return;
       }
 
-    /* Set up the search routine for the object in "this.branches" under "this.branchIterator". */
-    initSearch()
-      {
-        var i;
-
-        if(this.branches[ this.branchIterator ].depth < this.ply)   //  Is search necessary?
-          {
-                                                                    //  First, copy the byte array from this.branches[ this.branchIterator ]
-            for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)               //  to "this.negamaxInputBuffer".
-              this.negamaxInputBuffer[i] = this.branches[ this.branchIterator ].gamestate[i];
-
-            //  Next, attempt to look up this game state in the server-side opening book.
-            /*
-            if()
-              {
-                console.log('Retrieved lookup for '+this.branchIterator);
-              }
-            else                                                    //  If lookup failed, proceed with tree-search.
-              {
-                this.negamaxEngine.instance.exports.initSearch( this.ply );
-                console.log('Loaded '+this.branchIterator+' for search @ '+this.ply);
-              }
-            */
-          }
-
-        return;
-      }
-
-    /* Advance the search routine. */
-    step()
-      {
-        var i;
-
-        if(this.branches[ this.branchIterator ].depth < this.ply)   //  Is search necessary?
-          {
-            if(this.negamaxEngine.instance.exports.negamax())       //  Returns true when search is complete.
-              {
-                console.log('Search is complete.');
-
-                //  Result of search is stored in this.negamaxOutputBuffer.
-                //for(i = 0; i < ; i++)
-                //  this.branches[ this.branchIterator ]
-
-                if(++this.branchIterator == this.branches.length)   //  Wrap around.
-                  this.branchIterator = 0;
-              }
-          }
-
-
-        return;
-      }
-
-    /* Attempt to look up an advantageous move to make for the game state currently held as a byte array in "this.negamaxInputBuffer". */
+    /* Attempt to look up an advantageous move to make for the game state currently held as a byte array
+       in "this.branches[ this.branchIterator ].gamestate". */
     lookup()
       {
         if(!this.callOut)
@@ -435,69 +481,85 @@ class Player
             var params = 'sendRequest=philadelphia';
             var i;
             for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)
-              params += '&b'+i+'='+this.negamaxInputBuffer[i];
+              params += '&b'+i+'='+this.branches[ this.branchIterator ].gamestate[i];
 
             this.bookLookup.open("POST", 'obj/sess/lookup.php', true);
             this.bookLookup.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+            this.bookLookup.setRequestHeader("Cache-Control", "no-cache");
             this.bookLookup.onreadystatechange = function()
               {
-                if(this.bookLookup.readyState == 4 && this.bookLookup.status == 200)
+                if(this.readyState == 4 && this.status == 200)
                   {
-                    if(this.bookLookup.responseText == "")          //  Null return: unknown error
+                    if(this.responseText == "")                     //  Null return: unknown error. Whatever; proceed with search.
                       {
-/*
-                        switch(currentLang)
-                          {
-                            case "Spanish": alert(alertStringScrub("Error"));  break;
-                            case "German": alert(alertStringScrub("Fehler"));  break;
-                            case "Polish": alert(alertStringScrub("B&#322;&#261;d na stronie"));  break;
-                            default: alert(alertStringScrub("Error"));
-                          }
-*/
+                        this.Parent.initalizeSearch();              //  Set this branch as root for the Negamax Module.
+                        this.Parent.branches[ this.branchIterator ].status = STATUS_SEARCHING;
                       }
                     else
                       {
-                        var parse = this.bookLookup.responseText.split('|');
+                        var parse = this.responseText.split('|');
                         var arr;
                         var i;
-                        if(parse[0] == 'chess' && parse[1] == 'ok')
+                        if(parse[0] == 'chess')                     //  Contact!
                           {
-/*
-                            parse = parse[2].split(',');            //  Repurpose "parse".
-                            for(i = 0; i < parse.length; i++)       //  Load buffer.
+                            if(parse[1] == 'found')                 //  Found!
                               {
-                                arr = new Uint8Array(1);            //  Force byte type.
-                                arr[0] = parseInt(parse[i]);
-                                gameStateBuffer[i] = arr[0];
+                                parse = parse[2].split(',');        //  Repurpose "parse".
+                                for(i = 0; i < parse.length; i++)   //  Load lookup result.
+                                  this.Parent.branches[ this.Parent.branchIterator ].bestMove[i] = parseInt(parse[i]);
+                                this.Parent.branches[ this.Parent.branchIterator ].status = STATUS_DONE_SEARCH;
                               }
-*/
+                            else                                    //  "failed", "notfound", or "error". Whatever; proceed with search.
+                              {
+                                this.Parent.initalizeSearch();      //  Set this branch as root for the Negamax Module.
+                                this.Parent.branches[ this.Parent.branchIterator ].status = STATUS_SEARCHING;
+                              }
                           }
-                        else                                        //  Error-label or garbage
+                        else                                        //  Contact fail or garbage. Whatever; proceed with search.
                           {
-/*
-                            switch(currentLang)
-                              {
-                                case "Spanish": alert(alertStringScrub("Error"));  break;
-                                case "German": alert(alertStringScrub("Fehler"));  break;
-                                case "Polish": alert(alertStringScrub("B&#322;&#261;d na stronie"));  break;
-                                default: alert(alertStringScrub("Error"));
-                              }
-*/
+                            this.Parent.initalizeSearch();          //  Set this branch as root for the Negamax Module.
+                            this.Parent.branches[ this.Parent.branchIterator ].status = STATUS_SEARCHING;
                           }
                       }
 
-                    this.callOut = false;
+                    this.Parent.callOut = false;
                   }
               };
-            this.callOut = true;
-            this.bookLookup.send(params);
+                                                                    //  Set the call-is-out flag.
+            this.callOut = true;                                    //  Set status of this branch to indicate that lookup is underway.
+            this.branches[ this.branchIterator ].status = STATUS_BOOK_LOOKUP;
+            this.bookLookup.send(params);                           //  Send the request.
           }
 
         return;
       }
-/*
+
+    /* Set up the search routine for the game state in this.branches[ this.branchIterator ]. */
+    initalizeSearch()
+      {
+        var i;
+                                                                    //  Is search necessary?
+        if(this.branches[ this.branchIterator ].depth < this.currentPly)
+          {
+                                                                    //  First, copy the byte array from this.branches[ this.branchIterator ]
+            for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)               //  to "this.negamaxInputBuffer".
+              this.negamaxInputBuffer[i] = this.branches[ this.branchIterator ].gamestate[i];
+                                                                    //  Set this search's ID.
+            this.negamaxEngine.instance.exports.setSearchId( this.branches[ this.branchIterator ].id );
+            this.negamaxEngine.instance.exports.setControlFlag(0);  //  Blank out control flags.
+                                                                    //  Set the target depth.
+            this.negamaxEngine.instance.exports.setTargetDepth( this.currentPly );
+            this.negamaxEngine.instance.exports.initSearch();       //  Call the function that creates and pushes a node to the stack.
+
+            console.log('Loaded '+this.branchIterator+' for search @ '+this.currentPly);
+          }
+
+        return;
+      }
+
+    /*
     someOtherFunctionOfThisClass()
       {
       }
-*/
+    */
   }
