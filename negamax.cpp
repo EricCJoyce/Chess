@@ -741,6 +741,7 @@ void enterNode_step(unsigned int gsIndex, NegamaxNode* node)
     for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)                       //  Copy "node"s "gs" to "queryGameStateBuffer"
       queryGameStateBuffer[i] = node->gs[i];                        //  for isTerminal() and evaluate().
     copyQuery2EvalGSInput();                                        //  Copy "queryGameStateBuffer" to Evaluation Module's "inputBuffer".
+
     b = isTerminal();                                               //  (Ask the Evaluation Module) Is the given game state terminal?
     if(b)                                                           //  - Terminal-state check.
       {
@@ -748,6 +749,16 @@ void enterNode_step(unsigned int gsIndex, NegamaxNode* node)
         node->phase = _PHASE_FINISH_NODE;                           //  Mark for the finishing phase.
         incrementNodeCtr();                                         //  Increase node-evaluation counter by 1.
         saveNode(node, gsIndex);                                    //  Save the updated node.
+        return;
+      }
+
+    //////////////////////////////////////////////////////////////////  Leaf-node test.
+    if(node->depth <= 0)
+      {
+        node->value = node->color * evaluate();
+        node->phase = _PHASE_FINISH_NODE;
+        incrementNodeCtr();
+        saveNode(node, gsIndex);
         return;
       }
 
@@ -819,9 +830,9 @@ void enterNode_step(unsigned int gsIndex, NegamaxNode* node)
         node->phase = _PHASE_AFTER_CHILD;
         node->moveNextPtr++;
 
-        saveNode(&child, negamaxSearchBufferLength++);              //  Write serialized node to head of "negamaxSearchBuffer".
-                                                                    //  Write number of NegamaxNodes in "negamaxSearchBuffer".
-        saveNegamaxSearchBufferLength(negamaxSearchBufferLength);
+        saveNode(&child, negamaxSearchBufferLength);                //  Write serialized node to head of "negamaxSearchBuffer".
+        negamaxSearchBufferLength++;                                //  Increment "negamaxSearchBufferLength".
+        saveNegamaxSearchBufferLength(negamaxSearchBufferLength);   //  Write number of NegamaxNodes in "negamaxSearchBuffer".
         saveNode(node, gsIndex);                                    //  Save the updated node.
       }
     else                                                            //  Conditions are insufficient to try null-move pruning.
@@ -1090,7 +1101,11 @@ void afterChild_step(unsigned int gsIndex, NegamaxNode* node)
     restoreNode(parentIndex, &parent);                              //  Restore the parent of the given node.
 
     if(parentIndex == gsIndex)                                      //  Make sure this isn't the root node.
-      return;
+      {
+                                                                    //  Indicate error if it is.
+        inputParametersBuffer[PARAM_BUFFER_STATUS_OFFSET] = STATUS_ERROR;
+        return;
+      }
 
     for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)                       //  Copy "parent"s "gs" to "queryGameStateBuffer" for sideToMove().
       queryGameStateBuffer[i] = parent.gs[i];

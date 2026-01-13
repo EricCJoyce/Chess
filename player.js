@@ -340,7 +340,7 @@ class Player
     /*  */
     step()
       {
-        var status, nodesSearched, targetDepth;
+        var status, nodesSearched;
         /*
         const STATUS_UNSEARCHED = 0;                                        //  Branch object has not been examined at all.
         const STATUS_BOOK_LOOKUP = 1;                                       //  Call to back-end book-lookup is currently out.
@@ -374,13 +374,13 @@ class Player
 
                     case STATUS_SEARCHING:                          //  Negamax pulse-search is underway.
                       this.negamaxEngine.instance.exports.negamax();//  Advance the algorithm.
-
+                                                                    //  Check status.
                       status = this.negamaxEngine.instance.exports.getStatus();
-                      targetDepth = this.negamaxEngine.instance.exports.getTargetDepth();
                       nodesSearched = this.negamaxEngine.instance.exports.getNodesSearched();
 
-                      console.log('Status: ' + status);
-                      console.log('  @ targetDepth ' + targetDepth + ', nodes searched: ' + nodesSearched);
+                      //console.log('Status: ' + status);
+                      //console.log('  Nodes searched: ' + nodesSearched);
+                      if(status == NEGAMAX_STATUS_DONE)
                       //  Has pulse-negamax completed?
                       //  Did it reach the depth we want? ==> Set status to STATUS_DONE_SEARCH.
                       break;
