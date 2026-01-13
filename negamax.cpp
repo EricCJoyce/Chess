@@ -1,6 +1,6 @@
 /*
 
-sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c em++ -I ./ -Os -s STANDALONE_WASM -s INITIAL_MEMORY=19005440 -s STACK_SIZE=1048576 -s EXPORTED_FUNCTIONS="['_getInputBuffer','_getParametersBuffer','_getQueryGameStateBuffer','_getQueryMoveBuffer','_getAnswerGameStateBuffer','_getAnswerMovesBuffer','_getOutputBuffer','_getZobristHashBuffer','_getTranspositionTableBuffer','_getNegamaxSearchBuffer','_getNegamaxMovesBuffer','_getKillerMovesBuffer','_getHistoryTableBuffer','_setSearchId','_getSearchId','_getStatus','_setControlFlag','_unsetControlFlag','_getControlByte','_setTargetDepth','_getTargetDepth','_getDepthAchieved','_setDeadline','_getDeadline','_resetNodesSearched','_getNodesSearched','_getNodeStackSize','_getMovesArenaSize','_initSearch','_negamax']" -Wl,--no-entry "negamax.cpp" -o "negamax.wasm"
+sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c em++ -I ./ -Os -s STANDALONE_WASM -s INITIAL_MEMORY=19005440 -s STACK_SIZE=1048576 -s EXPORTED_FUNCTIONS="['_getInputBuffer','_getParametersBuffer','_getQueryGameStateBuffer','_getQueryMoveBuffer','_getAnswerGameStateBuffer','_getAnswerMovesBuffer','_getOutputBuffer','_getZobristHashBuffer','_getTranspositionTableBuffer','_getNegamaxSearchBuffer','_getNegamaxMovesBuffer','_getKillerMovesBuffer','_getHistoryTableBuffer','_setSearchId','_getSearchId','_getStatus','_setControlFlag','_unsetControlFlag','_getControlByte','_setTargetDepth','_getTargetDepth','_getDepthAchieved','_setDeadline','_getDeadline','_resetNodesSearched','_getNodesSearched','_finalDepthAchieved','_finalScore','_getNodeStackSize','_getMovesArenaSize','_initSearch','_negamax']" -Wl,--no-entry "negamax.cpp" -o "negamax.wasm"
 
 */
 
@@ -208,6 +208,8 @@ extern "C"
     unsigned int getDeadline(void);
     void resetNodesSearched(void);
     unsigned int getNodesSearched(void);
+    unsigned char finalDepthAchieved(void);
+    float finalScore(void);
     unsigned int getNodeStackSize(void);
     unsigned int getMovesArenaSize(void);
 
@@ -554,6 +556,27 @@ unsigned int getNodesSearched(void)
     memcpy(&ctr, buffer4, 4);                                       //  Force the 4-byte buffer into an unsigned int.
 
     return ctr;
+  }
+
+/* Read the depth achieved from "outputBuffer" and return it as a value. */
+unsigned char finalDepthAchieved(void)
+  {
+    return outputBuffer[_GAMESTATE_BYTE_SIZE];
+  }
+
+/* Read the score from "outputBuffer" and return it as a value. */
+float finalScore(void)
+  {
+    float score;
+    unsigned char buffer4[4];
+    unsigned char i;
+
+    for(i = 0; i < 4; i++)
+      buffer4[i] = outputBuffer[_GAMESTATE_BYTE_SIZE + 1 + _MOVE_BYTE_SIZE + i];
+
+    memcpy(&score, buffer4, 4);                                     //  Force the 4-byte buffer into a float.
+
+    return score;
   }
 
 /* (Diagnostic) */
