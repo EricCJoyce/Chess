@@ -340,7 +340,8 @@ class Player
     /*  */
     step()
       {
-        var status, nodesSearched;
+        var status, nodesSearched, depthAchieved, score;
+        var i;
         /*
         const STATUS_UNSEARCHED = 0;                                        //  Branch object has not been examined at all.
         const STATUS_BOOK_LOOKUP = 1;                                       //  Call to back-end book-lookup is currently out.
@@ -373,25 +374,65 @@ class Player
                       break;
 
                     case STATUS_SEARCHING:                          //  Negamax pulse-search is underway.
-                      this.negamaxEngine.instance.exports.negamax();//  Advance the algorithm.
+                                                                    //  Is search necessary?
+                      if(this.branches[ this.branchIterator ].depth < this.currentPly)
+                        {
+                                                                    //  Advance the algorithm.
+                          this.negamaxEngine.instance.exports.negamax();
                                                                     //  Check status.
-                      status = this.negamaxEngine.instance.exports.getStatus();
-                      nodesSearched = this.negamaxEngine.instance.exports.getNodesSearched();
+                          status = this.negamaxEngine.instance.exports.getStatus();
+                          nodesSearched = this.negamaxEngine.instance.exports.getNodesSearched();
+                          console.log('Branch-Iterator: ' + this.branchIterator + ', Current-Ply: ' + this.currentPly + ', Status: ' + status);
+                          console.log('(status == NEGAMAX_STATUS_DONE) ==> ' + (status == NEGAMAX_STATUS_DONE));
 
-                      //console.log('Status: ' + status);
-                      //console.log('  Nodes searched: ' + nodesSearched);
-                      if(status == NEGAMAX_STATUS_DONE)
-                      //  Has pulse-negamax completed?
-                      //  Did it reach the depth we want? ==> Set status to STATUS_DONE_SEARCH.
+                          if(status == NEGAMAX_STATUS_DONE)         //  Has pulse-negamax completed?
+                            {
+                              depthAchieved = this.negamaxEngine.instance.exports.finalDepthAchieved();
+                              score = this.negamaxEngine.instance.exports.finalScore();
+                              console.log('  Depth-Achieved: ' + depthAchieved);
+                              if(depthAchieved >= this.currentPly)
+                                {
+                                                                    //  Save the best move.
+                                  for(i = 0; i < _MOVE_BYTE_SIZE; i++)
+                                    this.branches[ this.branchIterator ].bestMove[i] = this.negamaxOutputBuffer[_GAMESTATE_BYTE_SIZE + 1 + i];
+                                                                    //  Save the depth achieved.
+                                  this.branches[ this.branchIterator ].depth = depthAchieved;
+                                                                    //  Save the score.
+                                  this.branches[ this.branchIterator ].score = score;
+                                                                    //  Update the node count.
+                                  this.branches[ this.branchIterator ].nodeCtr += nodesSearched;
+                                                                    //  Reset the negamax module's node counter.
+                                  this.negamaxEngine.instance.exports.resetNodesSearched();
+                                                                    //  Update this branch's status.
+                                  this.branches[ this.branchIterator ].status = STATUS_DONE_SEARCH;
+                                }
+                            }
+                        }
+                      else                                          //  Search at this.currentPly is not necessary.
+                        this.branches[ this.branchIterator ].status = STATUS_DONE_SEARCH;
+
                       break;
 
-                    case STATUS_DONE_SEARCH:                        //  Search for this branch is done; iterate (or loop around) to the next.
-                      if(++this.branchIterator == this.branches.length)
+                    case STATUS_DONE_SEARCH:                        //  Search for this branch at currentPly is done.
+                      this.branchIterator++;                        //  Iterate (or loop around) to the next.
+                      if(this.branchIterator == this.branches.length)
                         {
                           this.branchIterator = 0;                  //  Loop around to the beginning of this.branches.
                           if(this.currentPly < this.maxPly)         //  If we have not yet searched as deeply as we intend to search,
-                            this.currentPly++;                      //  then increment the iterative depth.
+                            {                                       //  then increment the iterative depth.
+                              this.currentPly++;
+                                                                    //  Set everything that was not a book hit and which is less than the new
+                                                                    //  target depth to be searched again.
+                              for(i = 0; i < this.branches.length; i++)
+                                {
+                                  if(this.branches[i].bookHit == false && this.branches.depth < this.currentPly)
+                                    this.branches[ i ].status = STATUS_SEARCHING;
+                                }
+                            }
                         }
+
+                      console.log('Branch-Iterator: ' + this.branchIterator + ', Current-Ply: ' + this.currentPly);
+
                       break;
                   }
               }
@@ -451,6 +492,8 @@ class Player
                                  bestMove:  [_NOTHING, _NOTHING, _NO_PROMO],
                                  depth:     0,
                                  status:    STATUS_UNSEARCHED,
+                                 nodeCtr:   0,
+                                 bookHit:   false,
                                  score:     0.0} );
 
             for(j = 0; j < _MOVE_BYTE_SIZE; j++)                    //  Copy the candidate move to the evaluation module's move-input.
@@ -507,6 +550,8 @@ class Player
                                 parse = parse[2].split(',');        //  Repurpose "parse".
                                 for(i = 0; i < parse.length; i++)   //  Load lookup result.
                                   this.Parent.branches[ this.Parent.branchIterator ].bestMove[i] = parseInt(parse[i]);
+                                                                    //  Book move was found.
+                                this.Parent.branches[ this.Parent.branchIterator ].bookHit = true;
                                 this.Parent.branches[ this.Parent.branchIterator ].status = STATUS_DONE_SEARCH;
                               }
                             else                                    //  "failed", "notfound", or "error". Whatever; proceed with search.
