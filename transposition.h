@@ -58,7 +58,7 @@ unsigned char transpositionTableBuffer[1 + _TRANSPO_TABLE_SIZE * _TRANSPO_RECORD
 /* Load whatever is at the given index and return whether its 'age' field is greater than zero. */
 bool fetchRecord(unsigned int index, TranspoRecord* ttRecord)
   {
-    deserializeTranspoRecord(transpositionTableBuffer + 1 + index * _TRANSPO_RECORD_BYTE_SIZE, ttRecord);
+    deserializeTranspoRecord(1 + transpositionTableBuffer + index * _TRANSPO_RECORD_BYTE_SIZE, ttRecord);
     return (ttRecord->age > 0);
   }
 

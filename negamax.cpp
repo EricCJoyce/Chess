@@ -1,6 +1,6 @@
 /*
 
-sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c em++ -I ./ -Os -s STANDALONE_WASM -s INITIAL_MEMORY=19005440 -s STACK_SIZE=1048576 -s EXPORTED_FUNCTIONS="['_getInputBuffer','_getParametersBuffer','_getQueryGameStateBuffer','_getQueryMoveBuffer','_getAnswerGameStateBuffer','_getAnswerMovesBuffer','_getOutputBuffer','_getZobristHashBuffer','_getTranspositionTableBuffer','_getNegamaxSearchBuffer','_getNegamaxMovesBuffer','_getKillerMovesBuffer','_getHistoryTableBuffer','_setSearchId','_getSearchId','_getStatus','_setControlFlag','_unsetControlFlag','_getControlByte','_setTargetDepth','_getTargetDepth','_getDepthAchieved','_setDeadline','_getDeadline','_resetNodesSearched','_getNodesSearched','_finalDepthAchieved','_finalScore','_getNodeStackSize','_getMovesArenaSize','_initSearch','_negamax']" -Wl,--no-entry "negamax.cpp" -o "negamax.wasm"
+sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c em++ -I ./ -Os -s STANDALONE_WASM -s INITIAL_MEMORY=19005440 -s STACK_SIZE=1048576 -s EXPORTED_FUNCTIONS="['_getMaxPly','_getInputBuffer','_getParametersBuffer','_getQueryGameStateBuffer','_getQueryMoveBuffer','_getAnswerGameStateBuffer','_getAnswerMovesBuffer','_getOutputBuffer','_getZobristHashBuffer','_getTranspositionTableBuffer','_getNegamaxSearchBuffer','_getNegamaxMovesBuffer','_getKillerMovesBuffer','_getHistoryTableBuffer','_setSearchId','_getSearchId','_getStatus','_setControlFlag','_unsetControlFlag','_getControlByte','_setTargetDepth','_getTargetDepth','_getDepthAchieved','_setDeadline','_getDeadline','_resetNodesSearched','_getNodesSearched','_finalDepthAchieved','_finalScore','_getNodeStackSize','_getMovesArenaSize','_initSearch','_negamax']" -Wl,--no-entry "negamax.cpp" -o "negamax.wasm"
 
 */
 
@@ -15,6 +15,8 @@ sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,sourc
 #define _MAX_MOVES                              64                  /* A (generous) upper bound on how many moves may be made by a team in a single turn. */
 #define _NONE                                   64                  /* Required as a "blank" value without #include "gamestate.h". */
 #define _NO_PROMO                                0                  /* Required as a "blank" value without #include "gamestate.h". */
+
+#define _MAX_PLY                                20                  /* Deepest possible depth. */
 
 #define _PARAMETER_ARRAY_SIZE                   16                  /* Number of bytes needed to store search parameters. */
 
@@ -181,6 +183,8 @@ __attribute__((import_module("env"), import_name("_getMoves"))) unsigned int get
 
 extern "C"
   {
+    unsigned char getMaxPly(void);
+
     unsigned char* getInputBuffer(void);
     unsigned char* getParametersBuffer(void);
     unsigned char* getOutputBuffer(void);
@@ -334,6 +338,14 @@ unsigned char historyTableBuffer[2 * _NONE * _NONE];                //          
                                                                     //  Give the stack 1,048,576 bytes.
                                                                     //  TOTAL:     18,955,176 bytes.
                                                                     //  Round to:  19,005,440 = 290 pages (cover units of 65,536).
+
+/**************************************************************************************************
+ Maximum ply.  */
+
+unsigned char getMaxPly(void)
+  {
+    return _MAX_PLY;
+  }
 
 /**************************************************************************************************
  Pointer-retrieval functions  */
@@ -909,7 +921,7 @@ void transpoProbe(unsigned int gsIndex, NegamaxNode* node)
       {
         ttRecord.age = (ttRecord.age > 1) ? ttRecord.age - 1 : 1;   //  This record was useful: decrease its age.
                                                                     //  Save this updated (rejuvenated) record back to the byte array.
-        serializeTranspoRecord(&ttRecord, transpositionTableBuffer + node->hIndex * _TRANSPO_RECORD_BYTE_SIZE);
+        serializeTranspoRecord(&ttRecord, transpositionTableBuffer + 1 + node->hIndex * _TRANSPO_RECORD_BYTE_SIZE);
                                                                     //  Even if it turns out that this is not a cut-off, the best move stored here
                                                                     //  may still be a hint.
         if(ttRecord.bestMove[0] < _NONE && ttRecord.bestMove[1] < _NONE)
@@ -983,6 +995,11 @@ void expansion_step(unsigned int gsIndex, NegamaxNode* node)
     node->moveCount = getMoves();                                   //  (Ask the Evaluation Module) Generate SEE-scored list of moves.
                                                                     //  (These are scored, quick-n-cheap, BUT NOT SORTED.)
     node->moveNextPtr = 0;                                          //  Initialize to zero.
+
+    node->value = -std::numeric_limits<float>::infinity();          //  Cause the first legal move to be the best found so far.
+    node->bestMove[0] = _NONE;
+    node->bestMove[1] = _NONE;
+    node->bestMove[2] = _NO_PROMO;
 
     copyEvalOutput2AnswerMovesBuffer( node->moveCount );            //  Copy from Evaluation Module's output buffer to Negamax Module's "answerMovesBuffer".
 
@@ -1144,7 +1161,7 @@ void afterChild_step(unsigned int gsIndex, NegamaxNode* node)
       {
         parent.value = score;
         for(i = 0; i < _MOVE_BYTE_SIZE; i++)                        //  Save this move as the parent's best move.
-          parent.bestMove[i] = move.moveByteArray[i];
+          parent.bestMove[i] = node->parentMove[i];
       }
     if(score > parent.alpha)                                        //  Update parent's alpha.
       parent.alpha = score;
@@ -1153,8 +1170,7 @@ void afterChild_step(unsigned int gsIndex, NegamaxNode* node)
         if(move.quietMove == MOVEFLAG_QUIET)                        //  The move is "quiet": it is not a capture, not a promotion.
           {
             killerAdd(parent.ply, move.moveByteArray);              //  This is a KILLER MOVE!
-                                                                    //  Update the HISTORY HEURISTIC.
-            historyUpdate(toMove, parent.ply, move.moveByteArray);
+            historyUpdate(toMove, parent.ply, move.moveByteArray);  //  Update the HISTORY HEURISTIC.
           }
 
         parent.phase = _PHASE_FINISH_NODE;                          //  Parent's work is done.
@@ -1278,10 +1294,15 @@ unsigned int partition(bool desc, signed int* scores, NegamaxMove* moves, unsign
 
             for(k = 0; k < _MOVE_BYTE_SIZE; k++)                    //  tmp gets [i].
               tmpMove.moveByteArray[k] = moves[i].moveByteArray[k];
+            tmpMove.quietMove = moves[i].quietMove;
+
             for(k = 0; k < _MOVE_BYTE_SIZE; k++)                    //  [i] gets [j].
               moves[i].moveByteArray[k] = moves[j].moveByteArray[k];
+            moves[i].quietMove = moves[j].quietMove;
+
             for(k = 0; k < _MOVE_BYTE_SIZE; k++)                    //  [j] gets tmp.
               moves[j].moveByteArray[k] = tmpMove.moveByteArray[k];
+            moves[j].quietMove = tmpMove.quietMove;
 
             i++;
           }
@@ -1293,10 +1314,15 @@ unsigned int partition(bool desc, signed int* scores, NegamaxMove* moves, unsign
 
     for(k = 0; k < _MOVE_BYTE_SIZE; k++)                            //  tmp gets [i].
       tmpMove.moveByteArray[k] = moves[i].moveByteArray[k];
+    tmpMove.quietMove = moves[i].quietMove;
+
     for(k = 0; k < _MOVE_BYTE_SIZE; k++)                            //  [i] gets [hi].
       moves[i].moveByteArray[k] = moves[hi].moveByteArray[k];
+    moves[i].quietMove = moves[j].quietMove;
+
     for(k = 0; k < _MOVE_BYTE_SIZE; k++)                            //  [hi] gets tmp.
       moves[hi].moveByteArray[k] = tmpMove.moveByteArray[k];
+    moves[j].quietMove = tmpMove.quietMove;
 
     return i;
   }
@@ -1555,7 +1581,7 @@ void restoreMove(unsigned int index, NegamaxMove* moveData)
 /* Write bytes for the given Negamax move (byte array) to "negamaxMovesBuffer" at an offset of "index" * _MOVE_BYTE_SIZE. */
 void saveMove(NegamaxMove* moveData, unsigned int index)
   {
-    unsigned char buffer[_NEGAMAX_NODE_BYTE_SIZE];
+    unsigned char buffer[_NEGAMAX_MOVE_BYTE_SIZE];
     unsigned int i, j;
 
     i = 0;
@@ -1564,8 +1590,8 @@ void saveMove(NegamaxMove* moveData, unsigned int index)
 
     buffer[i++] = moveData->quietMove;                              //  MOVE.QUIETMOVE
 
-    for(i = 0; i < _NEGAMAX_NODE_BYTE_SIZE; i++)                    //  Now write "buffer" to an offset location in "negamaxMovesBuffer".
-      negamaxMovesBuffer[4 + index * _NEGAMAX_NODE_BYTE_SIZE + i] = buffer[i];
+    for(i = 0; i < _NEGAMAX_MOVE_BYTE_SIZE; i++)                    //  Now write "buffer" to an offset location in "negamaxMovesBuffer".
+      negamaxMovesBuffer[4 + index * _NEGAMAX_MOVE_BYTE_SIZE + i] = buffer[i];
 
     return;
   }

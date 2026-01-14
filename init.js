@@ -415,6 +415,7 @@ function loadTotalReached()
   {
     var element = document.getElementById('loadingbanner');
     var ldBanner = document.getElementById('percentLoaded');
+    var maxPlySlider;
 
     if(elementsLoaded == ELEMENTS_TO_LOAD)
       {
@@ -424,6 +425,9 @@ function loadTotalReached()
         begin();
 
         reqSess();                                                  //  Load initial byte array into GameState buffer.
+
+        maxPlySlider = document.getElementById('plies-slider');     //  Set the maximum, according to the WASM.
+        maxPlySlider.max = philadelphia.negamaxEngine.instance.exports.getMaxPly();
       }
     else
       ldBanner.innerHTML = Math.round(elementsLoaded / ELEMENTS_TO_LOAD * 100) + ' %';
