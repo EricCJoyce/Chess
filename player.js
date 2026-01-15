@@ -353,13 +353,13 @@ class Player
             //  Check game state matches!
             console.log(gameStateBuffer);
 
+            //  Show the node counter and the "thinking" artwork.
+
             //if(this.branches.length == 0)                           //  The branch/condition on which we must act does NOT exist.
             //else                                                    //  The branch/condition on which we must act DOES exist.
           }
         else                                                        //  Opponent's turn (this A.I. ponders).
           {
-            //  Check game state matches!
-
             if(this.branches.length == 0)                           //  Do branches exist?
               this.branch();                                        //  Fan out branches. Point this.branchIterator at 0-th element.
             else
@@ -382,14 +382,14 @@ class Player
                                                                     //  Check status.
                           status = this.negamaxEngine.instance.exports.getStatus();
                           nodesSearched = this.negamaxEngine.instance.exports.getNodesSearched();
-                          console.log('Branch-Iterator: ' + this.branchIterator + ', Current-Ply: ' + this.currentPly + ', Status: ' + status);
-                          console.log('(status == NEGAMAX_STATUS_DONE) ==> ' + (status == NEGAMAX_STATUS_DONE));
+                          //console.log('Branch-Iterator: ' + this.branchIterator + ', Current-Ply: ' + this.currentPly + ', Status: ' + status);
+                          //console.log('(status == NEGAMAX_STATUS_DONE) ==> ' + (status == NEGAMAX_STATUS_DONE));
 
                           if(status == NEGAMAX_STATUS_DONE)         //  Has pulse-negamax completed?
                             {
                               depthAchieved = this.negamaxEngine.instance.exports.finalDepthAchieved();
                               score = this.negamaxEngine.instance.exports.finalScore();
-                              console.log('  Depth-Achieved: ' + depthAchieved);
+                              //console.log('  Depth-Achieved: ' + depthAchieved);
                               if(depthAchieved >= this.currentPly)
                                 {
                                                                     //  Save the best move.
@@ -418,6 +418,7 @@ class Player
                       if(this.branchIterator == this.branches.length)
                         {
                           this.branchIterator = 0;                  //  Loop around to the beginning of this.branches.
+
                           if(this.currentPly < this.maxPly)         //  If we have not yet searched as deeply as we intend to search,
                             {                                       //  then increment the iterative depth.
                               this.currentPly++;
@@ -425,13 +426,15 @@ class Player
                                                                     //  target depth to be searched again.
                               for(i = 0; i < this.branches.length; i++)
                                 {
-                                  if(this.branches[i].bookHit == false && this.branches.depth < this.currentPly)
+                                  if(this.branches[ i ].bookHit == false && this.branches[ i ].depth < this.currentPly)
                                     this.branches[ i ].status = STATUS_SEARCHING;
                                 }
                             }
                         }
 
-                      console.log('Branch-Iterator: ' + this.branchIterator + ', Current-Ply: ' + this.currentPly);
+                      this.initalizeSearch();                       //  Load the game state to which "branchIterator" currently points into Negamax Module.
+
+                      //console.log('Branch-Iterator: ' + this.branchIterator + ', Current-Ply: ' + this.currentPly);
 
                       break;
                   }
@@ -583,21 +586,17 @@ class Player
     initalizeSearch()
       {
         var i;
-                                                                    //  Is search necessary?
-        if(this.branches[ this.branchIterator ].depth < this.currentPly)
-          {
                                                                     //  First, copy the byte array from this.branches[ this.branchIterator ]
-            for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)               //  to "this.negamaxInputBuffer".
-              this.negamaxInputBuffer[i] = this.branches[ this.branchIterator ].gamestate[i];
+        for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)               //  to "this.negamaxInputBuffer".
+          this.negamaxInputBuffer[i] = this.branches[ this.branchIterator ].gamestate[i];
                                                                     //  Set this search's ID.
-            this.negamaxEngine.instance.exports.setSearchId( this.branches[ this.branchIterator ].id );
-            this.negamaxEngine.instance.exports.setControlFlag(0);  //  Blank out control flags.
+        this.negamaxEngine.instance.exports.setSearchId( this.branches[ this.branchIterator ].id );
+        this.negamaxEngine.instance.exports.setControlFlag(0);      //  Blank out control flags.
                                                                     //  Set the target depth.
-            this.negamaxEngine.instance.exports.setTargetDepth( this.currentPly );
-            this.negamaxEngine.instance.exports.initSearch();       //  Call the function that creates and pushes a node to the stack.
+        this.negamaxEngine.instance.exports.setTargetDepth( this.currentPly );
+        this.negamaxEngine.instance.exports.initSearch();           //  Call the function that creates and pushes a node to the stack.
 
-            console.log('Loaded '+this.branchIterator+' for search @ '+this.currentPly);
-          }
+        //console.log('Loaded '+this.branchIterator+' (depth='+this.branches[ this.branchIterator ].depth+') for search @ '+this.currentPly);
 
         return;
       }

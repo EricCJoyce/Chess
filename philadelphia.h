@@ -3,47 +3,44 @@
 
 #include "gamestate.h"
                                                                     //  Opening game:
-                                                                    //  Weights determined by Linear Regression.
-                                                                    //  python3 linear_regression.py -iter 10 -model linear -scale 0.01
-#define W0_MATERIAL                                        0.00034016086
-#define W0_MOBILITY                                        0.017304078
-#define W0_ATTACKS                                         0.004035855
-#define W0_COVERAGE                                        0.0001
-#define W0_PAWNSTRUCTURE                                   0.019106872
-#define W0_DEVELOPMENT                                     0.015437191
-#define W0_PIECEEVAL                                       0.005476671
-#define W0_CENTERCONTROL                                   0.0050614076
-#define W0_VULNERABILITY                                   0.0001
-#define W0_TRAPPED                                         0.0001
-#define W0_PINS                                            0.0014096461
+                                                                    //  Weights determined by hand.
+#define W0_MATERIAL                                        5.0
+#define W0_MOBILITY                                        3.0
+#define W0_ATTACKS                                         1.0
+#define W0_COVERAGE                                        1.0
+#define W0_PAWNSTRUCTURE                                   2.0
+#define W0_DEVELOPMENT                                     1.0
+#define W0_PIECEEVAL                                       1.0
+#define W0_CENTERCONTROL                                   2.0
+#define W0_VULNERABILITY                                   1.0
+#define W0_TRAPPED                                         1.0
+#define W0_PINS                                            1.0
                                                                     //  Middle game:
-                                                                    //  Weights determined by Linear Regression.
-                                                                    //  python3 linear_regression.py -iter 10 -model linear -scale 0.01
-#define W1_MATERIAL                                        0.0001
-#define W1_MOBILITY                                        0.18922871
-#define W1_ATTACKS                                         0.008072786
-#define W1_COVERAGE                                        0.023730814
-#define W1_PAWNSTRUCTURE                                   0.21443987
-#define W1_DEVELOPMENT                                     0.01667429
-#define W1_PIECEEVAL                                       0.041631334
-#define W1_CENTERCONTROL                                   0.024489462
-#define W1_VULNERABILITY                                   0.0001
-#define W1_TRAPPED                                         0.0001
-#define W1_PINS                                            0.102702424
+                                                                    //  Weights determined by hand.
+#define W1_MATERIAL                                        5.0
+#define W1_MOBILITY                                        3.0
+#define W1_ATTACKS                                         1.0
+#define W1_COVERAGE                                        1.0
+#define W1_PAWNSTRUCTURE                                   2.0
+#define W1_DEVELOPMENT                                     0.0
+#define W1_PIECEEVAL                                       2.0
+#define W1_CENTERCONTROL                                   2.0
+#define W1_VULNERABILITY                                   2.0
+#define W1_TRAPPED                                         2.0
+#define W1_PINS                                            2.0
                                                                     //  Endgame:
-                                                                    //  Weights determined by Linear Regression.
                                                                     //  python3 linear_regression.py -iter 10 -model linear -scale 0.01
-#define W2_MATERIAL                                        0.0032175416
-#define W2_MOBILITY                                        0.0001
-#define W2_ATTACKS                                         0.05343467
-#define W2_COVERAGE                                        0.16151458
-#define W2_PAWNSTRUCTURE                                   0.24528006
-#define W2_DEVELOPMENT                                     0.45203942
-#define W2_PIECEEVAL                                       0.01284852
-#define W2_CENTERCONTROL                                   0.110759884
-#define W2_VULNERABILITY                                   0.006354887
-#define W2_TRAPPED                                         0.0001
-#define W2_PINS                                            0.0001
+#define W2_MATERIAL                                        5.0
+#define W2_MOBILITY                                        3.0
+#define W2_ATTACKS                                         1.0
+#define W2_COVERAGE                                        1.0
+#define W2_PAWNSTRUCTURE                                   2.0
+#define W2_DEVELOPMENT                                     0.0
+#define W2_PIECEEVAL                                       1.0
+#define W2_CENTERCONTROL                                   2.0
+#define W2_VULNERABILITY                                   2.0
+#define W2_TRAPPED                                         2.0
+#define W2_PINS                                            2.0
 
 #define PAWN                                             100.0
 #define KNIGHT                                           300.0

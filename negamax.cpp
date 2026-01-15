@@ -17,6 +17,7 @@ sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,sourc
 #define _NO_PROMO                                0                  /* Required as a "blank" value without #include "gamestate.h". */
 
 #define _MAX_PLY                                20                  /* Deepest possible depth. */
+#define _QUIESCENCE_MAX_PLY                      4                  /* Maximum extension for quiescence search. */
 
 #define _PARAMETER_ARRAY_SIZE                   16                  /* Number of bytes needed to store search parameters. */
 
@@ -762,8 +763,9 @@ void enterNode_step(unsigned int gsIndex, NegamaxNode* node)
     unsigned char material;
     signed char R, newDepth;
     NegamaxNode child;
+    float standPat;                                                 //  Score at a given moment in search.
     unsigned int i, j;
-    bool b;                                                         //  Used to test Boolean outcomes.
+    bool b_isTerminal, b_isSideToMoveInCheck;
 
     //////////////////////////////////////////////////////////////////  Compute the hash for this node.
     for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)                       //  Copy unique byte-signature for the current game state to a local buffer.
@@ -772,13 +774,18 @@ void enterNode_step(unsigned int gsIndex, NegamaxNode* node)
     node->zhash = hash(gamestateByteArray);                         //  Zobrist-hash the game state byte array.
     node->hIndex = hashIndex(node->zhash);                          //  Index modulo size of transposition table.
 
+    //////////////////////////////////////////////////////////////////  Transposition-table probe.
+    transpoProbe(gsIndex, node);                                    //  Check the transpo table.
+    if(node->phase == _PHASE_FINISH_NODE)                           //  Cut-off produced: we're done here.
+      return;
+
     //////////////////////////////////////////////////////////////////  Terminal test.
     for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)                       //  Copy "node"s "gs" to "queryGameStateBuffer"
       queryGameStateBuffer[i] = node->gs[i];                        //  for isTerminal() and evaluate().
     copyQuery2EvalGSInput();                                        //  Copy "queryGameStateBuffer" to Evaluation Module's "inputBuffer".
 
-    b = isTerminal();                                               //  (Ask the Evaluation Module) Is the given game state terminal?
-    if(b)                                                           //  - Terminal-state check.
+    b_isTerminal = isTerminal();                                    //  (Ask the Evaluation Module) Is the given game state terminal?
+    if(b_isTerminal)                                                //  - Terminal-state check.
       {
         node->value = node->color * evaluate();                     //  This imported function handles testing the AI's side.
         node->phase = _PHASE_FINISH_NODE;                           //  Mark for the finishing phase.
@@ -787,27 +794,53 @@ void enterNode_step(unsigned int gsIndex, NegamaxNode* node)
         return;
       }
 
-    //////////////////////////////////////////////////////////////////  Leaf-node test.
-    if(node->depth <= 0)
-      {
-        node->value = node->color * evaluate();
-        node->phase = _PHASE_FINISH_NODE;
-        incrementNodeCtr();
-        saveNode(node, gsIndex);
-        return;
-      }
-
-    //////////////////////////////////////////////////////////////////  Transposition-table probe.
-    transpoProbe(gsIndex, node);                                    //  Check the transpo table.
-    if(node->phase == _PHASE_FINISH_NODE)                           //  Cut-off produced: we're done here.
-      return;
-
     //////////////////////////////////////////////////////////////////  Check whether the side to move is in check.
-    b = isSideToMoveInCheck();                                      //  (Ask the Evaluation Module) Is the side to move in the given game state in check?
-    if(b)                                                           //  - In check?
+    b_isSideToMoveInCheck = isSideToMoveInCheck();                  //  (Ask the Evaluation Module) Is the side to move in the given game state in check?
+    if(b_isSideToMoveInCheck)
       NN_SET_FLAG(node, NN_FLAG_IN_CHECK);
     else
       NN_CLEAR_FLAG(node, NN_FLAG_IN_CHECK);
+
+    //////////////////////////////////////////////////////////////////  Leaf-node test.
+    if(node->depth <= 0)
+      {
+        if(node->depth <= -(signed char)_QUIESCENCE_MAX_PLY)        //  Prevent runaway quiescence search extensions.
+          {
+            node->value = node->color * evaluate();
+            node->phase = _PHASE_FINISH_NODE;
+            incrementNodeCtr();
+            saveNode(node, gsIndex);
+            return;
+          }
+
+        if(!NN_HAS_FLAG(node, NN_FLAG_IN_CHECK))
+          {
+            standPat = node->color * evaluate();                    //  Evaluation as if this were the end of search.
+            incrementNodeCtr();                                     //  That evaluation counts.
+
+            if(standPat >= node->beta)                              //  Stand-pat cutoff.
+              {
+                node->value = node->beta;                           //  Standard quiescence search returns beta on cutoff.
+                node->phase = _PHASE_FINISH_NODE;
+                saveNode(node, gsIndex);
+                return;
+              }
+            if(standPat > node->alpha)                              //  Improve alpha using stand-pat.
+              node->alpha = standPat;
+            node->value = standPat;                                 //  Baseline best score is stand-pat (since "do nothing" is allowed when not in check).
+          }
+        else                                                        //  In check: standing pat is NOT allowed.
+          {
+            node->value = -std::numeric_limits<float>::infinity();
+            node->bestMove[0] = _NONE;
+            node->bestMove[1] = _NONE;
+            node->bestMove[2] = _NO_PROMO;
+          }
+
+        node->phase = _PHASE_GEN_AND_ORDER;                         //  Now search noisy replies (captures/promos), or evasions if in check.
+        saveNode(node, gsIndex);
+        return;
+      }
 
     //////////////////////////////////////////////////////////////////  Count up non-pawn material.
     material = nonPawnMaterial();
@@ -850,6 +883,7 @@ void enterNode_step(unsigned int gsIndex, NegamaxNode* node)
         child.moveCount = 0;                                        //  Set child's number of moves to zero.
         child.moveNextPtr = 0;                                      //  Set child's move-to-try-next pointer to zero.
         child.depth = newDepth;                                     //  Set child's depth to "newDepth".
+        child.ply = node->ply + 1;                                  //  Set child's ply to node's plus one.
 
         child.originalAlpha = -node->beta;                          //  Set child's alpha to negative parent's beta.
         child.alpha = -node->beta;
@@ -968,21 +1002,35 @@ void transpoProbe(unsigned int gsIndex, NegamaxNode* node)
    Generate the moves available from the given node and append them to the arena. */
 void expansion_step(unsigned int gsIndex, NegamaxNode* node)
   {
-    unsigned int negamaxSearchBufferLength;                         //  Size of the NODE stack.
     unsigned int negamaxMoveBufferLength;                           //  Size of the MOVE stack.
+    unsigned int numMoves;
 
     NegamaxMove movesBuffer[_MAX_MOVES];                            //  Local storage to be filled, sorted, then appended to "negamaxMovesBuffer".
     signed int scores[_MAX_MOVES];                                  //  Scores furnished by both Evaluation Module (SEE, promotion, check)
                                                                     //  and by Negamax Module (TT best move, killer move, history heuristic).
+    NegamaxMove move;
+    signed int score;
+
     unsigned char killerFlag;
 
     unsigned char buffer4[4];                                       //  Convert 4-byte arrays to their proper data types.
     signed int si4;
     unsigned char toMove;
+
+    unsigned int outCount;
+    bool isQ;
+    bool inCheck;
+    unsigned char ttHint[_MOVE_BYTE_SIZE];
+
     unsigned int i, j, answerBufferCtr;
 
-    negamaxSearchBufferLength = restoreNegamaxSearchBufferLength(); //  Save the current length of the NODE stack, before addition of a child node.
     negamaxMoveBufferLength = restoreNegamaxMoveBufferLength();     //  Save the current length of the MOVE stack, before addition of moves.
+
+    isQ = (node->depth <= 0);                                       //  Is the given node a quiescence-search extension?
+    inCheck = NN_HAS_FLAG(node, NN_FLAG_IN_CHECK);                  //  Is the given node in check?
+
+    for(j = 0; j < _MOVE_BYTE_SIZE; j++)                            //
+      ttHint[j] = node->bestMove[j];
 
     for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)                       //  Copy "node"s "gs" to "queryGameStateBuffer" for getSortedMoves().
       queryGameStateBuffer[i] = node->gs[i];
@@ -990,50 +1038,74 @@ void expansion_step(unsigned int gsIndex, NegamaxNode* node)
     copyQuery2EvalGSInput();                                        //  Copy Negamax Module's "queryGameStateBuffer" to Evaluation Module's "inputBuffer".
 
     toMove = sideToMove();                                          //  (Ask the Evaluation Module) Which side is to move?
-
-    node->moveOffset = negamaxMoveBufferLength;                     //  The offset into "negamaxMovesBuffer" of where this node's child-moves begin.
-    node->moveCount = getMoves();                                   //  (Ask the Evaluation Module) Generate SEE-scored list of moves.
+    numMoves = getMoves();                                          //  (Ask the Evaluation Module) Generate SEE-scored list of moves.
                                                                     //  (These are scored, quick-n-cheap, BUT NOT SORTED.)
-    node->moveNextPtr = 0;                                          //  Initialize to zero.
 
-    node->value = -std::numeric_limits<float>::infinity();          //  Cause the first legal move to be the best found so far.
-    node->bestMove[0] = _NONE;
-    node->bestMove[1] = _NONE;
-    node->bestMove[2] = _NO_PROMO;
+                                                                    //  Only reset value/bestMove for NORMAL (not quiescence-extension) nodes.
+    if(!isQ)                                                        //  In quiescence search, we already set node->value to standPat
+      {                                                             //  (or -inf in check) in enterNode_step.
+        node->value = -std::numeric_limits<float>::infinity();      //  Cause the first legal move to be the best found so far.
+        node->bestMove[0] = _NONE;
+        node->bestMove[1] = _NONE;
+        node->bestMove[2] = _NO_PROMO;
+      }
 
-    copyEvalOutput2AnswerMovesBuffer( node->moveCount );            //  Copy from Evaluation Module's output buffer to Negamax Module's "answerMovesBuffer".
+    copyEvalOutput2AnswerMovesBuffer( numMoves );                   //  Copy from Evaluation Module's output buffer to Negamax Module's "answerMovesBuffer".
 
     answerBufferCtr = 0;                                            //  Convert each run of (_GAMESTATE_BYTE_SIZE + _MOVE_BYTE_SIZE) bytes in "answerMovesBuffer"
-    for(i = 0; i < node->moveCount; i++)                            //  to a NegamaxNode and append them to "negamaxSearchBuffer".
+    outCount = 0;
+    for(i = 0; i < numMoves; i++)                                   //  to a NegamaxNode and append them to "negamaxSearchBuffer".
       {
         for(j = 0; j < _MOVE_BYTE_SIZE; j++)                        //  Retrieve the bytes that define the move.
-          movesBuffer[i].moveByteArray[j] = answerMovesBuffer[answerBufferCtr++];
+          move.moveByteArray[j] = answerMovesBuffer[answerBufferCtr++];
 
         for(j = 0; j < 4; j++)                                      //  Copy the 4 bytes of the move's SEE score from the global buffer.
           buffer4[j] = answerMovesBuffer[answerBufferCtr++];
         memcpy(&si4, buffer4, 4);                                   //  Force the 4-byte buffer into a SIGNED int.
-        scores[i] = si4;                                            //  Save the rough, SEE score to a local array.
-                                                                    //  0: quiet; 1: capture or promotion.
-        movesBuffer[i].quietMove = answerMovesBuffer[answerBufferCtr++];
-                                                                    //  Is this the parent's best move? HUGE BUMP!
-        if( node->bestMove[0] < _NONE && node->bestMove[1] < _NONE &&
-            movesBuffer[i].moveByteArray[0] == node->bestMove[0]   &&
-            movesBuffer[i].moveByteArray[1] == node->bestMove[1]   &&
-            movesBuffer[i].moveByteArray[2] == node->bestMove[2]    )
-          scores[i] += MOVE_SORTING_TRANSPO_BEST_MOVE_BONUS;
+        score = si4;                                                //  Save the rough, SEE score to a local array.
 
-        if(movesBuffer[i].quietMove == 0)                           //  If this move was flagged as "quiet" by the Evaluation Module, it may be a "killer".
-          {
-                                                                    //  Killer-move look-up.
-            killerFlag = killerLookup(node->depth - 1, movesBuffer[i].moveByteArray);
-            if(killerFlag == KILLER_FOUND_FIRST)                    //  Fresh!
-              scores[i] += MOVE_SORTING_KILLER_MOVE_1_BONUS;
-            else if(killerFlag == KILLER_FOUND_SECOND)              //  Less fresh.
-              scores[i] += MOVE_SORTING_KILLER_MOVE_2_BONUS;
-                                                                    //  History-heuristic look-up.
-                                                                    //  Was this move (by this side) useful in the past?
-            scores[i] += historyLookup(toMove, movesBuffer[i].moveByteArray);
+        move.quietMove = answerMovesBuffer[answerBufferCtr++];      //  0: quiet; 1: capture or promotion.
+
+        if(isQ && !inCheck)                                         //  Quiescence filtering:
+          {                                                         //  - if in check: keep ALL legal moves (evasions)
+                                                                    //  - else: keep only noisy moves (captures/promotions)
+            if(move.quietMove == MOVEFLAG_QUIET)                    //  Quiet ==> Skip in quiescence search.
+              continue;
           }
+                                                                    //  TT best-move bump (use ttHint because node->bestMove may have been cleared).
+        if(ttHint[0] != _NONE && ttHint[1] != _NONE &&
+           move.moveByteArray[0] == ttHint[0] &&
+           move.moveByteArray[1] == ttHint[1] &&
+           move.moveByteArray[2] == ttHint[2])
+          score += MOVE_SORTING_TRANSPO_BEST_MOVE_BONUS;
+
+        if(!isQ && move.quietMove == MOVEFLAG_QUIET)                //  Killer/history (not applied to quiescence search.)
+          {
+            killerFlag = killerLookup(node->ply, move.moveByteArray);
+            if(killerFlag == KILLER_FOUND_FIRST)
+              score += MOVE_SORTING_KILLER_MOVE_1_BONUS;
+            else if(killerFlag == KILLER_FOUND_SECOND)
+              score += MOVE_SORTING_KILLER_MOVE_2_BONUS;
+            score += historyLookup(toMove, move.moveByteArray);
+          }
+
+        movesBuffer[outCount] = move;                               //  Keep it.
+        scores[outCount] = score;
+        outCount++;
+      }
+
+    node->moveOffset = negamaxMoveBufferLength;                     //  The offset into "negamaxMovesBuffer" of where this node's child-moves begin.
+    node->moveCount = outCount;                                     //  Overwrite moveCount with the filtered count.
+    node->moveNextPtr = 0;
+
+    if(node->moveCount == 0)                                        //  If there is nothing to search:
+      {                                                             //  - In quiescence search when not in check:
+                                                                    //    node->value already holds stand-pat from enterNode_step()
+                                                                    //  - In check: if truly mated, isTerminal() should have caught it;
+                                                                    //    otherwise finish with whatever baseline you set.
+        node->phase = _PHASE_FINISH_NODE;
+        saveNode(node, gsIndex);
+        return;
       }
 
     quicksort(true, scores, movesBuffer, 0, node->moveCount - 1);   //  Sort DESCENDING according to (shallow) evaluation.
@@ -1816,15 +1888,15 @@ unsigned long long hash(unsigned char* hashInputBuffer)
 /**************************************************************************************************
  Killer-move functions  */
 
-/* Look up the given move, at the given depth.
+/* Look up the given move, at the given ply.
    If this is the first (freshest) killer-move listed, then return 1.
    If this is the second (less fresh) killer-move listed, then return 2.
-   If the given move, at the given depth is not found, return 0. */
-unsigned char killerLookup(unsigned char depth, unsigned char* moveByteArray)
+   If the given move, at the given ply is not found, return 0. */
+unsigned char killerLookup(unsigned char ply, unsigned char* moveByteArray)
   {
     unsigned int offset;
 
-    offset = depth * _KILLER_MOVE_PER_PLY * 2;
+    offset = ply * _KILLER_MOVE_PER_PLY * 2;
     if(killerMovesTableBuffer[offset] == moveByteArray[0] && killerMovesTableBuffer[offset + 1] == moveByteArray[1])
       return KILLER_FOUND_FIRST;
 
@@ -1835,20 +1907,38 @@ unsigned char killerLookup(unsigned char depth, unsigned char* moveByteArray)
     return KILLER_NOT_FOUND;
   }
 
-/* Add the given killer move at the given depth.
+/* Add the given killer move at the given ply.
    Demote whatever was there before. */
-void killerAdd(unsigned char depth, unsigned char* moveByteArray)
+void killerAdd(unsigned char ply, unsigned char* moveByteArray)
   {
-    unsigned int offset = depth * _KILLER_MOVE_PER_PLY * 2;
-
-    if(killerMovesTableBuffer[offset] != moveByteArray[0] && killerMovesTableBuffer[offset + 1] != moveByteArray[1])
+    unsigned int offset = ply * _KILLER_MOVE_PER_PLY * 2;
+    unsigned char tmpFrom, tmpTo;
+                                                                    //  If the given move is already equal to the first preferred killer,
+                                                                    //  then do nothing.
+    if(killerMovesTableBuffer[offset] == moveByteArray[0] && killerMovesTableBuffer[offset + 1] == moveByteArray[1])
+      return;
+                                                                    //  If the given move is already equal to the second preferred killer,
+                                                                    //  then promote number 2 to number 1 and demote number 1 to number 2.
+    if(killerMovesTableBuffer[offset + 2] == moveByteArray[0] && killerMovesTableBuffer[offset + 3] == moveByteArray[1])
       {
+        tmpFrom = killerMovesTableBuffer[offset + 2];               //  Killer #2 --> tmp
+        tmpTo   = killerMovesTableBuffer[offset + 3];
+                                                                    //  Killer #1 --> Killer #2
         killerMovesTableBuffer[offset + 2] = killerMovesTableBuffer[offset    ];
         killerMovesTableBuffer[offset + 3] = killerMovesTableBuffer[offset + 1];
 
-        killerMovesTableBuffer[offset    ] = moveByteArray[0];
-        killerMovesTableBuffer[offset + 1] = moveByteArray[1];
+        killerMovesTableBuffer[offset    ] = tmpFrom;               //  tmp --> Killer #1
+        killerMovesTableBuffer[offset + 1] = tmpTo;
+
+        return;
       }
+                                                                    //  If the given move is new,
+                                                                    //  then drop number 2, demote number 1 to number 2, and the given move the new number 1.
+    killerMovesTableBuffer[offset + 2] = killerMovesTableBuffer[offset    ];
+    killerMovesTableBuffer[offset + 3] = killerMovesTableBuffer[offset + 1];
+
+    killerMovesTableBuffer[offset    ] = moveByteArray[0];
+    killerMovesTableBuffer[offset + 1] = moveByteArray[1];
 
     return;
   }
@@ -1867,13 +1957,16 @@ unsigned int historyLookup(unsigned char sideToMove, unsigned char* moveByteArra
   }
 
 /* Increment the history-heuristic score for the given side to move, the given move (sans promotion). */
-void historyUpdate(unsigned char sideToMove, unsigned char depth, unsigned char* moveByteArray)
+void historyUpdate(unsigned char sideToMove, unsigned char ply, unsigned char* moveByteArray)
   {
+    unsigned int inc = ply * ply;
+    unsigned int value;
     unsigned int offset = sideToMove * _NONE;
 
     offset += moveByteArray[0] * _NONE + moveByteArray[1];
+    value = historyTableBuffer[offset] + inc;
 
-    historyTableBuffer[offset] = std::min(depth * depth, 255);
+    historyTableBuffer[offset] = (value > 255) ? 255 : (unsigned char)value;
 
     return;
   }
