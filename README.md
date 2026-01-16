@@ -25,6 +25,24 @@ This executable (not a WebAssembly module) lives on the server back-end. Compile
 gcc -Wall zgenerate.c -lm -o zgenerate
 ```
 
+## Opening-book Zobrist hasher
+Unlike the in-game hasher, this one is *not* randomly generated for each session.
+
+This executable (not a WebAssembly module) lives on the server back-end. Compile using GCC. Call it from the PHP lookup script.
+```
+g++ -Wall hash.cpp -lm -o hash
+```
+
+For example:
+```
+./hash 236 0 4 2 3 5 6 3 2 4 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 7 7 7 7 7 7 7 7 10 8 9 11 12 9 8 10 0
+```
+
+should produce
+```
+16918413183799691332
+```
+
 ## Constants for the chess engine
 
 | Name  | Bytes  | Description |
