@@ -117,8 +117,9 @@ var animate_endScale;
 
 //////////////////////////////////////////////////////////////////////  Load-targets
 var elementsLoaded = 0;                                             //  Track objects to load
-const ELEMENTS_TO_LOAD = 210;                                       //  64 squares: normal, selected, targeted + 6 meshes
+const ELEMENTS_TO_LOAD = 217;                                       //  64 squares: normal, selected, targeted + 6 meshes
                                                                     //  (DefaultLoadingManager excludes JSON meshes)
+                                                                    //  +7 audio files
                                                                     //  +1 game logic WebASM module
                                                                     //  +1 evaluation WebASM module
                                                                     //  +1 tree-search WebASM module
@@ -393,13 +394,33 @@ function initPiece(symbol, index, geometry)
 
 function initSounds()
   {
-    select_mp3 = new Audio('obj/mp3/select.mp3');
-    deselect_mp3 = new Audio('obj/mp3/deselect.mp3');
-    commit_mp3 = new Audio('obj/mp3/commit.mp3');
-    promote_mp3 = new Audio('obj/mp3/promote.mp3');
-    chime_mp3 = new Audio('obj/mp3/chime.mp3');
-    error_mp3 = new Audio('obj/mp3/error.mp3');
-    switch_mp3 = new Audio('obj/mp3/switch.mp3');
+    select_mp3 = new Audio();
+    select_mp3.addEventListener('canplaythrough', () => { elementsLoaded++; loadTotalReached(); }, { once: true });
+    select_mp3.src = 'obj/mp3/select.mp3';
+
+    deselect_mp3 = new Audio();
+    deselect_mp3.addEventListener('canplaythrough', () => { elementsLoaded++; loadTotalReached(); }, { once: true });
+    deselect_mp3.src = 'obj/mp3/deselect.mp3';
+
+    commit_mp3 = new Audio();
+    commit_mp3.addEventListener('canplaythrough', () => { elementsLoaded++; loadTotalReached(); }, { once: true });
+    commit_mp3.src = 'obj/mp3/commit.mp3';
+
+    promote_mp3 = new Audio();
+    promote_mp3.addEventListener('canplaythrough', () => { elementsLoaded++; loadTotalReached(); }, { once: true });
+    promote_mp3.src = 'obj/mp3/promote.mp3';
+
+    chime_mp3 = new Audio();
+    chime_mp3.addEventListener('canplaythrough', () => { elementsLoaded++; loadTotalReached(); }, { once: true });
+    chime_mp3.src = 'obj/mp3/chime.mp3';
+
+    error_mp3 = new Audio();
+    error_mp3.addEventListener('canplaythrough', () => { elementsLoaded++; loadTotalReached(); }, { once: true });
+    error_mp3.src = 'obj/mp3/error.mp3';
+
+    switch_mp3 = new Audio();
+    switch_mp3.addEventListener('canplaythrough', () => { elementsLoaded++; loadTotalReached(); }, { once: true });
+    switch_mp3.src = 'obj/mp3/switch.mp3';
   }
 
 function initEvents()
@@ -610,7 +631,164 @@ function onTouch(e)
 
 function selection(intersects)
   {
-    //  LEFT OFF HERE !!! ***
+    var firsthit;
+    if(intersects.length > 0 && MasterControl && HumansTurn && !panelOpen)
+      {
+        firsthit = intersects[0].object.name;                       //  'name' of first square hit by the ray.
+
+        if(CurrentTurn == 'White')                                  //  WHITE
+          {
+            if(Select_A == _NOTHING)
+              {
+                if(WhiteTeam.indexOf(firsthit) >= 0)
+                  {
+                    Select_A = firsthit;                            //  Set Select_A.
+                    select_mp3.play();                              //  Play the select sound.
+                    selectedSq(Select_A);                           //  Change the square's material.
+                    getMoves();                                     //  Query the moves for this piece.
+
+                    if(!gameStarted)                                //  Officially start the game.
+                      pullGUIComponents();
+                  }
+              }
+            else if(Select_A == firsthit)
+              {
+                deselect_mp3.play();                                //  Play the deselect sound.
+                normalSq();                                         //  Change (all) squares' material.
+                Select_A = _NOTHING;                                //  Reset Select_A.
+                Options = [];                                       //  Empty array.
+              }
+            else if(validTarget(firsthit))
+              {
+                MasterControl = false;                              //  Disable control right away.
+                HumansTurn = false;
+                Select_B = firsthit;
+                normalSq();                                         //  Reset all square colors.
+                commit_mp3.play();
+
+                if(BlackTeam.indexOf(Select_B) >= 0)                //  White is capturing a piece: set up a capture.
+                  {
+                    animationInstruction = {a:Select_A,
+                                            b:Select_B,
+                                            action:'die'};
+                  }
+                                                                    //  White is King's-side castling: set up a castle
+                else if(Select_A == _E1 && Select_B == _G1 &&
+                        gameEngine.instance.exports.isWhite_client(_E1) && gameEngine.instance.exports.isKing_client(_E1) && !WhiteHasCastled &&
+                        WhiteCanKingsideCastle)
+                  {
+                    WhiteHasCastled = true;
+                    animationInstruction = {a:Select_A,
+                                            b:Select_B,
+                                            c:_H1,
+                                            d:_F1,
+                                            action:'castle'};
+                  }
+                                                                    //  White is Queen's-side castling: set up a castle
+                else if(Select_A == _E1 && Select_B == _C1 &&
+                        LogicBoard[_E1] == 'K' && !WhiteHasCastled &&
+                        WhiteCanQueensideCastle)
+                  {
+                    WhiteHasCastled = true;
+                    animationInstruction = {a:Select_A,
+                                            b:Select_B,
+                                            c:_A1,
+                                            d:_D1,
+                                            action:'castle'};
+                  }
+                                                                    //  White is capturing en passant: set up en-passant capture
+                else if(isEnPassantCapture(Select_A, Select_B))
+                  {
+                    animationInstruction = {a:Select_A,
+                                            b:Select_B,
+                                            action:'dieEnPassant'};
+                  }
+                else                                                //  White is moving: set up the move
+                  {
+                    animationInstruction = {a:Select_A,
+                                            b:Select_B,
+                                            action:'move'};
+                  }
+                cuedToAnimate = true;                               //  Set the animation cue
+              }
+          }
+        else                                                        //  BLACK
+          {
+            if(Select_A == _NOTHING)
+              {
+                if(BlackTeam.indexOf(firsthit) >= 0)
+                  {
+                    Select_A = firsthit;                            //  Set Select_A.
+                    select_mp3.play();                              //  Play the select sound.
+                    selectedSq(Select_A);                           //  Change the square's material.
+                    getMoves();                                     //  Query the moves for this piece.
+
+                    if(!gameStarted)                                //  Officially start the game.
+                      pullGUIComponents();
+                  }
+              }
+            else if(Select_A == firsthit)
+              {
+                deselect_mp3.play();                                //  Play the deselect sound.
+                normalSq();                                         //  Change (all) squares' material.
+                Select_A = _NOTHING;                                //  Reset Select_A.
+                Options = [];                                       //  Empty array.
+              }
+            else if(validTarget(firsthit))
+              {
+                MasterControl = false;                              //  Disable control right away.
+                HumansTurn = false;
+                Select_B = firsthit;
+                normalSq();                                         //  Reset all square colors.
+                commit_mp3.play();
+
+                if(WhiteTeam.indexOf(Select_B) >= 0)                //  Black is capturing a piece: set up a capture.
+                  {
+                    animationInstruction = {a:Select_A,
+                                            b:Select_B,
+                                            action:'die'};
+                  }
+                                                                    //  Black is King's-side castling: set up a castle.
+                else if(Select_A == _E8 && Select_B == _G8 &&
+                        LogicBoard[_E8] == 'k' && !BlackHasCastled &&
+                        BlackCanKingsideCastle)
+                  {
+                    BlackHasCastled = true;
+                    animationInstruction = {a:Select_A,
+                                            b:Select_B,
+                                            c:_H8,
+                                            d:_F8,
+                                            action:'castle'};
+                  }
+                                                                    //  Black is Queen's-side castling: set up a castle.
+                else if(Select_A == _E8 && Select_B == _C8 &&
+                        LogicBoard[_E8] == 'k' && !BlackHasCastled &&
+                        BlackCanQueensideCastle)
+                  {
+                    BlackHasCastled = true;
+                    animationInstruction = {a:Select_A,
+                                            b:Select_B,
+                                            c:_A8,
+                                            d:_D8,
+                                            action:'castle'};
+                  }
+                                                                    //  Black is capturing en passant: set up en-passant capture.
+                else if(isEnPassantCapture(Select_A, Select_B))
+                  {
+                    animationInstruction = {a:Select_A,
+                                            b:Select_B,
+                                            action:'dieEnPassant'};
+                  }
+                else                                                //  Black is moving: set up the move.
+                  {
+                    animationInstruction = {a:Select_A,
+                                            b:Select_B,
+                                            action:'move'};
+                  }
+                cuedToAnimate = true;                               //  Set the animation cue.
+              }
+          }
+      }
   }
 
 //////////////////////////////////////////////////////////////////////
