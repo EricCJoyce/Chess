@@ -75,7 +75,7 @@ The **game-logic module** has *two* outward-facing buffers:
 
 Compile the front-end, client-facing game-logic module. This WebAssembly module answers queries from the client-side like getting data about which pieces can move where.
 ```
-sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c emcc -Os -s STANDALONE_WASM -s EXPORTED_FUNCTIONS="['_getCurrentState','_getMovesBuffer','_sideToMove_client','_isWhite_client','_isBlack_client','_isEmpty_client','_isPawn_client','_isKnight_client','_isBishop_client','_isRook_client','_isQueen_client','_isKing_client','_getMovesIndex_client','_makeMove_client','_isTerminal_client','_isWin_client','_draw']" -Wl,--no-entry "gamelogic.c" -o "gamelogic.wasm"
+sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c emcc -Os -s STANDALONE_WASM -s EXPORTED_FUNCTIONS="['_getCurrentState','_getMovesBuffer','_sideToMove_client','_isWhite_client','_isBlack_client','_isEmpty_client','_isPawn_client','_isKnight_client','_isBishop_client','_isRook_client','_isQueen_client','_isKing_client','_whiteKingsidePrivilege_client','_whiteQueensidePrivilege_client','_whiteCastled_client','_blackKingsidePrivilege_client','_blackQueensidePrivilege_client','_blackCastled_client','_getMovesIndex_client','_makeMove_client','_isTerminal_client','_isWin_client','_draw']" -Wl,--no-entry "gamelogic.c" -o "gamelogic.wasm"
 ```
 
 This produces a `.wasm` with callable functions.
@@ -95,6 +95,12 @@ The other module functions are as follows:
 - `gameEngine.instance.exports.isRook_client(unsigned char);` returns a Boolean value indicating whether the piece at the given index is a rook.
 - `gameEngine.instance.exports.isQueen_client(unsigned char);` returns a Boolean value indicating whether the piece at the given index is a queen.
 - `gameEngine.instance.exports.isKing_client(unsigned char);` returns a Boolean value indicating whether the piece at the given index is a king.
+- `gameEngine.instance.exports.whiteKingsidePrivilege_client();` returns a Boolean value indicating whether white still has kingside castling privilege.
+- `gameEngine.instance.exports.whiteQueensidePrivilege_client();` returns a Boolean value indicating whether white still has queenside castling privilege.
+- `gameEngine.instance.exports.whiteCastled_client();` returns a Boolean value indicating whether white has already castled.
+- `gameEngine.instance.exports.blackKingsidePrivilege_client();` returns a Boolean value indicating whether black still has kingside castling privilege.
+- `gameEngine.instance.exports.blackQueensidePrivilege_client();` returns a Boolean value indicating whether black still has queenside castling privilege.
+- `gameEngine.instance.exports.blackCastled_client();` returns a Boolean value indicating whether black has already castled.
 - `gameEngine.instance.exports.getMovesIndex_client(unsigned char);` returns the number of legal targets `n` as an unsigned int and writes a run of `n` indices to the move-targets buffer.
 - `gameEngine.instance.exports.makeMove_client(unsigned char, unsigned char, unsigned char);` applies the given move to the current game state and overwrites its encoding in the `currentState` buffer.
 - `gameEngine.instance.exports.isTerminal_client();` returns a Boolean value indicating whether the current game state is terminal.
