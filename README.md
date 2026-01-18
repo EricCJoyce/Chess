@@ -43,6 +43,18 @@ should produce
 16918413183799691332
 ```
 
+To look this position up in the opening book, call:
+```
+./lookup 16918413183799691332 236 0 4 2 3 5 6 3 2 4 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 7 7 7 7 7 7 7 7 10 8 9 11 12 9 8 10 0
+```
+
+which produces, for example,
+```
+SUCCESS,6,21,0
+```
+
+which is the one of four moves on file for this state.
+
 ## Constants for the chess engine
 
 | Name  | Bytes  | Description |
