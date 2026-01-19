@@ -387,33 +387,33 @@ function allPromotablePiecesDockedHUD(team)
 
 function choosePromo(p)
   {
-    promote_mp3.play();
+    promote_mp3.play();                                             //  Play the sound.
     switch(p)
       {
-        case _KNIGHT: if(philadelphia.team == 'Black')
+        case _KNIGHT: if(philadelphia.team == 'Black')              //  A.I. plays Black, therefore human plays White.
                         PromotionTarget = 'N'
-                      else
+                      else                                          //  A.I. plays White, therefore human plays Black.
                         PromotionTarget = 'n'
                       break;
-        case _BISHOP: if(philadelphia.team == 'Black')
+        case _BISHOP: if(philadelphia.team == 'Black')              //  A.I. plays Black, therefore human plays White.
                         PromotionTarget = 'B'
-                      else
+                      else                                          //  A.I. plays White, therefore human plays Black.
                         PromotionTarget = 'b'
                       break;
-        case _ROOK:   if(philadelphia.team == 'Black')
+        case _ROOK:   if(philadelphia.team == 'Black')              //  A.I. plays Black, therefore human plays White.
                         PromotionTarget = 'R'
-                      else
+                      else                                          //  A.I. plays White, therefore human plays Black.
                         PromotionTarget = 'r'
                       break;
-        case _QUEEN:  if(philadelphia.team == 'Black')
+        case _QUEEN:  if(philadelphia.team == 'Black')              //  A.I. plays Black, therefore human plays White.
                         PromotionTarget = 'Q'
-                      else
+                      else                                          //  A.I. plays White, therefore human plays Black.
                         PromotionTarget = 'q'
                       break;
       }
-    removeHUD();
-    blankOutDockedHUD();
-    promote(Select_B);
+    removeHUD();                                                    //  Remove the floating HUD.
+    blankOutDockedHUD();                                            //  Blank out the Docked HUD.
+    promote(Select_B);                                              //  Perform the promotion animation.
   }
 
 //////////////////////////////////////////////////////////////////////
@@ -525,6 +525,7 @@ function updateAIPlaysBlack()
                   gamePieces[i].rotation.y = Math.PI;
               }
           }
+        /*
         else
           {
             philadelphia.team = 'Black';
@@ -541,11 +542,17 @@ function updateAIPlaysBlack()
                   gamePieces[i].rotation.y = 0;
               }
           }
-
+        */
         resetCameraPositionAngle(angle);                            //  Force redraw
 
         if(!gameStarted)
-          pullGUIComponents();                                      //  Cue the A.I. to make the first move
+          {
+            pullGUIComponents();                                    //  Cue the A.I. to make the first move
+                                                                    //  It now becomes the A.I.'s turn!
+            artworkForThinking(true);                               //  Show the "thinking" artwork.
+            updateNodeCounter(philadelphia.nodeCtr);                //  Show the A.I.'s node count.
+            nodeCounter(true);                                      //  Show the node counter.
+          }
       }
   }
 
@@ -595,6 +602,24 @@ function updateClockTimeAllotted()
         whiteClock.innerHTML = whiteTimeMin + ':00';
         blackClock.innerHTML = blackTimeMin + ':00';
       }
+  }
+
+//  Commit to some settings and pull them from the control panel
+function pullGUIComponents()
+  {
+    gameStarted = true;                                             //  The game has officially begun.
+                                                                    //  Commit to the choices made for play and pull their controls from the control panel.
+    document.getElementById('switch-sides-tr').style.display = 'none';
+    document.getElementById('AIblack').removeAttribute('onclick');
+
+    document.getElementById('timecontrol-label').style.display = 'none';
+    document.getElementById('useclock-label').style.display = 'none';
+    document.getElementById('timecontrol').style.display = 'none';
+    document.getElementById('timecontrol').removeAttribute('onclick');
+
+    document.getElementById('minutesallocated-label').style.display = 'none';
+    document.getElementById('minutesallocated-input').style.display = 'none';
+    document.getElementById('minutesallocated-input').removeAttribute('oninput');
   }
 
 //  Open the central panel.
@@ -652,6 +677,7 @@ function updateGUIlabels()
     switch(currentLang)
       {
         case 'Polish':  document.getElementById('project-title').innerHTML = 'Szachy';
+                        document.getElementById("node-counter-label").innerHTML = 'W&#281;z&#322;y rozwi&#261;zywane:';
 
                         document.getElementById('view-label').innerHTML = 'Widzenie';
                         document.getElementById('angle-label').innerHTML = 'K&#261;t';
@@ -667,6 +693,7 @@ function updateGUIlabels()
                         document.getElementById('tech-details').innerHTML = techDetails_pl;
                         break;
         case 'Spanish': document.getElementById('project-title').innerHTML = 'Ajedrez';
+                        document.getElementById("node-counter-label").innerHTML = 'Nodos evaluados:';
 
                         document.getElementById('view-label').innerHTML = 'Visto';
                         document.getElementById('angle-label').innerHTML = '&#193;ngulo';
@@ -682,6 +709,7 @@ function updateGUIlabels()
                         document.getElementById('tech-details').innerHTML = techDetails_es;
                         break;
         case 'German':  document.getElementById('project-title').innerHTML = 'Schach';
+                        document.getElementById("node-counter-label").innerHTML = 'Knoten untersucht:';
 
                         document.getElementById('view-label').innerHTML = 'Sicht';
                         document.getElementById('angle-label').innerHTML = 'Blickwinkel';
@@ -697,6 +725,7 @@ function updateGUIlabels()
                         document.getElementById('tech-details').innerHTML = techDetails_de;
                         break;
         default:        document.getElementById('project-title').innerHTML = 'Chess';
+                        document.getElementById("node-counter-label").innerHTML = 'Nodes searched:';
 
                         document.getElementById('view-label').innerHTML = 'View';
                         document.getElementById('angle-label').innerHTML = 'Angle';
@@ -737,11 +766,22 @@ function artworkForThinking(b)
 function nodeCounter(b)
   {
     if(b)
-      document.getElementById("node-counter").className = "show-node";
+      {
+        document.getElementById("node-counter-label").className = "show-node";
+        document.getElementById("node-counter").className = "show-node";
+      }
     else
-      document.getElementById("node-counter").className = "hide-node";
+      {
+        document.getElementById("node-counter-label").className = "hide-node";
+        document.getElementById("node-counter").className = "hide-node";
+      }
 
     countStaged = b;
+  }
+
+function updateNodeCounter(ctr)
+  {
+    document.getElementById("node-counter").innerHTML = ctr;
   }
 
 initGUI();
