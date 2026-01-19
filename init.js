@@ -85,7 +85,6 @@ var directionalLight1, directionalLight2;
 
 //////////////////////////////////////////////////////////////////////  Game control
 var MasterControl = false;                                          //  Shuts on/off all interactivity
-var cuedToAnimate = false;
 var animating = false;
 var animationInstruction = null;
 
@@ -97,7 +96,7 @@ var Select_A = _NOTHING;
 var Select_B = _NOTHING;
 var Castle_C = _NOTHING;                                            //  IMPLEMENTATION-SPECIFIC
 var Castle_D = _NOTHING;                                            //  Used to store the castling A, B after the Tween
-var PromotionTarget = 'x';                                          //  Tracks the choice of pawn promotion
+var PromotionTarget = null;                                         //  Tracks the choice of pawn promotion
 
 //////////////////////////////////////////////////////////////////////  Game clock
 var previousSecond = Date.now();                                    //  Track the last millisecond
@@ -590,7 +589,7 @@ function targetedSq(i)
 function validTarget(j)
   {
     var i = 0;
-    while(i < Options.length && (Options[i].src != Select_A || Options[i].dst != j))
+    while(i < Options.length && Options[i] != j)
       i++;
     if(i < Options.length)
       return true;
@@ -640,7 +639,7 @@ function selection(intersects)
           {
             if(Select_A == _NOTHING)
               {
-                if(WhiteTeam.indexOf(firsthit) >= 0)
+                if(gameEngine.instance.exports.isWhite_client(firsthit))
                   {
                     Select_A = firsthit;                            //  Set Select_A.
                     select_mp3.play();                              //  Play the select sound.
@@ -665,58 +664,33 @@ function selection(intersects)
                 Select_B = firsthit;
                 normalSq();                                         //  Reset all square colors.
                 commit_mp3.play();
-
-                if(BlackTeam.indexOf(Select_B) >= 0)                //  White is capturing a piece: set up a capture.
-                  {
-                    animationInstruction = {a:Select_A,
-                                            b:Select_B,
-                                            action:'die'};
-                  }
-                                                                    //  White is King's-side castling: set up a castle
+                                                                    //  White is capturing a piece: set up a capture.
+                if(gameEngine.instance.exports.isBlack_client(Select_B))
+                  animationInstruction = {a:Select_A, b:Select_B, action:'die'};
+                                                                    //  White is King's-side castling: set up a castle.
                 else if(Select_A == _E1 && Select_B == _G1 &&
-                        gameEngine.instance.exports.isWhite_client(_E1) && gameEngine.instance.exports.isKing_client(_E1) && !WhiteHasCastled &&
-                        WhiteCanKingsideCastle)
-                  {
-                    WhiteHasCastled = true;
-                    animationInstruction = {a:Select_A,
-                                            b:Select_B,
-                                            c:_H1,
-                                            d:_F1,
-                                            action:'castle'};
-                  }
-                                                                    //  White is Queen's-side castling: set up a castle
+                        gameEngine.instance.exports.isWhite_client(_E1) && gameEngine.instance.exports.isKing_client(_E1) &&
+                        !gameEngine.instance.exports.whiteCastled_client() && gameEngine.instance.exports.whiteKingsidePrivilege_client())
+                  animationInstruction = {a:Select_A, b:Select_B, c:_H1, d:_F1, action:'castle'};
+                                                                    //  White is Queen's-side castling: set up a castle.
                 else if(Select_A == _E1 && Select_B == _C1 &&
-                        LogicBoard[_E1] == 'K' && !WhiteHasCastled &&
-                        WhiteCanQueensideCastle)
-                  {
-                    WhiteHasCastled = true;
-                    animationInstruction = {a:Select_A,
-                                            b:Select_B,
-                                            c:_A1,
-                                            d:_D1,
-                                            action:'castle'};
-                  }
-                                                                    //  White is capturing en passant: set up en-passant capture
+                        gameEngine.instance.exports.isWhite_client(_E1) && gameEngine.instance.exports.isKing_client(_E1) &&
+                        !gameEngine.instance.exports.whiteCastled_client() && gameEngine.instance.exports.whiteQueensidePrivilege_client())
+                  animationInstruction = {a:Select_A, b:Select_B, c:_A1, d:_D1, action:'castle'};
+                                                                    //  White is capturing en passant: set up en-passant capture.
                 else if(isEnPassantCapture(Select_A, Select_B))
-                  {
-                    animationInstruction = {a:Select_A,
-                                            b:Select_B,
-                                            action:'dieEnPassant'};
-                  }
-                else                                                //  White is moving: set up the move
-                  {
-                    animationInstruction = {a:Select_A,
-                                            b:Select_B,
-                                            action:'move'};
-                  }
-                cuedToAnimate = true;                               //  Set the animation cue
+                  animationInstruction = {a:Select_A, b:Select_B, action:'dieEnPassant'};
+                else                                                //  White is moving: set up the move.
+                  animationInstruction = {a:Select_A, b:Select_B, action:'move'};
+
+                animate();
               }
           }
         else                                                        //  BLACK
           {
             if(Select_A == _NOTHING)
               {
-                if(BlackTeam.indexOf(firsthit) >= 0)
+                if(gameEngine.instance.exports.isBlack_client(firsthit))
                   {
                     Select_A = firsthit;                            //  Set Select_A.
                     select_mp3.play();                              //  Play the select sound.
@@ -741,54 +715,43 @@ function selection(intersects)
                 Select_B = firsthit;
                 normalSq();                                         //  Reset all square colors.
                 commit_mp3.play();
-
-                if(WhiteTeam.indexOf(Select_B) >= 0)                //  Black is capturing a piece: set up a capture.
-                  {
-                    animationInstruction = {a:Select_A,
-                                            b:Select_B,
-                                            action:'die'};
-                  }
+                                                                    //  Black is capturing a piece: set up a capture.
+                if(gameEngine.instance.exports.isWhite_client(Select_B))
+                  animationInstruction = {a:Select_A, b:Select_B, action:'die'};
                                                                     //  Black is King's-side castling: set up a castle.
                 else if(Select_A == _E8 && Select_B == _G8 &&
-                        LogicBoard[_E8] == 'k' && !BlackHasCastled &&
-                        BlackCanKingsideCastle)
-                  {
-                    BlackHasCastled = true;
-                    animationInstruction = {a:Select_A,
-                                            b:Select_B,
-                                            c:_H8,
-                                            d:_F8,
-                                            action:'castle'};
-                  }
+                        gameEngine.instance.exports.isBlack_client(_E8) && gameEngine.instance.exports.isKing_client(_E8) &&
+                        !gameEngine.instance.exports.blackCastled_client() && gameEngine.instance.exports.blackKingsidePrivilege_client())
+                  animationInstruction = {a:Select_A, b:Select_B, c:_H8, d:_F8, action:'castle'};
                                                                     //  Black is Queen's-side castling: set up a castle.
                 else if(Select_A == _E8 && Select_B == _C8 &&
-                        LogicBoard[_E8] == 'k' && !BlackHasCastled &&
-                        BlackCanQueensideCastle)
-                  {
-                    BlackHasCastled = true;
-                    animationInstruction = {a:Select_A,
-                                            b:Select_B,
-                                            c:_A8,
-                                            d:_D8,
-                                            action:'castle'};
-                  }
+                        gameEngine.instance.exports.isBlack_client(_E8) && gameEngine.instance.exports.isKing_client(_E8) &&
+                        !gameEngine.instance.exports.blackCastled_client() && gameEngine.instance.exports.blackQueensidePrivilege_client())
+                  animationInstruction = {a:Select_A, b:Select_B, c:_A8, d:_D8, action:'castle'};
                                                                     //  Black is capturing en passant: set up en-passant capture.
                 else if(isEnPassantCapture(Select_A, Select_B))
-                  {
-                    animationInstruction = {a:Select_A,
-                                            b:Select_B,
-                                            action:'dieEnPassant'};
-                  }
+                  animationInstruction = {a:Select_A, b:Select_B, action:'dieEnPassant'};
                 else                                                //  Black is moving: set up the move.
-                  {
-                    animationInstruction = {a:Select_A,
-                                            b:Select_B,
-                                            action:'move'};
-                  }
-                cuedToAnimate = true;                               //  Set the animation cue.
+                  animationInstruction = {a:Select_A, b:Select_B, action:'move'};
+
+                animate();                                          //  Update the game state, perform the animation.
               }
           }
       }
+  }
+
+function getMoves()
+  {
+    var len = gameEngine.instance.exports.getMovesIndex_client(Select_A);
+    var i;
+
+    for(i = 0; i < len; i++)
+      {
+        Options.push( gameOutputBuffer[i] );
+        targetedSq( gameOutputBuffer[i] );
+      }
+
+    return;
   }
 
 //////////////////////////////////////////////////////////////////////

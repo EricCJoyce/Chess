@@ -8,8 +8,7 @@ const NEGAMAX_STATUS_RUNNING           = 0x01;                      //  (See C++
 const NEGAMAX_STATUS_DONE              = 0x02;                      //  (See C++ code) Search complete.
 const NEGAMAX_STATUS_STOP_REQUESTED    = 0x03;                      //  (See C++ code) Will halt the present search at the next safe point.
 const NEGAMAX_STATUS_STOP_TIME         = 0x04;                      //  (See C++ code) Will halt the present search at the next safe point, owing to time constraints.
-const NEGAMAX_STATUS_STOP_ROOT_CHANGED = 0x05;                      //  (See C++ code) Will halt the present search at the next safe point, because the root has changed.
-const NEGAMAX_STATUS_ABORTED           = 0x06;                      //  (See C++ code) Search was hard-killed: be wary of partial results.
+const NEGAMAX_STATUS_ABORTED           = 0x05;                      //  (See C++ code) Search was hard-killed: be wary of partial results.
 const NEGAMAX_STATUS_ERROR             = 0xFF;                      //  (See C++ code) An error has occurred.
 
 const NEGAMAX_CTRL_STOP_REQUESTED      = 0x01;                      //  (See C++ code) Set this byte in commandFlags to request that the present search stop.
@@ -27,6 +26,7 @@ class Player
         this.maxPly = 1;                                            //  Maximum depth to which this A.I. should search.
 
         this.searchId = 0;                                          //  Each negamax run gets a unique ID.
+        this.nodeCtr = 0;                                           //  Reset after every turn.
 
         this.branches = [];                                         //  Array of Objects, each {ByteArray(GameState), uchar(depth), ByteArray(Move)}.
         this.branchIterator = 0;                                    //                          The state in which    Depth to      The agent's reply.
@@ -270,9 +270,6 @@ class Player
                         this.negamaxHistoryHeuristicOffset = this.negamaxEngine.instance.exports.getHistoryTableBuffer();
                         this.negamaxHistoryHeuristicBuffer = new Uint8Array(this.negamaxEngine.instance.exports.memory.buffer, this.negamaxHistoryHeuristicOffset, 2 * (_NOTHING + _NOTHING));
 
-                        for(i = 0; i < 4; i++)                      //  Blank out the first four bytes; let the rest be trash.
-                          this.TranspositionTableBuffer[i] = 0;
-
                         this.TranspositionTableBuffer[0] = 1;       //  Set "generation byte" to 1.
 
                         elementsLoaded++;                           //  Check negaMaxEngine off our list.
@@ -337,28 +334,299 @@ class Player
           });
       }
 
-    /*  */
+    /* Called on every frame, except while animating, as long as the game is not over. */
     step()
       {
         var status, nodesSearched, depthAchieved, score;
+        var elementToKeep;
         var i;
-        /*
-        const STATUS_UNSEARCHED = 0;                                        //  Branch object has not been examined at all.
-        const STATUS_BOOK_LOOKUP = 1;                                       //  Call to back-end book-lookup is currently out.
-        const STATUS_SEARCHING = 2;                                         //  This branch has been pushed/initialized as root, and negamax is in some state.
-        const STATUS_DONE_SEARCH = 3;                                       //  This branch has been searched as deeply as we want.
-        */
-        if(CurrentTurn == this.team)                                //  This A.I.'s turn.
+
+        //////////////////////////////////////////////////////////////  This A.I.'s turn.
+        if(CurrentTurn == this.team)
           {
-            //  Check game state matches!
-            console.log(gameStateBuffer);
+                                                                    //  Is there only one, current and correct branch?
+            //if(this.branches.length == 1 && this.searchId == this.branches[ this.branchIterator ].id)
+            if(this.branches.length == 1 && this.byteArrCmp(gameStateBuffer, this.branches[ this.branchIterator ].gamestate))
+              {
+                switch(this.branches[ this.branchIterator ].status)
+                  {
+                    case STATUS_UNSEARCHED:                         //  Nothing has been done with this branch yet.
+                      this.lookup();                                //  First attempt a book lookup.
+                      break;
 
-            //  Show the node counter and the "thinking" artwork.
+                    case STATUS_BOOK_LOOKUP:                        //  A call is out.
+                      break;
 
-            //if(this.branches.length == 0)                           //  The branch/condition on which we must act does NOT exist.
-            //else                                                    //  The branch/condition on which we must act DOES exist.
+                    case STATUS_SEARCHING:                          //  Negamax pulse-search is underway.
+                                                                    //  Is search necessary?
+                      if(this.branches[ this.branchIterator ].depth < this.currentPly)
+                        {
+                                                                    //  Advance the algorithm.
+                          this.negamaxEngine.instance.exports.negamax();
+                                                                    //  Check the negamax engine's status.
+                          status = this.negamaxEngine.instance.exports.getStatus();
+                          if(status == NEGAMAX_STATUS_DONE)         //  Has pulse-negamax completed?
+                            {
+                              nodesSearched = this.negamaxEngine.instance.exports.getNodesSearched();
+                              this.nodeCtr += nodesSearched;
+                              updateNodeCounter(this.nodeCtr);
+                              depthAchieved = this.negamaxEngine.instance.exports.finalDepthAchieved();
+                              score = this.negamaxEngine.instance.exports.finalScore();
+                              if(depthAchieved >= this.currentPly)
+                                {
+                                                                    //  Save the best move.
+                                  for(i = 0; i < _MOVE_BYTE_SIZE; i++)
+                                    this.branches[ this.branchIterator ].bestMove[i] = this.negamaxOutputBuffer[_GAMESTATE_BYTE_SIZE + 1 + i];
+                                                                    //  Save the depth achieved.
+                                  this.branches[ this.branchIterator ].depth = depthAchieved;
+                                                                    //  Save the score.
+                                  this.branches[ this.branchIterator ].score = score;
+                                                                    //  Update the node count.
+                                  this.branches[ this.branchIterator ].nodeCtr += nodesSearched;
+                                                                    //  Reset the negamax module's node counter.
+                                  this.negamaxEngine.instance.exports.resetNodesSearched();
+                                                                    //  Update this branch's status.
+                                  this.branches[ this.branchIterator ].status = STATUS_DONE_SEARCH;
+                                }
+                            }
+                        }
+                      else                                          //  Search at this.currentPly is not necessary.
+                        this.branches[ this.branchIterator ].status = STATUS_DONE_SEARCH;
+
+                      break;
+
+                    case STATUS_DONE_SEARCH:                        //  Search for this branch at currentPly is done.
+                      if(this.currentPly < this.maxPly && !this.branches[ this.branchIterator ].bookHit)
+                        {                                           //  If we have not yet searched as deeply as we intend to search,
+                          this.currentPly++;                        //  then increment the iterative depth.
+                          this.branches[ this.branchIterator ].status = STATUS_SEARCHING;
+                          this.initalizeSearch();                   //  Load the game state to which "branchIterator" currently points into Negamax Module.
+                        }
+                      else
+                        {
+                          Select_A = this.branches[ this.branchIterator ].bestMove[0];
+                          Select_B = this.branches[ this.branchIterator ].bestMove[1];
+                          PromotionTarget = this.branches[ this.branchIterator ].bestMove[2];
+
+                          if(this.team == 'Black')                  //  A.I. moving, as black.
+                            {
+                                                                    //  Capture.
+                              if(gameEngine.instance.exports.isWhite_client(Select_B))
+                                animationInstruction = {a:Select_A, b:Select_B, action:'die'};
+                                                                    //  Kingside castle.
+                              else if(Select_A == _E8 && Select_B == _G8 &&
+                                      gameEngine.instance.exports.isBlack_client(_E8) && gameEngine.instance.exports.isKing_client(_E8) &&
+                                      !gameEngine.instance.exports.blackCastled_client() && gameEngine.instance.exports.blackKingsidePrivilege_client())
+                                animationInstruction = {a:Select_A, b:Select_B, c:_H8, d:_F8, action:'castle'};
+                                                                    //  Queenside castle.
+                              else if(Select_A == _E8 && Select_B == _C8 &&
+                                      gameEngine.instance.exports.isBlack_client(_E8) && gameEngine.instance.exports.isKing_client(_E8) &&
+                                      !gameEngine.instance.exports.blackCastled_client() && gameEngine.instance.exports.blackQueensidePrivilege_client())
+                                animationInstruction = {a:Select_A, b:Select_B, c:_A8, d:_D8, action:'castle'};
+                                                                    //  En passant capture.
+                              else if(isEnPassantCapture(Select_A, Select_B))
+                                animationInstruction = {a:Select_A, b:Select_B, action:'dieEnPassant'};
+                                                                    //  Move.
+                              else
+                                animationInstruction = {a:Select_A, b:Select_B, action:'move'};
+                            }
+                          else                                      //  A.I. moving, as white.
+                            {
+                                                                    //  Capture.
+                              if(gameEngine.instance.exports.isBlack_client(Select_B))
+                                animationInstruction = {a:Select_A, b:Select_B, action:'die'};
+                                                                    //  Kingside castle.
+                              else if(Select_A == _E1 && Select_B == _G1 &&
+                                      gameEngine.instance.exports.isWhite_client(_E1) && gameEngine.instance.exports.isKing_client(_E1) &&
+                                      !gameEngine.instance.exports.whiteCastled_client() && gameEngine.instance.exports.whiteKingsidePrivilege_client())
+                                animationInstruction = {a:Select_A, b:Select_B, c:_H1, d:_F1, action:'castle'};
+                                                                    //  Queenside castle.
+                              else if(Select_A == _E1 && Select_B == _C1 &&
+                                      gameEngine.instance.exports.isWhite_client(_E1) && gameEngine.instance.exports.isKing_client(_E1) &&
+                                      !gameEngine.instance.exports.whiteCastled_client() && gameEngine.instance.exports.whiteQueensidePrivilege_client())
+                                animationInstruction = {a:Select_A, b:Select_B, c:_A1, d:_D1, action:'castle'};
+                                                                    //  En passant capture.
+                              else if(isEnPassantCapture(Select_A, Select_B))
+                                animationInstruction = {a:Select_A, b:Select_B, action:'dieEnPassant'};
+                                                                    //  Move.
+                              else
+                                animationInstruction = {a:Select_A, b:Select_B, action:'move'};
+                            }
+
+                          this.branches = [];                       //  Empty the array.
+                          animate();                                //  Cue the animation.
+                        }
+                      break;
+                  }
+              }
+            else
+              {
+                if(this.branches.length == 0)                       //  No game state.
+                  {
+                    this.branches = [ {gamestate: new Uint8Array(_GAMESTATE_BYTE_SIZE),
+                                       id:        this.searchId,
+                                       bestMove:  [_NOTHING, _NOTHING, _NO_PROMO],
+                                       depth:     0,
+                                       status:    STATUS_UNSEARCHED,
+                                       nodeCtr:   0,
+                                       bookHit:   false,
+                                       score:     0.0
+                                      } ];
+                    for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)
+                      this.branches[ 0 ].gamestate[i] = gameStateBuffer[i];
+
+                    this.branchIterator = 0;                        //  Point to the single branch.
+                                                                    //  Rescind the stop order, if there was one.
+                    this.negamaxEngine.instance.exports.unsetControlFlag(NEGAMAX_CTRL_STOP_REQUESTED);
+                                                                    //  Indicate that we are NOT "pondering"--we are SEARCHING.
+                    this.negamaxEngine.instance.exports.unsetControlFlag(NEGAMAX_CTRL_PONDERING);
+                    this.initalizeSearch();                         //  Load this state into the search engine.
+                  }
+                else if(this.branches.length == 1)                  //  One WRONG game state.
+                  {
+                    console.log('It is the AI\'s turn, and we have a single WRONG game state.');
+                    //  What's the negamax engine doing? Is it idle? Is something running? If something is running, send a halt signal.
+                    //  get negamax engine status
+                  }
+                else                                                //  Several game states.
+                  {
+                    //console.log('It is the AI\'s turn, and we have SEVERAL game states.');
+                                                                    //  What's the negamax engine doing? Is something running?
+                                                                    //  If something is running, send a halt signal.
+                    status = this.negamaxEngine.instance.exports.getStatus();
+                    switch(status)
+                      {
+                        case NEGAMAX_STATUS_IDLE:                   //  Engine is idle.
+                          i = 0;                                    //  Scan branches to see if the current state is in the list.
+                          while(i < this.branches.length && !this.byteArrCmp(gameStateBuffer, this.branches[ i ].gamestate))
+                            i++;
+                          if(i < this.branches.length)              //  Cut array down to the current state, retain any accomplished planning.
+                            {
+                              console.log('It is the AI\'s turn, and we have FOUND the now-current game state among branches.');
+                              elementToKeep = this.branches[i];
+                              this.branches.splice(0, this.branches.length, elementToKeep);
+                            }
+                          else                                      //  Create a pseudo-branch for the current state. (Should never happen??)
+                            {
+                              console.log('It is the AI\'s turn, and we have NOT FOUND the now-current game state among branches. We made a new one.');
+                              this.branches = [ {gamestate: new Uint8Array(_GAMESTATE_BYTE_SIZE),
+                                                 id:        this.searchId,
+                                                 bestMove:  [_NOTHING, _NOTHING, _NO_PROMO],
+                                                 depth:     0,
+                                                 status:    STATUS_UNSEARCHED,
+                                                 nodeCtr:   0,
+                                                 bookHit:   false,
+                                                 score:     0.0
+                                                } ];
+                              for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)
+                                this.branches[ 0 ].gamestate[i] = gameStateBuffer[i];
+                            }
+                          this.branchIterator = 0;                  //  Point to the single branch.
+                                                                    //  Rescind the stop order, if there was one.
+                          this.negamaxEngine.instance.exports.unsetControlFlag(NEGAMAX_CTRL_STOP_REQUESTED);
+                                                                    //  Indicate that we are NOT "pondering"--we are SEARCHING.
+                          this.negamaxEngine.instance.exports.unsetControlFlag(NEGAMAX_CTRL_PONDERING);
+                          this.initalizeSearch();                   //  Load this state into the search engine.
+                          break;
+
+                        case NEGAMAX_STATUS_DONE:                   //  Engine is done.
+                          //  Save work.
+                          //  LEFT OFF HERE !!! *** SHOULD BE JUST LIKE BELOW
+
+                          i = 0;                                    //  Scan branches to see if the current state is in the list.
+                          while(i < this.branches.length && !this.byteArrCmp(gameStateBuffer, this.branches[ i ].gamestate))
+                            i++;
+                          if(i < this.branches.length)              //  Cut array down to the current state, retain any accomplished planning.
+                            {
+                              console.log('It is the AI\'s turn, and we have FOUND the now-current game state among branches.');
+                              elementToKeep = this.branches[i];
+                              this.branches.splice(0, this.branches.length, elementToKeep);
+                            }
+                          else                                      //  Create a pseudo-branch for the current state. (Should never happen??)
+                            {
+                              console.log('It is the AI\'s turn, and we have NOT FOUND the now-current game state among branches. We made a new one.');
+                              this.branches = [ {gamestate: new Uint8Array(_GAMESTATE_BYTE_SIZE),
+                                                 id:        this.searchId,
+                                                 bestMove:  [_NOTHING, _NOTHING, _NO_PROMO],
+                                                 depth:     0,
+                                                 status:    STATUS_UNSEARCHED,
+                                                 nodeCtr:   0,
+                                                 bookHit:   false,
+                                                 score:     0.0
+                                                } ];
+                              for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)
+                                this.branches[ 0 ].gamestate[i] = gameStateBuffer[i];
+                            }
+                          this.branchIterator = 0;                  //  Point to the single branch.
+                                                                    //  Rescind the stop order, if there was one.
+                          this.negamaxEngine.instance.exports.unsetControlFlag(NEGAMAX_CTRL_STOP_REQUESTED);
+                                                                    //  Indicate that we are NOT "pondering"--we are SEARCHING.
+                          this.negamaxEngine.instance.exports.unsetControlFlag(NEGAMAX_CTRL_PONDERING);
+                          this.initalizeSearch();                   //  Load this state into the search engine.
+                          break;
+
+                        case NEGAMAX_STATUS_RUNNING:                //  Engine is running.
+                          console.log('It is the AI\'s turn, but the negamax engine is still running. Issue a halt signal.');
+                                                                    //  Send a stop request.
+                          this.negamaxEngine.instance.exports.setControlFlag(NEGAMAX_CTRL_STOP_REQUESTED);
+                                                                    //  Continue pulsing until the engine can halt comfortably.
+                          this.negamaxEngine.instance.exports.negamax();
+                          break;
+
+                        case NEGAMAX_STATUS_STOP_REQUESTED:         //  Engine has received a stop signal.
+                        case NEGAMAX_STATUS_STOP_TIME:              //  Engine has received a stop signal owing to time.
+                                                                    //  Continue pulsing until the engine can halt comfortably.
+                          console.log('It is the AI\'s turn, and the negamax engine has received a halt signal.');
+                          this.negamaxEngine.instance.exports.negamax();
+                          break;
+
+                        case NEGAMAX_STATUS_ABORTED:                //  Engine has aborted.
+                        case NEGAMAX_STATUS_ERROR:                  //  Engine has encountered an error.
+                          //  Save SOME OF the work.
+                          //  LEFT OFF HERE !!! *** WHAT TO SAVE?????
+                          //nodesSearched = this.negamaxEngine.instance.exports.getNodesSearched();
+                          //this.nodeCtr += nodesSearched;
+                          //this.branches[ this.branchIterator ].nodeCtr += nodesSearched;
+
+                          console.log('It is the AI\'s turn, and the negamax engine has halted.');
+
+                          i = 0;                                    //  Scan branches to see if the current state is in the list.
+                          while(i < this.branches.length && !this.byteArrCmp(gameStateBuffer, this.branches[ i ].gamestate))
+                            i++;
+                          if(i < this.branches.length)              //  Cut array down to the current state, retain any accomplished planning.
+                            {
+                              console.log('It is the AI\'s turn, and we have FOUND the now-current game state among branches.');
+                              elementToKeep = this.branches[i];
+                              this.branches.splice(0, this.branches.length, elementToKeep);
+                            }
+                          else                                      //  Create a pseudo-branch for the current state. (Should never happen??)
+                            {
+                              console.log('It is the AI\'s turn, and we have NOT FOUND the now-current game state among branches. We made a new one.');
+                              this.branches = [ {gamestate: new Uint8Array(_GAMESTATE_BYTE_SIZE),
+                                                 id:        this.searchId,
+                                                 bestMove:  [_NOTHING, _NOTHING, _NO_PROMO],
+                                                 depth:     0,
+                                                 status:    STATUS_UNSEARCHED,
+                                                 nodeCtr:   0,
+                                                 bookHit:   false,
+                                                 score:     0.0
+                                                } ];
+                              for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)
+                                this.branches[ 0 ].gamestate[i] = gameStateBuffer[i];
+                            }
+                          this.branchIterator = 0;                  //  Point to the single branch.
+                                                                    //  Rescind the stop order, if there was one.
+                          this.negamaxEngine.instance.exports.unsetControlFlag(NEGAMAX_CTRL_STOP_REQUESTED);
+                                                                    //  Indicate that we are NOT "pondering"--we are SEARCHING.
+                          this.negamaxEngine.instance.exports.unsetControlFlag(NEGAMAX_CTRL_PONDERING);
+                          this.initalizeSearch();                   //  Load this state into the search engine.
+                          break;
+                      }
+                  }
+              }
           }
-        else                                                        //  Opponent's turn (this A.I. ponders).
+        //////////////////////////////////////////////////////////////  Opponent's turn (this A.I. "ponders").
+        else
           {
             if(this.branches.length == 0)                           //  Do branches exist?
               this.branch();                                        //  Fan out branches. Point this.branchIterator at 0-th element.
@@ -379,17 +647,16 @@ class Player
                         {
                                                                     //  Advance the algorithm.
                           this.negamaxEngine.instance.exports.negamax();
-                                                                    //  Check status.
+                                                                    //  Check the negamax engine's status.
                           status = this.negamaxEngine.instance.exports.getStatus();
-                          nodesSearched = this.negamaxEngine.instance.exports.getNodesSearched();
-                          //console.log('Branch-Iterator: ' + this.branchIterator + ', Current-Ply: ' + this.currentPly + ', Status: ' + status);
-                          //console.log('(status == NEGAMAX_STATUS_DONE) ==> ' + (status == NEGAMAX_STATUS_DONE));
 
                           if(status == NEGAMAX_STATUS_DONE)         //  Has pulse-negamax completed?
                             {
+                              nodesSearched = this.negamaxEngine.instance.exports.getNodesSearched();
+                              this.nodeCtr += nodesSearched;
+                              updateNodeCounter(this.nodeCtr);
                               depthAchieved = this.negamaxEngine.instance.exports.finalDepthAchieved();
                               score = this.negamaxEngine.instance.exports.finalScore();
-                              //console.log('  Depth-Achieved: ' + depthAchieved);
                               if(depthAchieved >= this.currentPly)
                                 {
                                                                     //  Save the best move.
@@ -434,27 +701,10 @@ class Player
 
                       this.initalizeSearch();                       //  Load the game state to which "branchIterator" currently points into Negamax Module.
 
-                      //console.log('Branch-Iterator: ' + this.branchIterator + ', Current-Ply: ' + this.currentPly);
-
                       break;
                   }
               }
           }
-
-        //  If myTurn == true
-        //      -
-        //  Else
-        //      Do branches exist?
-        //      NO:  Call branch()
-        //      YES:
-        //           Is heartbeat in progress?
-        //           YES: Is heartbeat finished?
-        //                NO:
-        //                YES:
-        //           NO:
-        //                - Try a book lookup
-        //                - Initialize search, branches[branchIterator] as root
-        //                - Start negamax heartbeat
       }
 
     /* Collect all moves the opponent might make, and prepare for each, an Object for the negamax search routine. */
@@ -513,7 +763,8 @@ class Player
         this.branchIterator = 0;                                    //  Reset the branch iterator, point to the first (assumed best) move.
         this.currentPly = 1;                                        //  Reset iterative deepening to 1.
         this.negamaxEngine.instance.exports.resetNodesSearched();   //  Reset the number of nodes counted.
-        console.log(len+' branches');
+                                                                    //  Indicate that we are "pondering".
+        this.negamaxEngine.instance.exports.setControlFlag(NEGAMAX_CTRL_PONDERING);
 
         return;
       }
@@ -534,6 +785,9 @@ class Player
             this.bookLookup.setRequestHeader("Cache-Control", "no-cache");
             this.bookLookup.onreadystatechange = function()
               {
+                var parse;
+                var i;
+
                 if(this.readyState == 4 && this.status == 200)
                   {
                     if(this.responseText == "")                     //  Null return: unknown error. Whatever; proceed with search.
@@ -543,9 +797,8 @@ class Player
                       }
                     else
                       {
-                        var parse = this.responseText.split('|');
-                        var arr;
-                        var i;
+                        parse = this.responseText.split('|');
+
                         if(parse[0] == 'chess')                     //  Contact!
                           {
                             if(parse[1] == 'found')                 //  Found!
@@ -587,7 +840,7 @@ class Player
       {
         var i;
                                                                     //  First, copy the byte array from this.branches[ this.branchIterator ]
-        for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)               //  to "this.negamaxInputBuffer".
+        for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)                   //  to "this.negamaxInputBuffer".
           this.negamaxInputBuffer[i] = this.branches[ this.branchIterator ].gamestate[i];
                                                                     //  Set this search's ID.
         this.negamaxEngine.instance.exports.setSearchId( this.branches[ this.branchIterator ].id );
@@ -596,9 +849,19 @@ class Player
         this.negamaxEngine.instance.exports.setTargetDepth( this.currentPly );
         this.negamaxEngine.instance.exports.initSearch();           //  Call the function that creates and pushes a node to the stack.
 
-        //console.log('Loaded '+this.branchIterator+' (depth='+this.branches[ this.branchIterator ].depth+') for search @ '+this.currentPly);
-
         return;
+      }
+
+    /* Compare two byte arrays and determine whether they are equal, byte for byte. */
+    byteArrCmp(a, b)
+      {
+        var i;
+
+        i = 0;
+        while(i < _GAMESTATE_BYTE_SIZE && a[i] == b[i])
+          i++;
+
+        return (i == _GAMESTATE_BYTE_SIZE);
       }
 
     /*
