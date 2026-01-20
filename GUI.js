@@ -388,32 +388,10 @@ function allPromotablePiecesDockedHUD(team)
 function choosePromo(p)
   {
     promote_mp3.play();                                             //  Play the sound.
-    switch(p)
-      {
-        case _KNIGHT: if(philadelphia.team == 'Black')              //  A.I. plays Black, therefore human plays White.
-                        PromotionTarget = 'N'
-                      else                                          //  A.I. plays White, therefore human plays Black.
-                        PromotionTarget = 'n'
-                      break;
-        case _BISHOP: if(philadelphia.team == 'Black')              //  A.I. plays Black, therefore human plays White.
-                        PromotionTarget = 'B'
-                      else                                          //  A.I. plays White, therefore human plays Black.
-                        PromotionTarget = 'b'
-                      break;
-        case _ROOK:   if(philadelphia.team == 'Black')              //  A.I. plays Black, therefore human plays White.
-                        PromotionTarget = 'R'
-                      else                                          //  A.I. plays White, therefore human plays Black.
-                        PromotionTarget = 'r'
-                      break;
-        case _QUEEN:  if(philadelphia.team == 'Black')              //  A.I. plays Black, therefore human plays White.
-                        PromotionTarget = 'Q'
-                      else                                          //  A.I. plays White, therefore human plays Black.
-                        PromotionTarget = 'q'
-                      break;
-      }
+    PromotionTarget = p;
     removeHUD();                                                    //  Remove the floating HUD.
     blankOutDockedHUD();                                            //  Blank out the Docked HUD.
-    promote(Select_B);                                              //  Perform the promotion animation.
+    promoteHuman(Select_A, Select_B, p);                            //  Perform the promotion animation.
   }
 
 //////////////////////////////////////////////////////////////////////

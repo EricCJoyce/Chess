@@ -412,7 +412,7 @@ class Player
                             {
                                                                     //  Capture.
                               if(gameEngine.instance.exports.isWhite_client(Select_B))
-                                animationInstruction = {a:Select_A, b:Select_B, action:'die'};
+                                animationInstruction = {a:Select_A, b:Select_B, promo:PromotionTarget, action:'die'};
                                                                     //  Kingside castle.
                               else if(Select_A == _E8 && Select_B == _G8 &&
                                       gameEngine.instance.exports.isBlack_client(_E8) && gameEngine.instance.exports.isKing_client(_E8) &&
@@ -428,13 +428,13 @@ class Player
                                 animationInstruction = {a:Select_A, b:Select_B, action:'dieEnPassant'};
                                                                     //  Move.
                               else
-                                animationInstruction = {a:Select_A, b:Select_B, action:'move'};
+                                animationInstruction = {a:Select_A, b:Select_B, promo:PromotionTarget, action:'move'};
                             }
                           else                                      //  A.I. moving, as white.
                             {
                                                                     //  Capture.
                               if(gameEngine.instance.exports.isBlack_client(Select_B))
-                                animationInstruction = {a:Select_A, b:Select_B, action:'die'};
+                                animationInstruction = {a:Select_A, b:Select_B, promo:PromotionTarget, action:'die'};
                                                                     //  Kingside castle.
                               else if(Select_A == _E1 && Select_B == _G1 &&
                                       gameEngine.instance.exports.isWhite_client(_E1) && gameEngine.instance.exports.isKing_client(_E1) &&
@@ -450,7 +450,7 @@ class Player
                                 animationInstruction = {a:Select_A, b:Select_B, action:'dieEnPassant'};
                                                                     //  Move.
                               else
-                                animationInstruction = {a:Select_A, b:Select_B, action:'move'};
+                                animationInstruction = {a:Select_A, b:Select_B, promo:PromotionTarget, action:'move'};
                             }
 
                           this.branches = [];                       //  Empty the array.
