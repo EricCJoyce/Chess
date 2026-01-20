@@ -663,7 +663,6 @@ function selection(intersects)
                 HumansTurn = false;
                 Select_B = firsthit;
                 normalSq();                                         //  Reset all square colors.
-                commit_mp3.play();
                                                                     //  White is capturing a piece: set up a capture.
                 if(gameEngine.instance.exports.isBlack_client(Select_B))
                   animationInstruction = {a:Select_A, b:Select_B, action:'die'};
@@ -714,7 +713,6 @@ function selection(intersects)
                 HumansTurn = false;
                 Select_B = firsthit;
                 normalSq();                                         //  Reset all square colors.
-                commit_mp3.play();
                                                                     //  Black is capturing a piece: set up a capture.
                 if(gameEngine.instance.exports.isWhite_client(Select_B))
                   animationInstruction = {a:Select_A, b:Select_B, action:'die'};
