@@ -37,10 +37,10 @@ var panelOpen = false;                                              //  Whether 
 var hud;                                                            //  CSS, created and destroyed
 var dockedhud = document.getElementById('dockedhud');               //  HTML, hidden and revealed
 const _NO_PROMO = 0;
-const _KNIGHT = 1;
-const _BISHOP = 2;
-const _ROOK = 3;
-const _QUEEN = 4;
+const _PROMO_KNIGHT = 1;
+const _PROMO_BISHOP = 2;
+const _PROMO_ROOK = 3;
+const _PROMO_QUEEN = 4;
 
 //////////////////////////////////////////////////////////////////////
 //   I N I T s
@@ -367,10 +367,10 @@ function updateHUD()
 function allPromotablePiecesHUD(team)
   {
     var str;
-    str  = '<tr><td><a href="javascript:;" onClick="choosePromo(_KNIGHT);"><img class="gamesettingbutton" src="https://www.ericjoycefilm.com/wastesoftime/boardgames/chess/obj/img/hud/' + team + '/knight.jpg"/></a></td></tr>';
-    str += '<tr><td><a href="javascript:;" onClick="choosePromo(_BISHOP);"><img class="gamesettingbutton" src="https://www.ericjoycefilm.com/wastesoftime/boardgames/chess/obj/img/hud/' + team + '/bishop.jpg"/></a></td></tr>';
-    str += '<tr><td><a href="javascript:;" onClick="choosePromo(_ROOK);"><img class="gamesettingbutton" src="https://www.ericjoycefilm.com/wastesoftime/boardgames/chess/obj/img/hud/' + team + '/rook.jpg"/></a></td></tr>';
-    str += '<tr><td><a href="javascript:;" onClick="choosePromo(_QUEEN);"><img class="gamesettingbutton" src="https://www.ericjoycefilm.com/wastesoftime/boardgames/chess/obj/img/hud/' + team + '/queen.jpg"/></a></td></tr>';
+    str  = '<tr><td><a href="javascript:;" onClick="choosePromo(_PROMO_KNIGHT);"><img class="gamesettingbutton" src="https://www.ericjoycefilm.com/wastesoftime/boardgames/chess/obj/img/hud/' + team + '/knight.jpg"/></a></td></tr>';
+    str += '<tr><td><a href="javascript:;" onClick="choosePromo(_PROMO_BISHOP);"><img class="gamesettingbutton" src="https://www.ericjoycefilm.com/wastesoftime/boardgames/chess/obj/img/hud/' + team + '/bishop.jpg"/></a></td></tr>';
+    str += '<tr><td><a href="javascript:;" onClick="choosePromo(_PROMO_ROOK);"><img class="gamesettingbutton" src="https://www.ericjoycefilm.com/wastesoftime/boardgames/chess/obj/img/hud/' + team + '/rook.jpg"/></a></td></tr>';
+    str += '<tr><td><a href="javascript:;" onClick="choosePromo(_PROMO_QUEEN);"><img class="gamesettingbutton" src="https://www.ericjoycefilm.com/wastesoftime/boardgames/chess/obj/img/hud/' + team + '/queen.jpg"/></a></td></tr>';
     return str;
   }
 
@@ -378,10 +378,10 @@ function allPromotablePiecesHUD(team)
 function allPromotablePiecesDockedHUD(team)
   {
     var str;
-    str  = '<a href="javascript:;" onClick="hidePanel(); choosePromo(_KNIGHT);"><img class="gamesettingbutton" src="https://www.ericjoycefilm.com/wastesoftime/boardgames/chess/obj/img/hud/' + team + '/knight.jpg"/></a>';
-    str += '<a href="javascript:;" onClick="hidePanel(); choosePromo(_BISHOP);"><img class="gamesettingbutton" src="https://www.ericjoycefilm.com/wastesoftime/boardgames/chess/obj/img/hud/' + team + '/bishop.jpg"/></a>';
-    str += '<a href="javascript:;" onClick="hidePanel(); choosePromo(_ROOK);"><img class="gamesettingbutton" src="https://www.ericjoycefilm.com/wastesoftime/boardgames/chess/obj/img/hud/' + team + '/rook.jpg"/></a>';
-    str += '<a href="javascript:;" onClick="hidePanel(); choosePromo(_QUEEN);"><img class="gamesettingbutton" src="https://www.ericjoycefilm.com/wastesoftime/boardgames/chess/obj/img/hud/' + team + '/queen.jpg"/></a>';
+    str  = '<a href="javascript:;" onClick="hidePanel(); choosePromo(_PROMO_KNIGHT);"><img class="gamesettingbutton" src="https://www.ericjoycefilm.com/wastesoftime/boardgames/chess/obj/img/hud/' + team + '/knight.jpg"/></a>';
+    str += '<a href="javascript:;" onClick="hidePanel(); choosePromo(_PROMO_BISHOP);"><img class="gamesettingbutton" src="https://www.ericjoycefilm.com/wastesoftime/boardgames/chess/obj/img/hud/' + team + '/bishop.jpg"/></a>';
+    str += '<a href="javascript:;" onClick="hidePanel(); choosePromo(_PROMO_ROOK);"><img class="gamesettingbutton" src="https://www.ericjoycefilm.com/wastesoftime/boardgames/chess/obj/img/hud/' + team + '/rook.jpg"/></a>';
+    str += '<a href="javascript:;" onClick="hidePanel(); choosePromo(_PROMO_QUEEN);"><img class="gamesettingbutton" src="https://www.ericjoycefilm.com/wastesoftime/boardgames/chess/obj/img/hud/' + team + '/queen.jpg"/></a>';
     return str;
   }
 
