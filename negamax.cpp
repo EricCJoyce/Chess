@@ -687,6 +687,10 @@ bool negamax(void)
         return true;
       }
 
+    //////////////////////////////////////////////////////////////////  Proceed.
+    gsIndex = restoreNegamaxSearchBufferLength() - 1;               //  Index for top of stack is length minus one.
+    restoreNode(gsIndex, &node);                                    //  Restore the node at the top of the stack.
+
     if(controlFlags & CTRL_STOP_REQUESTED)                          //  Proceed only if we are wrapping up node work.
       {
         if(node.phase == _PHASE_AFTER_CHILD || node.phase == _PHASE_FINISH_NODE || node.phase == _PHASE_COMPLETE)
@@ -698,11 +702,6 @@ bool negamax(void)
         else
           inputParametersBuffer[PARAM_BUFFER_STATUS_OFFSET] = STATUS_STOP_REQUESTED;
       }
-
-    //////////////////////////////////////////////////////////////////  Proceed.
-
-    gsIndex = restoreNegamaxSearchBufferLength() - 1;               //  Index for top of stack is length minus one.
-    restoreNode(gsIndex, &node);                                    //  Restore the node at the top of the stack.
 
     switch(node.phase)
       {
