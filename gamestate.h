@@ -410,10 +410,21 @@ bool inCheckBy(unsigned char index, unsigned char team, GameState* gs)
 bool canKingsideCastle(unsigned char team, GameState* gs)
   {
     bool c = false;
-    if(team == 'b' && gs->blackKingsidePrivilege && isRook(63, gs) && isBlack(63, gs) && !inCheckBy(60, 'w', gs) && !inCheckBy(61, 'w', gs) && !inCheckBy(62, 'w', gs) && isEmpty(61, gs) && isEmpty(62, gs))
+
+    if(team == 'b'     && gs->blackKingsidePrivilege &&
+       isRook(63, gs)  && isBlack(63, gs)            &&
+       isKing(60, gs)  && isBlack(60, gs)            &&
+       isEmpty(61, gs) && isEmpty(62, gs)            &&
+       !inCheckBy(60, 'w', gs) && !inCheckBy(61, 'w', gs) && !inCheckBy(62, 'w', gs))
       c = true;
-    else if(gs->whiteKingsidePrivilege && isRook(7, gs) && isWhite(7, gs) && !inCheckBy(4, 'b', gs) && !inCheckBy(5, 'b', gs) && !inCheckBy(6, 'b', gs) && isEmpty(5, gs) && isEmpty(6, gs))
+
+    else if(team == 'w'    && gs->whiteKingsidePrivilege &&
+            isRook(7, gs)  && isWhite(7, gs)             &&
+            isKing(4, gs)  && isWhite(4, gs)             &&
+            isEmpty(5, gs) && isEmpty(6, gs)             &&
+            !inCheckBy(4, 'b', gs) && !inCheckBy(5, 'b', gs) && !inCheckBy(6, 'b', gs))
       c = true;
+
     return c;
   }
 
@@ -421,10 +432,21 @@ bool canKingsideCastle(unsigned char team, GameState* gs)
 bool canQueensideCastle(unsigned char team, GameState* gs)
   {
     bool c = false;
-    if(team == 'b' && gs->blackQueensidePrivilege && isRook(56, gs) && isBlack(56, gs) && !inCheckBy(60, 'w', gs) && !inCheckBy(59, 'w', gs) && !inCheckBy(58, 'w', gs) && isEmpty(59, gs) && isEmpty(58, gs) && isEmpty(57, gs))
+
+    if(team == 'b'     && gs->blackQueensidePrivilege        &&
+       isRook(56, gs)  && isBlack(56, gs)                    &&
+       isKing(60, gs)  && isKing(60, gs)                     &&
+       isEmpty(59, gs) && isEmpty(58, gs) && isEmpty(57, gs) &&
+       !inCheckBy(60, 'w', gs) && !inCheckBy(59, 'w', gs) && !inCheckBy(58, 'w', gs))
       c = true;
-    else if(gs->whiteQueensidePrivilege && isRook(0, gs) && isWhite(0, gs) && !inCheckBy(4, 'b', gs) && !inCheckBy(3, 'b', gs) && !inCheckBy(2, 'b', gs) && isEmpty(3, gs) && isEmpty(2, gs) && isEmpty(1, gs))
+
+    else if(team == 'w'    && gs->whiteQueensidePrivilege      &&
+            isRook(0, gs)  && isWhite(0, gs)                   &&
+            isKing(4, gs)  && isKing(4, gs)                    &&
+            isEmpty(3, gs) && isEmpty(2, gs) && isEmpty(1, gs) &&
+            !inCheckBy(4, 'b', gs) && !inCheckBy(3, 'b', gs) && !inCheckBy(2, 'b', gs))
       c = true;
+
     return c;
   }
 
