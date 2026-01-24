@@ -69,7 +69,7 @@ which is the one of four moves on file for this state.
 | _TRANSPO_RECORD_BYTE_SIZE | 18 | Number of bytes needed to store a TranspoRecord object |
 | _TRANSPO_TABLE_SIZE | 524288 | Number of TranspoRecords, each 18 bytes |
 | _TREE_SEARCH_ARRAY_SIZE | 65536 | Number of (game-state bytes, move-bytes) |
-| _NEGAMAX_NODE_BYTE_SIZE | 125 | Number of bytes needed to encode a negamax node |
+| _NEGAMAX_NODE_BYTE_SIZE | 121 | Number of bytes needed to encode a negamax node |
 | _NEGAMAX_MOVE_BYTE_SIZE | 4 | Number of bytes needed to encode a negamax move (in their separate, global array) |
 | ZHASH_TABLE_SIZE | 751 | Number of Zobrist keys |
 | _WHITE_TO_MOVE | 0 | Indication that white is to move in the current game state |
@@ -155,8 +155,8 @@ The other module functions are as follows:
 - `this.evaluationEngine.instance.exports.nonPawnMaterial_eval();` returns an unsigned integer value, according to the game state bytes previously written to the evaluation module's input-gamestate buffer. This function is used by the negamax module to test whether there is enough material to try null-move pruning.
 - `this.evaluationEngine.instance.exports.makeMove_eval();` decodes and applies the move stored in `inputMoveBuffer` to the decoded game state stored in `inputGameStateBuffer`, and writes the encoded, resultant game state in `outputGameStateBuffer`.
 - `this.evaluationEngine.instance.exports.makeNullMove_eval();` decodes the game state stored in `inputGameStateBuffer`, applies a null-move, and writes the encoded, resultant game state in `outputGameStateBuffer`.
-- `this.evaluationEngine.instance.exports.evaluate_eval(bool);` .
-- `this.evaluationEngine.instance.exports.getMoves_eval();` .
+- `this.evaluationEngine.instance.exports.evaluate_eval();` evaluates the query game state from the point of view of its side to move.
+- `this.evaluationEngine.instance.exports.getMoves_eval();` write all moves available to the query game state's side to move, sorted descending by "interestingness". This is a fast-and-cheap heuristic intended to generate cut-offs.
 
 ### Negamax Module
 
@@ -177,7 +177,7 @@ The **negamax module** has *thirteen* outward-facing buffers:
 
 Compile the negamax module:
 ```
-sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c em++ -I ./ -Os -s STANDALONE_WASM -s INITIAL_MEMORY=19005440 -s STACK_SIZE=1048576 -s EXPORTED_FUNCTIONS="['_getMaxPly','_getInputBuffer','_getParametersBuffer','_getQueryGameStateBuffer','_getQueryMoveBuffer','_getAnswerGameStateBuffer','_getAnswerMovesBuffer','_getOutputBuffer','_getZobristHashBuffer','_getTranspositionTableBuffer','_getNegamaxSearchBuffer','_getNegamaxMovesBuffer','_getKillerMovesBuffer','_getHistoryTableBuffer','_setSearchId','_getSearchId','_getStatus','_setControlFlag','_unsetControlFlag','_getControlByte','_setTargetDepth','_getTargetDepth','_getDepthAchieved','_setDeadline','_getDeadline','_resetNodesSearched','_getNodesSearched','_finalDepthAchieved','_finalScore','_getNodeStackSize','_getMovesArenaSize','_initSearch','_negamax']" -Wl,--no-entry "negamax.cpp" -o "negamax.wasm"
+sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c em++ -I ./ -Os -s STANDALONE_WASM -s INITIAL_MEMORY=18743296 -s STACK_SIZE=1048576 -s EXPORTED_FUNCTIONS="['_getMaxPly','_getInputBuffer','_getParametersBuffer','_getQueryGameStateBuffer','_getQueryMoveBuffer','_getAnswerGameStateBuffer','_getAnswerMovesBuffer','_getOutputBuffer','_getZobristHashBuffer','_getTranspositionTableBuffer','_getNegamaxSearchBuffer','_getNegamaxMovesBuffer','_getKillerMovesBuffer','_getHistoryTableBuffer','_setSearchId','_getSearchId','_getStatus','_setControlFlag','_unsetControlFlag','_getControlByte','_setTargetDepth','_getTargetDepth','_getDepthAchieved','_setDeadline','_getDeadline','_resetNodesSearched','_getNodesSearched','_finalDepthAchieved','_finalScore','_getNodeStackSize','_getMovesArenaSize','_initSearch','_negamax']" -Wl,--no-entry "negamax.cpp" -o "negamax.wasm"
 ```
 This produces a `.wasm` with functions you can load into the JavaScript Player class and call.
 
