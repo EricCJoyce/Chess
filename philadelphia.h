@@ -136,7 +136,7 @@ unsigned int getMovesForTeam(bool, GameState*, Move*);
 unsigned int getPawnAttacksTeam(bool, GameState*, Move*);
 unsigned int getPawnTargetsTeam(bool, GameState*, Move*);
 
-float score(GameState*, bool);
+float score(GameState*);
 
 float material(unsigned char*, unsigned char, GameState*);
 float materialLookup(unsigned char, GameState*);
@@ -410,9 +410,8 @@ unsigned int getPawnTargetsTeam(bool white, GameState* gs, Move* buffer)
 /**************************************************************************************************
  Evaluation  */
 
-/* Meaning, if evaluateForWhite == true, then advantage for White is understood to be positive.
-   If evaluateForWhite == false, then advantage for Black is understood to be positive. */
-float score(GameState* gs, bool evaluateForWhite)
+/* Negamax rule: ALWAYS EVALUATE FOR THE SIDE TO MOVE. */
+float score(GameState* gs)
   {
     float h = 0.0;
     unsigned char win;
@@ -460,11 +459,9 @@ float score(GameState* gs, bool evaluateForWhite)
     unsigned int blackXRayLength;
 
     win = isWin(gs);
-    if(win != GAME_ONGOING)
-      {
-        if((win == GAME_OVER_BLACK_WINS && !evaluateForWhite) || (win == GAME_OVER_WHITE_WINS && evaluateForWhite))
-          return INFINITY;
-        else if(win == GAME_OVER_STALEMATE)
+    if(win != GAME_ONGOING)                                         //  In chess, for a state to be a decisive win, the side to move is necessarily
+      {                                                             //  checkmated--which is the worst possible state.
+        if(win == GAME_OVER_STALEMATE)
           return 0.0;
         else
           return -INFINITY;
@@ -519,7 +516,7 @@ float score(GameState* gs, bool evaluateForWhite)
     whiteXRayLength = getXRay(true, gs, whiteXRay);                 //  X-Ray attacks
     blackXRayLength = getXRay(false, gs, blackXRay);
 
-    if(evaluateForWhite)  ////////////////////////////////////////////  WHITE
+    if(gs->whiteToMove)  /////////////////////////////////////////////  WHITE
       {
         switch(gamePhase)
           {

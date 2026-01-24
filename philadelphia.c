@@ -40,7 +40,8 @@ bool isSideToMoveInCheck_eval(void);
 unsigned char nonPawnMaterial_eval(void);
 void makeMove_eval(void);
 void makeNullMove_eval(void);
-float evaluate_eval(bool);
+//float evaluate_eval(bool);
+float evaluate_eval(void);
 unsigned int getMoves_eval(void);
 signed int SEE(Move*, GameState*);
 signed int SEE_lookup(char);
@@ -400,11 +401,13 @@ void makeNullMove_eval(void)
   }
 
 /* Answer the Negamax Module's query, "What is the evaluation of the GameState in the input-gamestate buffer?" */
-float evaluate_eval(bool evaluateForWhite)
+//float evaluate_eval(bool evaluateForWhite)
+float evaluate_eval(void)
   {
     GameState gs;
     deserializeGameState(&gs);                                      //  Recover GameState from buffer.
-    return score(&gs, evaluateForWhite);
+    //return score(&gs, evaluateForWhite);
+    return score(&gs);                                              //  Negamax rule: always evaluate for the side that is now to move.
   }
 
 /* Answer the Negamax Module's query, "What are all the moves that can be made from the GameState in the input-gamestate buffer?"

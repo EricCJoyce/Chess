@@ -1,6 +1,6 @@
 /*
 
-sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c em++ -I ./ -Os -s STANDALONE_WASM -s INITIAL_MEMORY=19005440 -s STACK_SIZE=1048576 -s EXPORTED_FUNCTIONS="['_getMaxPly','_getInputBuffer','_getParametersBuffer','_getQueryGameStateBuffer','_getQueryMoveBuffer','_getAnswerGameStateBuffer','_getAnswerMovesBuffer','_getOutputBuffer','_getZobristHashBuffer','_getTranspositionTableBuffer','_getNegamaxSearchBuffer','_getNegamaxMovesBuffer','_getKillerMovesBuffer','_getHistoryTableBuffer','_setSearchId','_getSearchId','_getStatus','_setControlFlag','_unsetControlFlag','_getControlByte','_setTargetDepth','_getTargetDepth','_getDepthAchieved','_setDeadline','_getDeadline','_resetNodesSearched','_getNodesSearched','_finalDepthAchieved','_finalScore','_getNodeStackSize','_getMovesArenaSize','_initSearch','_negamax']" -Wl,--no-entry "negamax.cpp" -o "negamax.wasm"
+sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,source=$(pwd),target=/home/src emscripten-c em++ -I ./ -Os -s STANDALONE_WASM -s INITIAL_MEMORY=18743296 -s STACK_SIZE=1048576 -s EXPORTED_FUNCTIONS="['_getMaxPly','_getInputBuffer','_getParametersBuffer','_getQueryGameStateBuffer','_getQueryMoveBuffer','_getAnswerGameStateBuffer','_getAnswerMovesBuffer','_getOutputBuffer','_getZobristHashBuffer','_getTranspositionTableBuffer','_getNegamaxSearchBuffer','_getNegamaxMovesBuffer','_getKillerMovesBuffer','_getHistoryTableBuffer','_setSearchId','_getSearchId','_getStatus','_setControlFlag','_unsetControlFlag','_getControlByte','_setTargetDepth','_getTargetDepth','_getDepthAchieved','_setDeadline','_getDeadline','_resetNodesSearched','_getNodesSearched','_finalDepthAchieved','_finalScore','_getNodeStackSize','_getMovesArenaSize','_initSearch','_negamax']" -Wl,--no-entry "negamax.cpp" -o "negamax.wasm"
 
 */
 
@@ -16,13 +16,16 @@ sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,sourc
 #define _NONE                                   64                  /* Required as a "blank" value without #include "gamestate.h". */
 #define _NO_PROMO                                0                  /* Required as a "blank" value without #include "gamestate.h". */
 
+#define _WHITE_TO_MOVE                           0                  /* Copied from gamestate.h. */
+#define _BLACK_TO_MOVE                           1                  /* Copied from gamestate.h. */
+
 #define _MAX_PLY                                20                  /* Deepest possible depth. */
 #define _QUIESCENCE_MAX_PLY                      4                  /* Maximum extension for quiescence search. */
 
 #define _PARAMETER_ARRAY_SIZE                   16                  /* Number of bytes needed to store search parameters. */
 
 #define _TREE_SEARCH_ARRAY_SIZE              65536                  /* Number of (game-state bytes, move-bytes). */
-#define _NEGAMAX_NODE_BYTE_SIZE                125                  /* Number of bytes needed to store a negamax node. */
+#define _NEGAMAX_NODE_BYTE_SIZE                121                  /* Number of bytes needed to store a negamax node. */
 #define _NEGAMAX_MOVE_BYTE_SIZE                  4                  /* Number of bytes needed to store a negamax move. */
 
 #define _KILLER_MOVE_PER_PLY                     2                  /* Typical for other chess engines. */
@@ -44,8 +47,7 @@ sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,sourc
 #define STATUS_DONE                           0x02                  /* Search complete. */
 #define STATUS_STOP_REQUESTED                 0x03                  /* Will halt the present search at the next safe point. */
 #define STATUS_STOP_TIME                      0x04                  /* Will halt the present search at the next safe point, owing to time constraints. */
-#define STATUS_STOP_ROOT_CHANGED              0x05                  /* Will halt the present search at the next safe point, because the root has changed. */
-#define STATUS_ABORTED                        0x06                  /* Search was hard-killed: be wary of partial results. */
+#define STATUS_ABORTED                        0x05                  /* Search was hard-killed: be wary of partial results. */
 #define STATUS_ERROR                          0xFF                  /* An error has occurred. */
 
 #define CTRL_STOP_REQUESTED                   0x01                  /* Set this byte in commandFlags to request that the present search stop. */
@@ -85,7 +87,7 @@ sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,sourc
 /**************************************************************************************************
  Typedefs  */
 
-typedef struct NegamaxNodeType                                      //  TOTAL: 125 = _NEGAMAX_NODE_BYTE_SIZE bytes.
+typedef struct NegamaxNodeType                                      //  TOTAL: 121 = _NEGAMAX_NODE_BYTE_SIZE bytes.
   {
     unsigned char gs[_GAMESTATE_BYTE_SIZE];                         //  (67 bytes) The given gamestate as a byte array.
     unsigned int parent;                                            //  (4 bytes) Index into "negamaxSearchBuffer" of this node's parent.
@@ -102,7 +104,6 @@ typedef struct NegamaxNodeType                                      //  TOTAL: 1
     float originalAlpha;                                            //  (4 bytes) The alpha value saved at the top of the negamax call.
     float alpha;                                                    //  (4 bytes) Upper bound.
     float beta;                                                     //  (4 bytes) Lower bound.
-    float color;                                                    //  (4 bytes) Either +1.0 or -1.0, for max or min respectively.
     float value;                                                    //  (4 bytes) Value computed over this node's children and/or eventually returned.
 
     unsigned long long zhash;                                       //  (8 bytes) Zobrist hash of the given gamestate byte array.
@@ -218,7 +219,7 @@ extern "C"
     unsigned int getNodeStackSize(void);
     unsigned int getMovesArenaSize(void);
 
-    void initSearch(void);
+    void initSearch(bool);
     bool negamax(void);
   }
 
@@ -297,7 +298,7 @@ unsigned char answerMovesBuffer[_MAX_MOVES * (_MOVE_BYTE_SIZE + 5)];//  The actu
                                                                     //  9,437,185 bytes.
                                                                     //  For "transpositionTableBuffer" included in "transposition.h".
 
-                                                                    //  8,192,004 bytes.
+                                                                    //  7,929,860 bytes.
                                                                     //  Flat, global array that behaves like a DFS stack for negamax nodes.
                                                                     //  First four bytes are for an unsigned int: the length of the array.
 unsigned char negamaxSearchBuffer[4 + _TREE_SEARCH_ARRAY_SIZE * _NEGAMAX_NODE_BYTE_SIZE];
@@ -335,10 +336,10 @@ unsigned char killerMovesTableBuffer[_KILLER_MOVE_PER_PLY * 2 * _KILLER_MOVE_MAX
                                                                     //                                 . . .
 unsigned char historyTableBuffer[2 * _NONE * _NONE];                //                   From-index 63, To-indices 0 .. 63  ]
 
-                                                                    //  SUBTOTAL:  17,906,600 bytes.
+                                                                    //  SUBTOTAL:  17,644,456 bytes.
                                                                     //  Give the stack 1,048,576 bytes.
-                                                                    //  TOTAL:     18,955,176 bytes.
-                                                                    //  Round to:  19,005,440 = 290 pages (cover units of 65,536).
+                                                                    //  TOTAL:     18,693,032 bytes.
+                                                                    //  Round to:  18,743,296 = 286 pages (cover units of 65,536).
 
 /**************************************************************************************************
  Maximum ply.  */
@@ -608,16 +609,23 @@ unsigned int getMovesArenaSize(void)
  Negamax-search functions  */
 
 /* Initialize the root node for (interrupatble) negamax search. */
-void initSearch(void)
+void initSearch(bool initializeForWhite)
   {
     NegamaxNode root;
+    bool whiteToMove;
     unsigned char depth;
     unsigned int i;
                                                                     //  Set status to RUNNING.
     inputParametersBuffer[PARAM_BUFFER_STATUS_OFFSET] = STATUS_RUNNING;
 
     for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)                       //  Copy root gamestate byte array from global "inputGameStateBuffer"
-      root.gs[i] = inputGameStateBuffer[i];                         //  to negamax root node.
+      {                                                             //  to negamax root node.
+        root.gs[i] = inputGameStateBuffer[i];
+                                                                    //  Copy "root"s "gs" to "queryGameStateBuffer"
+        queryGameStateBuffer[i] = root.gs[i];                       //  for isTerminal() and evaluate().
+      }
+    copyQuery2EvalGSInput();                                        //  Copy "queryGameStateBuffer" to Evaluation Module's "inputBuffer".
+    whiteToMove = (sideToMove() == _WHITE_TO_MOVE);                 //  (Ask the Evaluation Module) Is white to move in this state?
 
     root.parent = 0;                                                //  Set root's parent index to...
 
@@ -640,7 +648,6 @@ void initSearch(void)
     root.originalAlpha = -std::numeric_limits<float>::infinity();   //  Initialize root's originalAlpha.
     root.alpha = -std::numeric_limits<float>::infinity();           //  Initialize root's alpha.
     root.beta = std::numeric_limits<float>::infinity();             //  Initialize root's beta.
-    root.color = 1.0;                                               //  Initialize root's color.
     root.value = -std::numeric_limits<float>::infinity();           //  Initialize root's value.
 
     root.zhash = 0L;                                                //  Initialize root's zhash.
@@ -673,16 +680,23 @@ bool negamax(void)
     unsigned int i, j;
 
     //////////////////////////////////////////////////////////////////  Is search halting?
-    if(controlFlags & CTRL_HARD_ABORT)
+    if(controlFlags & CTRL_HARD_ABORT)                              //  Bail out immediately.
       {
-        //  LEFT OFF HERE TOO !!! ***
+                                                                    //  Set status to aborted.
+        inputParametersBuffer[PARAM_BUFFER_STATUS_OFFSET] = STATUS_ABORTED;
         return true;
       }
 
-    if(controlFlags & CTRL_STOP_REQUESTED)
+    if(controlFlags & CTRL_STOP_REQUESTED)                          //  Proceed only if we are wrapping up node work.
       {
-        //  LEFT OFF HERE TOO !!! ***
-        return true;
+        if(node.phase == _PHASE_AFTER_CHILD || node.phase == _PHASE_FINISH_NODE || node.phase == _PHASE_COMPLETE)
+          {
+                                                                    //  Set status to aborted.
+            inputParametersBuffer[PARAM_BUFFER_STATUS_OFFSET] = STATUS_ABORTED;
+            return true;
+          }
+        else
+          inputParametersBuffer[PARAM_BUFFER_STATUS_OFFSET] = STATUS_STOP_REQUESTED;
       }
 
     //////////////////////////////////////////////////////////////////  Proceed.
@@ -787,7 +801,7 @@ void enterNode_step(unsigned int gsIndex, NegamaxNode* node)
     b_isTerminal = isTerminal();                                    //  (Ask the Evaluation Module) Is the given game state terminal?
     if(b_isTerminal)                                                //  - Terminal-state check.
       {
-        node->value = node->color * evaluate();                     //  This imported function handles testing the AI's side.
+        node->value = evaluate();                                   //  This imported function handles testing the AI's side.
         node->phase = _PHASE_FINISH_NODE;                           //  Mark for the finishing phase.
         incrementNodeCtr();                                         //  Increase node-evaluation counter by 1.
         saveNode(node, gsIndex);                                    //  Save the updated node.
@@ -806,7 +820,7 @@ void enterNode_step(unsigned int gsIndex, NegamaxNode* node)
       {
         if(node->depth <= -(signed char)_QUIESCENCE_MAX_PLY)        //  Prevent runaway quiescence search extensions.
           {
-            node->value = node->color * evaluate();
+            node->value = evaluate();
             node->phase = _PHASE_FINISH_NODE;
             incrementNodeCtr();
             saveNode(node, gsIndex);
@@ -815,7 +829,7 @@ void enterNode_step(unsigned int gsIndex, NegamaxNode* node)
 
         if(!NN_HAS_FLAG(node, NN_FLAG_IN_CHECK))
           {
-            standPat = node->color * evaluate();                    //  Evaluation as if this were the end of search.
+            standPat = evaluate();                                  //  Evaluation as if this were the end of search.
             incrementNodeCtr();                                     //  That evaluation counts.
 
             if(standPat >= node->beta)                              //  Stand-pat cutoff.
@@ -888,7 +902,6 @@ void enterNode_step(unsigned int gsIndex, NegamaxNode* node)
         child.originalAlpha = -node->beta;                          //  Set child's alpha to negative parent's beta.
         child.alpha = -node->beta;
         child.beta = -node->alpha;                                  //  Set child's beta to negative parent's alpha.
-        child.color = -node->color;                                 //  Set child's color to negative parent's color.
         child.zhash = 0L;
         child.hIndex = 0;
         child.phase = _PHASE_ENTER_NODE;                            //  Set child's phase.
@@ -1184,7 +1197,6 @@ void nextMove_step(unsigned int gsIndex, NegamaxNode* node)
     child.originalAlpha = -node->beta;                              //  Negamax window flip.
     child.alpha = -node->beta;
     child.beta = -node->alpha;
-    child.color = -node->color;
     child.value = -std::numeric_limits<float>::infinity();
 
     child.phase = _PHASE_ENTER_NODE;                                //  Receive at this phase.
@@ -1520,11 +1532,6 @@ void restoreNode(unsigned int index, NegamaxNode* node)
     for(j = 0; j < 4; j++)                                          //  Copy 4 bytes from the local buffer.
       buffer4[j] = buffer[i++];
     memcpy(&f4, buffer4, 4);                                        //  Force the 4-byte buffer into a float.
-    node->color = f4;                                               //  NODE.COLOR
-
-    for(j = 0; j < 4; j++)                                          //  Copy 4 bytes from the local buffer.
-      buffer4[j] = buffer[i++];
-    memcpy(&f4, buffer4, 4);                                        //  Force the 4-byte buffer into a float.
     node->value = f4;                                               //  NODE.VALUE
 
     for(j = 0; j < 8; j++)                                          //  Copy 8 bytes from the local buffer.
@@ -1602,11 +1609,6 @@ void saveNode(NegamaxNode* node, unsigned int index)
     memcpy(buffer4, (unsigned char*)(&f4), 4);                      //  Force float into 4-byte unsigned char buffer.
     for(j = 0; j < 4; j++)                                          //  Append 4-byte buffer to buffer.
       buffer[i++] = buffer4[j];                                     //  NODE.BETA
-
-    f4 = node->color;                                               //  Copy the node's color to the buffer.
-    memcpy(buffer4, (unsigned char*)(&f4), 4);                      //  Force float into 4-byte unsigned char buffer.
-    for(j = 0; j < 4; j++)                                          //  Append 4-byte buffer to buffer.
-      buffer[i++] = buffer4[j];                                     //  NODE.COLOR
 
     f4 = node->value;                                               //  Copy the node's value to the buffer.
     memcpy(buffer4, (unsigned char*)(&f4), 4);                      //  Force float into 4-byte unsigned char buffer.

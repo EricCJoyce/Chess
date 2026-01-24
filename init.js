@@ -16,7 +16,7 @@ const _TRANSPO_TABLE_SIZE = 524288;                                 //  Size (se
 const _TRANSPO_RECORD_BYTE_SIZE = 18;                               //  Size (see C code).
 const _PARAMETER_ARRAY_SIZE = 16;                                   //  Size (see C++ code).
 const _TREE_SEARCH_ARRAY_SIZE = 65536;                              //  Size (see C++ code).
-const _NEGAMAX_NODE_BYTE_SIZE = 125;                                //  Size (see C++ code).
+const _NEGAMAX_NODE_BYTE_SIZE = 121;                                //  Size (see C++ code).
 const _NEGAMAX_MOVE_BYTE_SIZE = 4;                                  //  Size (see C++ code).
 const _KILLER_MOVE_PER_PLY = 2;                                     //  Size (see C++ code).
 const _KILLER_MOVE_MAX_DEPTH = 64;                                  //  Size (see C++ code).
@@ -102,8 +102,7 @@ var PromotionTarget = null;                                         //  Tracks t
 var previousSecond = Date.now();                                    //  Track the last millisecond
 
 //////////////////////////////////////////////////////////////////////  Game logic
-var WhiteTeam = [], BlackTeam = [];                                 //  Arrays of indices
-var Options = [];
+var Options = [];                                                   //  Array of indices.
 
 //////////////////////////////////////////////////////////////////////  Game piece animation control
 const GAMEPIECE_MOVEMENT_ZENITH = 100;
@@ -312,7 +311,6 @@ function initPiece(symbol, index, geometry)
   {
     if(symbol == symbol.toUpperCase())                              //  White team
       {
-        WhiteTeam.push(index);
         switch(symbol)
           {
             case 'P': gamePieces.push(new THREE.Mesh(geometry, whiteMaterial));
@@ -347,7 +345,6 @@ function initPiece(symbol, index, geometry)
       }
     else                                                            //  Black team
       {
-        BlackTeam.push(index);
         switch(symbol)
           {
             case 'p': gamePieces.push(new THREE.Mesh(geometry, blackMaterial));

@@ -206,10 +206,7 @@ class Player
                                  }.bind(this),
                                _evaluate: function()                //  Returns float.
                                  {
-                                   if(this.team == 'Black')
-                                     return this.evaluationEngine.instance.exports.evaluate_eval(false);
-                                   else
-                                     return this.evaluationEngine.instance.exports.evaluate_eval(true);
+                                   return this.evaluationEngine.instance.exports.evaluate_eval();
                                  }.bind(this),
                                _getMoves: function()                //  Returns unsigned int.
                                  {
@@ -847,7 +844,7 @@ class Player
         this.negamaxEngine.instance.exports.setControlFlag(0);      //  Blank out control flags.
                                                                     //  Set the target depth.
         this.negamaxEngine.instance.exports.setTargetDepth( this.currentPly );
-        this.negamaxEngine.instance.exports.initSearch();           //  Call the function that creates and pushes a node to the stack.
+        this.negamaxEngine.instance.exports.initSearch();
 
         return;
       }
