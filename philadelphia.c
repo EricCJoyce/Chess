@@ -188,7 +188,7 @@ void deserializeGameState(GameState* gs)
     unsigned char i, j;
 
     for(i = 0; i < _NONE; i++)                                      //  Fill-in/blank-out.
-      gs->board[i] = 'e';
+      gs->board[i] = _EMPTY;
     gs->previousDoublePawnMove = 0;
 
     //////////////////////////////////////////////////////////////////  (1 byte) Decode side to move and castling data.
@@ -228,29 +228,29 @@ void deserializeGameState(GameState* gs)
     for(j = 0; j < _NONE; j++)
       {
         if(inputGameStateBuffer[i] == _WHITE_PAWN)
-          gs->board[j] = 'P';
+          gs->board[j] = _WHITE_PAWN;
         else if(inputGameStateBuffer[i] == _WHITE_KNIGHT)
-          gs->board[j] = 'N';
+          gs->board[j] = _WHITE_KNIGHT;
         else if(inputGameStateBuffer[i] == _WHITE_BISHOP)
-          gs->board[j] = 'B';
+          gs->board[j] = _WHITE_BISHOP;
         else if(inputGameStateBuffer[i] == _WHITE_ROOK)
-          gs->board[j] = 'R';
+          gs->board[j] = _WHITE_ROOK;
         else if(inputGameStateBuffer[i] == _WHITE_QUEEN)
-          gs->board[j] = 'Q';
+          gs->board[j] = _WHITE_QUEEN;
         else if(inputGameStateBuffer[i] == _WHITE_KING)
-          gs->board[j] = 'K';
+          gs->board[j] = _WHITE_KING;
         else if(inputGameStateBuffer[i] == _BLACK_PAWN)
-          gs->board[j] = 'p';
+          gs->board[j] = _BLACK_PAWN;
         else if(inputGameStateBuffer[i] == _BLACK_KNIGHT)
-          gs->board[j] = 'n';
+          gs->board[j] = _BLACK_KNIGHT;
         else if(inputGameStateBuffer[i] == _BLACK_BISHOP)
-          gs->board[j] = 'b';
+          gs->board[j] = _BLACK_BISHOP;
         else if(inputGameStateBuffer[i] == _BLACK_ROOK)
-          gs->board[j] = 'r';
+          gs->board[j] = _BLACK_ROOK;
         else if(inputGameStateBuffer[i] == _BLACK_QUEEN)
-          gs->board[j] = 'q';
+          gs->board[j] = _BLACK_QUEEN;
         else if(inputGameStateBuffer[i] == _BLACK_KING)
-          gs->board[j] = 'k';
+          gs->board[j] = _BLACK_KING;
 
         i++;
       }
@@ -306,13 +306,13 @@ bool isSideToMoveInCheck_eval(void)
     if(gs.whiteToMove)                                              //  White is to move; is white in check?
       {
         i = 0;
-        while(i < _NONE && gs.board[i] != 'K')
+        while(i < _NONE && gs.board[i] != _WHITE_KING)
           i++;
         return inCheckBy(i, 'b', &gs);
       }
                                                                     //  Black is to move; is black in check?
     i = 0;
-    while(i < _NONE && gs.board[i] != 'k')
+    while(i < _NONE && gs.board[i] != _BLACK_KING)
       i++;
     return inCheckBy(i, 'w', &gs);
   }
@@ -401,12 +401,10 @@ void makeNullMove_eval(void)
   }
 
 /* Answer the Negamax Module's query, "What is the evaluation of the GameState in the input-gamestate buffer?" */
-//float evaluate_eval(bool evaluateForWhite)
 float evaluate_eval(void)
   {
     GameState gs;
     deserializeGameState(&gs);                                      //  Recover GameState from buffer.
-    //return score(&gs, evaluateForWhite);
     return score(&gs);                                              //  Negamax rule: always evaluate for the side that is now to move.
   }
 
@@ -442,10 +440,10 @@ unsigned int getMoves_eval()
         copyGameState(&gs, &child);                                 //  Clone the source state.
         makeMove(moves + i, &child);                                //  Apply the candidate move.
         whiteKingIndex = 0;                                         //  Locate the white king.
-        while(whiteKingIndex < _NONE && child.board[whiteKingIndex] != 'K')
+        while(whiteKingIndex < _NONE && child.board[whiteKingIndex] != _WHITE_KING)
           whiteKingIndex++;
         blackKingIndex = 0;                                         //  Locate the black king.
-        while(blackKingIndex < _NONE && child.board[blackKingIndex] != 'k')
+        while(blackKingIndex < _NONE && child.board[blackKingIndex] != _BLACK_KING)
           blackKingIndex++;
                                                                     //  Move puts opponent in check?
         if( (!child.whiteToMove && inCheckBy(blackKingIndex, 'w', &child)) || (child.whiteToMove && inCheckBy(whiteKingIndex, 'b', &child)) )
@@ -538,17 +536,17 @@ signed int SEE(Move* move, GameState* src)
 /* Look up a rough material score for each piece. */
 signed int SEE_lookup(char piece)
   {
-    if(piece == 'P' || piece == 'p')
+    if(piece == _WHITE_PAWN || piece == _BLACK_PAWN)
       return SEE_SCORE_PAWN;
-    if(piece == 'N' || piece == 'n')
+    if(piece == _WHITE_KNIGHT || piece == _BLACK_KNIGHT)
       return SEE_SCORE_KNIGHT;
-    if(piece == 'B' || piece == 'b')
+    if(piece == _WHITE_BISHOP || piece == _BLACK_BISHOP)
       return SEE_SCORE_BISHOP;
-    if(piece == 'R' || piece == 'r')
+    if(piece == _WHITE_ROOK || piece == _BLACK_ROOK)
       return SEE_SCORE_ROOK;
-    if(piece == 'Q' || piece == 'q')
+    if(piece == _WHITE_QUEEN || piece == _BLACK_QUEEN)
       return SEE_SCORE_QUEEN;
-    if(piece == 'K' || piece == 'k')
+    if(piece == _WHITE_KING || piece == _BLACK_KING)
       return SEE_SCORE_KING;
     return 0;
   }

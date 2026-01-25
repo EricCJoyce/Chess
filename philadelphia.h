@@ -308,7 +308,7 @@ unsigned int getPawnAttacksTeam(bool white, GameState* gs, Move* buffer)
                         copyGameState(gs, &tmp);                    //  Copy the board.
                         makeMove(potentialmoves + i, &tmp);         //  Apply the candidate move.
                         j = 0;                                      //  Locate the white king on the new board.
-                        while(j < _NONE && tmp.board[j] != 'K')
+                        while(j < _NONE && tmp.board[j] != _WHITE_KING)
                           j++;
                         if(!inCheckBy(j, 'b', &tmp))                //  If it does not leave the king in check, then the pawn-attack is allowed.
                           {
@@ -329,7 +329,7 @@ unsigned int getPawnAttacksTeam(bool white, GameState* gs, Move* buffer)
                         copyGameState(gs, &tmp);                    //  Copy the board.
                         makeMove(potentialmoves + i, &tmp);         //  Apply the candidate move.
                         j = 0;                                      //  Locate the black king on the new board.
-                        while(j < _NONE && tmp.board[j] != 'k')
+                        while(j < _NONE && tmp.board[j] != _BLACK_KING)
                           j++;
                         if(!inCheckBy(j, 'w', &tmp))                //  If it does not leave the king in check, then the pawn-attack is allowed.
                           {
@@ -372,7 +372,7 @@ unsigned int getPawnTargetsTeam(bool white, GameState* gs, Move* buffer)
                     copyGameState(gs, &tmp);                        //  Copy the board.
                     makeMove(potentialmoves + i, &tmp);             //  Apply the candidate move.
                     j = 0;                                          //  Locate the white king on the new board.
-                    while(j < _NONE && tmp.board[j] != 'K')
+                    while(j < _NONE && tmp.board[j] != _WHITE_KING)
                       j++;
                     if(!inCheckBy(j, 'b', &tmp))                    //  If it does not leave the king in check, then the pawn-attack is allowed.
                       {
@@ -390,7 +390,7 @@ unsigned int getPawnTargetsTeam(bool white, GameState* gs, Move* buffer)
                     copyGameState(gs, &tmp);                        //  Copy the board.
                     makeMove(potentialmoves + i, &tmp);             //  Apply the candidate move.
                     j = 0;                                          //  Locate the black king on the new board.
-                    while(j < _NONE && tmp.board[j] != 'k')
+                    while(j < _NONE && tmp.board[j] != _BLACK_KING)
                       j++;
                     if(!inCheckBy(j, 'w', &tmp))                    //  If it does not leave the king in check, then the pawn-attack is allowed.
                       {
@@ -941,7 +941,7 @@ unsigned int getCoverageIndex(unsigned char index, GameState* gs, Move* buffer)
                 makeMove(potentialmoves + i, &tmp);                 //  Apply the candidate move
 
                 j = 0;                                              //  Locate the king on the new board
-                while(j < _NONE && tmp.board[j] != 'K')
+                while(j < _NONE && tmp.board[j] != _WHITE_KING)
                   j++;
 
                 if(!inCheckBy(j, 'b', &tmp))                        //  If king not in check, then move is allowed
@@ -961,7 +961,7 @@ unsigned int getCoverageIndex(unsigned char index, GameState* gs, Move* buffer)
                 makeMove(potentialmoves + i, &tmp);                 //  Apply the candidate move
 
                 j = 0;                                              //  Locate the king on the new board
-                while(j < _NONE && tmp.board[j] != 'k')
+                while(j < _NONE && tmp.board[j] != _BLACK_KING)
                   j++;
 
                 if(!inCheckBy(j, 'w', &tmp))                        //  If king not in check, then move is allowed
@@ -1461,7 +1461,7 @@ unsigned int getScopeIndex(unsigned char index, GameState* gs, Move* buffer)
                 makeMove(potentialmoves + i, &tmp);                 //  Apply the candidate move
 
                 j = 0;                                              //  Locate the king on the new board
-                while(j < _NONE && tmp.board[j] != 'K')
+                while(j < _NONE && tmp.board[j] != _WHITE_KING)
                   j++;
 
                 if(!inCheckBy(j, 'b', &tmp))                        //  If king not in check, then move is allowed
@@ -1481,7 +1481,7 @@ unsigned int getScopeIndex(unsigned char index, GameState* gs, Move* buffer)
                 makeMove(potentialmoves + i, &tmp);                 //  Apply the candidate move
 
                 j = 0;                                              //  Locate the king on the new board
-                while(j < _NONE && tmp.board[j] != 'k')
+                while(j < _NONE && tmp.board[j] != _BLACK_KING)
                   j++;
 
                 if(!inCheckBy(j, 'w', &tmp))                        //  If king not in check, then move is allowed
@@ -1804,7 +1804,7 @@ unsigned int getXRayIndex(unsigned char index, GameState* gs, Move* buffer)
                 makeMove(potentialmoves + i, &tmp);                 //  Apply the candidate move
 
                 j = 0;                                              //  Locate the king on the new board
-                while(j < _NONE && tmp.board[j] != 'K')
+                while(j < _NONE && tmp.board[j] != _WHITE_KING)
                   j++;
 
                 if(!inCheckBy(j, 'b', &tmp))                        //  If king not in check, then move is allowed
@@ -1824,7 +1824,7 @@ unsigned int getXRayIndex(unsigned char index, GameState* gs, Move* buffer)
                 makeMove(potentialmoves + i, &tmp);                 //  Apply the candidate move
 
                 j = 0;                                              //  Locate the king on the new board
-                while(j < _NONE && tmp.board[j] != 'k')
+                while(j < _NONE && tmp.board[j] != _BLACK_KING)
                   j++;
 
                 if(!inCheckBy(j, 'w', &tmp))                        //  If king not in check, then move is allowed
@@ -2688,38 +2688,38 @@ float development(bool white, GameState* gs)
 
     if(white)
       {
-        if(gs->board[1] != 'N')                                     //  Knight NOT on its original sqaure
+        if(gs->board[1] != _WHITE_KNIGHT)                           //  Knight NOT on its original sqaure
           D++;
-        if(gs->board[6] != 'N')                                     //  Knight NOT on its original sqaure
+        if(gs->board[6] != _WHITE_KNIGHT)                           //  Knight NOT on its original sqaure
           D++;
-        if(gs->board[2] != 'B')                                     //  Bishop NOT on its original square
+        if(gs->board[2] != _WHITE_BISHOP)                           //  Bishop NOT on its original square
           D++;
-        if(gs->board[5] != 'B')                                     //  Bishop NOT on its original square
+        if(gs->board[5] != _WHITE_BISHOP)                           //  Bishop NOT on its original square
           D++;
 
         i = 0;                                                      //  Find White Queen on board
-        while(i < _NONE && gs->board[i] != 'Q')
+        while(i < _NONE && gs->board[i] != _WHITE_QUEEN)
           i++;
-        if(i == _NONE || gs->board[3] == 'Q')
+        if(i == _NONE || gs->board[3] == _WHITE_QUEEN)
           U = 0;
-        else if(i < _NONE && gs->board[3] != 'Q')
+        else if(i < _NONE && gs->board[3] != _WHITE_QUEEN)
           {
-            if(gs->board[0] == 'R')
+            if(gs->board[0] == _WHITE_ROOK)
               U++;
-            if(gs->board[1] == 'N')
+            if(gs->board[1] == _WHITE_KNIGHT)
               U++;
-            if(gs->board[2] == 'B')
+            if(gs->board[2] == _WHITE_BISHOP)
               U++;
-            if(gs->board[5] == 'B')
+            if(gs->board[5] == _WHITE_BISHOP)
               U++;
-            if(gs->board[6] == 'N')
+            if(gs->board[6] == _WHITE_KNIGHT)
               U++;
-            if(gs->board[7] == 'R')
+            if(gs->board[7] == _WHITE_ROOK)
               U++;
           }
 
         i = 0;                                                      //  Find Black Queen
-        while(i < _NONE && gs->board[i] != 'q')
+        while(i < _NONE && gs->board[i] != _BLACK_QUEEN)
           i++;
         if(i < _NONE)
           C = 2.0;
@@ -2729,11 +2729,11 @@ float development(bool white, GameState* gs)
             i = 0;
             while(i < _NONE)
               {
-                if(gs->board[i] == 'n')
+                if(gs->board[i] == _BLACK_KNIGHT)
                   nCtr++;
-                if(gs->board[i] == 'b')
+                if(gs->board[i] == _BLACK_BISHOP)
                   bCtr++;
-                if(gs->board[i] == 'r')
+                if(gs->board[i] == _BLACK_ROOK)
                   rCtr++;
                 i++;
               }
@@ -2758,38 +2758,38 @@ float development(bool white, GameState* gs)
       }
     else
       {
-        if(gs->board[57] != 'n')                                    //  Knight NOT on its original sqaure
+        if(gs->board[57] != _BLACK_KNIGHT)                          //  Knight NOT on its original sqaure
           D++;
-        if(gs->board[62] != 'n')                                    //  Knight NOT on its original sqaure
+        if(gs->board[62] != _BLACK_KNIGHT)                          //  Knight NOT on its original sqaure
           D++;
-        if(gs->board[58] != 'b')                                    //  Bishop NOT on its original square
+        if(gs->board[58] != _BLACK_BISHOP)                          //  Bishop NOT on its original square
           D++;
-        if(gs->board[61] != 'b')                                    //  Bishop NOT on its original square
+        if(gs->board[61] != _BLACK_BISHOP)                          //  Bishop NOT on its original square
           D++;
 
         i = 0;                                                      //  Find Black Queen on board
-        while(i < _NONE && gs->board[i] != 'q')
+        while(i < _NONE && gs->board[i] != _BLACK_QUEEN)
           i++;
-        if(i == _NONE || gs->board[59] == 'q')
+        if(i == _NONE || gs->board[59] == _BLACK_QUEEN)
           U = 0;
-        else if(i < _NONE && gs->board[59] != 'q')
+        else if(i < _NONE && gs->board[59] != _BLACK_QUEEN)
           {
-            if(gs->board[56] == 'r')
+            if(gs->board[56] == _BLACK_ROOK)
               U++;
-            if(gs->board[57] == 'n')
+            if(gs->board[57] == _BLACK_KNIGHT)
               U++;
-            if(gs->board[58] == 'b')
+            if(gs->board[58] == _BLACK_BISHOP)
               U++;
-            if(gs->board[61] == 'b')
+            if(gs->board[61] == _BLACK_BISHOP)
               U++;
-            if(gs->board[62] == 'n')
+            if(gs->board[62] == _BLACK_KNIGHT)
               U++;
-            if(gs->board[63] == 'r')
+            if(gs->board[63] == _BLACK_ROOK)
               U++;
           }
 
         i = 0;                                                      //  Find White Queen
-        while(i < _NONE && gs->board[i] != 'Q')
+        while(i < _NONE && gs->board[i] != _WHITE_QUEEN)
           i++;
         if(i < _NONE)
           C = 2.0;
@@ -2799,11 +2799,11 @@ float development(bool white, GameState* gs)
             i = 0;
             while(i < _NONE)
               {
-                if(gs->board[i] == 'N')
+                if(gs->board[i] == _WHITE_KNIGHT)
                   nCtr++;
-                if(gs->board[i] == 'B')
+                if(gs->board[i] == _WHITE_BISHOP)
                   bCtr++;
-                if(gs->board[i] == 'R')
+                if(gs->board[i] == _WHITE_ROOK)
                   rCtr++;
                 i++;
               }
@@ -3684,12 +3684,12 @@ float rookEnemyQueen(unsigned char index, GameState* gs)
     getCol(index, column);
     if(isWhite(index, gs))
       {
-        while(i < 8 && gs->board[column[i]] != 'q')
+        while(i < 8 && gs->board[column[i]] != _BLACK_QUEEN)
           i++;
       }
     else
       {
-        while(i < 8 && gs->board[column[i]] != 'Q')
+        while(i < 8 && gs->board[column[i]] != _WHITE_QUEEN)
           i++;
       }
 
@@ -3818,12 +3818,12 @@ float queenKingTropism(unsigned char index, Move* posXRay, unsigned int posXRayL
 
     if(isWhite(index, gs))
       {
-        while(i < _NONE && gs->board[i] != 'k')
+        while(i < _NONE && gs->board[i] != _BLACK_KING)
           i++;
       }
     else
       {
-        while(i < _NONE && gs->board[i] != 'K')
+        while(i < _NONE && gs->board[i] != _WHITE_KING)
           i++;
       }
     if(i == _NONE)                                                  //  This should never happen because Kings are always on board!

@@ -16,6 +16,7 @@
 #define _PROMO_ROOK               3
 #define _PROMO_QUEEN              4
 
+#define _EMPTY                 0x00
 #define _WHITE_PAWN            0x01
 #define _WHITE_KNIGHT          0x02
 #define _WHITE_BISHOP          0x03
@@ -203,51 +204,51 @@ void makeMove(Move* move, GameState* gs)
 
     if(isBlackKingside(move, gs))                                   //  Black Kingside-Castle
       {
-        gs->board[60] = 'e';
-        gs->board[61] = 'r';
-        gs->board[62] = 'k';
-        gs->board[63] = 'e';
+        gs->board[60] = _EMPTY;
+        gs->board[61] = _BLACK_ROOK;
+        gs->board[62] = _BLACK_KING;
+        gs->board[63] = _EMPTY;
         gs->blackKingsidePrivilege = false;                         //  Black cannot Kingside.
         gs->blackQueensidePrivilege = false;                        //  Black cannot Queenside.
         gs->blackCastled = true;                                    //  Black has castled.
       }
     else if(isBlackQueenside(move, gs))                             //  Black Queenside-Castle
       {
-        gs->board[60] = 'e';
-        gs->board[59] = 'r';
-        gs->board[58] = 'k';
-        gs->board[57] = 'e';
-        gs->board[56] = 'e';
+        gs->board[60] = _EMPTY;
+        gs->board[59] = _BLACK_ROOK;
+        gs->board[58] = _BLACK_KING;
+        gs->board[57] = _EMPTY;
+        gs->board[56] = _EMPTY;
         gs->blackKingsidePrivilege = false;                         //  Black cannot Kingside.
         gs->blackQueensidePrivilege = false;                        //  Black cannot Queenside.
         gs->blackCastled = true;                                    //  Black has castled.
       }
     else if(isWhiteKingside(move, gs))                              //  White Kingside-Castle
       {
-        gs->board[4] = 'e';
-        gs->board[5] = 'R';
-        gs->board[6] = 'K';
-        gs->board[7] = 'e';
+        gs->board[4] = _EMPTY;
+        gs->board[5] = _WHITE_ROOK;
+        gs->board[6] = _WHITE_KING;
+        gs->board[7] = _EMPTY;
         gs->whiteKingsidePrivilege = false;                         //  White cannot Kingside.
         gs->whiteQueensidePrivilege = false;                        //  White cannot Queenside.
         gs->whiteCastled = true;                                    //  White has castled.
       }
     else if(isWhiteQueenside(move, gs))                             //  White Queenside-Castle
       {
-        gs->board[4] = 'e';
-        gs->board[3] = 'R';
-        gs->board[2] = 'K';
-        gs->board[1] = 'e';
-        gs->board[0] = 'e';
+        gs->board[4] = _EMPTY;
+        gs->board[3] = _WHITE_ROOK;
+        gs->board[2] = _WHITE_KING;
+        gs->board[1] = _EMPTY;
+        gs->board[0] = _EMPTY;
         gs->whiteKingsidePrivilege = false;                         //  White cannot Kingside.
         gs->whiteQueensidePrivilege = false;                        //  White cannot Queenside.
         gs->whiteCastled = true;                                    //  White has castled.
       }
     else if(isEnPassantAttack(move, gs))                            //  En-passant capture
       {
-        gs->board[ enPassantVictim(move, gs) ] = 'e';
+        gs->board[ enPassantVictim(move, gs) ] = _EMPTY;
         gs->board[move->to] = gs->board[move->from];
-        gs->board[move->from] = 'e';
+        gs->board[move->from] = _EMPTY;
 
         gs->moveCtr = 0;                                            //  Capture resets the 50-move counter.
       }
@@ -282,23 +283,23 @@ void makeMove(Move* move, GameState* gs)
               {
                 switch(move->promo)
                   {
-                    case _PROMO_KNIGHT: gs->board[move->to] = 'N';  break;
-                    case _PROMO_BISHOP: gs->board[move->to] = 'B';  break;
-                    case _PROMO_ROOK:   gs->board[move->to] = 'R';  break;
-                    case _PROMO_QUEEN:  gs->board[move->to] = 'Q';  break;
+                    case _PROMO_KNIGHT: gs->board[move->to] = _WHITE_KNIGHT;  break;
+                    case _PROMO_BISHOP: gs->board[move->to] = _WHITE_BISHOP;  break;
+                    case _PROMO_ROOK:   gs->board[move->to] = _WHITE_ROOK;  break;
+                    case _PROMO_QUEEN:  gs->board[move->to] = _WHITE_QUEEN;  break;
                   }
               }
             else
               {
                 switch(move->promo)
                   {
-                    case _PROMO_KNIGHT: gs->board[move->to] = 'n';  break;
-                    case _PROMO_BISHOP: gs->board[move->to] = 'b';  break;
-                    case _PROMO_ROOK:   gs->board[move->to] = 'r';  break;
-                    case _PROMO_QUEEN:  gs->board[move->to] = 'q';  break;
+                    case _PROMO_KNIGHT: gs->board[move->to] = _BLACK_KNIGHT;  break;
+                    case _PROMO_BISHOP: gs->board[move->to] = _BLACK_BISHOP;  break;
+                    case _PROMO_ROOK:   gs->board[move->to] = _BLACK_ROOK;  break;
+                    case _PROMO_QUEEN:  gs->board[move->to] = _BLACK_QUEEN;  break;
                   }
               }
-            gs->board[move->from] = 'e';
+            gs->board[move->from] = _EMPTY;
 
             gs->moveCtr = 0;                                        //  Pawn move resets the 50-move counter.
           }
@@ -333,7 +334,7 @@ void makeMove(Move* move, GameState* gs)
               gs->moveCtr++;
 
             gs->board[move->to] = gs->board[move->from];
-            gs->board[move->from] = 'e';
+            gs->board[move->from] = _EMPTY;
           }
       }
 
@@ -515,7 +516,7 @@ unsigned int getMovesIndex(unsigned char index, GameState* gs, Move* buffer)
                 makeMove(potentialmoves + i, &tmp);                 //  Apply the candidate move
 
                 j = 0;                                              //  Locate the king on the new board
-                while(j < _NONE && tmp.board[j] != 'K')
+                while(j < _NONE && tmp.board[j] != _WHITE_KING)
                   j++;
 
                 if(!inCheckBy(j, 'b', &tmp))                        //  If king not in check, then move is allowed
@@ -535,7 +536,7 @@ unsigned int getMovesIndex(unsigned char index, GameState* gs, Move* buffer)
                 makeMove(potentialmoves + i, &tmp);                 //  Apply the candidate move
 
                 j = 0;                                              //  Locate the king on the new board
-                while(j < _NONE && tmp.board[j] != 'k')
+                while(j < _NONE && tmp.board[j] != _BLACK_KING)
                   j++;
 
                 if(!inCheckBy(j, 'w', &tmp))                        //  If king not in check, then move is allowed
@@ -1720,12 +1721,12 @@ unsigned char isWin(GameState* gs)
       {
         if(nowToMove(gs) == 'w')
           {
-            while(kpos < _NONE && gs->board[kpos] != 'K')
+            while(kpos < _NONE && gs->board[kpos] != _WHITE_KING)
               kpos++;
           }
         else
           {
-            while(kpos < _NONE && gs->board[kpos] != 'k')
+            while(kpos < _NONE && gs->board[kpos] != _BLACK_KING)
               kpos++;
           }
 
@@ -1765,19 +1766,19 @@ bool terminal(GameState* gs)
 /*  Is the given index i vacant? */
 bool isEmpty(unsigned char i, GameState* gs)
   {
-    return (gs->board[i] == 'e');
+    return (gs->board[i] == _EMPTY);
   }
 
 /*  Is the given index i occupied by a Black piece? */
 bool isBlack(unsigned char i, GameState* gs)
   {
-    return (gs->board[i] >= 'a' && gs->board[i] <= 'z' && gs->board[i] != 'e');
+    return (gs->board[i] >= _BLACK_PAWN && gs->board[i] <= _BLACK_KING);
   }
 
 /*  Is the given index i occupied by a White piece? */
 bool isWhite(unsigned char i, GameState* gs)
   {
-    return (gs->board[i] >= 'A' && gs->board[i] <= 'Z');
+    return (gs->board[i] >= _WHITE_PAWN && gs->board[i] <= _WHITE_KING);
   }
 
 /*  Is index i the same as index j
@@ -1808,7 +1809,7 @@ char getTeam(unsigned char index, GameState* gs)
 bool isPawn(unsigned char i, GameState* gs)
   {
     if(i < _NONE)
-      return (gs->board[i] == 'P' || gs->board[i] == 'p');
+      return (gs->board[i] == _WHITE_PAWN || gs->board[i] == _BLACK_PAWN);
     return false;
   }
 
@@ -1816,7 +1817,7 @@ bool isPawn(unsigned char i, GameState* gs)
 bool isKnight(unsigned char i, GameState* gs)
   {
     if(i < _NONE)
-      return (gs->board[i] == 'N' || gs->board[i] == 'n');
+      return (gs->board[i] == _WHITE_KNIGHT || gs->board[i] == _BLACK_KNIGHT);
     return false;
   }
 
@@ -1824,7 +1825,7 @@ bool isKnight(unsigned char i, GameState* gs)
 bool isBishop(unsigned char i, GameState* gs)
   {
     if(i < _NONE)
-      return (gs->board[i] == 'B' || gs->board[i] == 'b');
+      return (gs->board[i] == _WHITE_BISHOP || gs->board[i] == _BLACK_BISHOP);
     return false;
   }
 
@@ -1832,7 +1833,7 @@ bool isBishop(unsigned char i, GameState* gs)
 bool isRook(unsigned char i, GameState* gs)
   {
     if(i < _NONE)
-      return (gs->board[i] == 'R' || gs->board[i] == 'r');
+      return (gs->board[i] == _WHITE_ROOK || gs->board[i] == _BLACK_ROOK);
     return false;
   }
 
@@ -1840,7 +1841,7 @@ bool isRook(unsigned char i, GameState* gs)
 bool isQueen(unsigned char i, GameState* gs)
   {
     if(i < _NONE)
-      return (gs->board[i] == 'Q' || gs->board[i] == 'q');
+      return (gs->board[i] == _WHITE_QUEEN || gs->board[i] == _BLACK_QUEEN);
     return false;
   }
 
@@ -1848,7 +1849,7 @@ bool isQueen(unsigned char i, GameState* gs)
 bool isKing(unsigned char i, GameState* gs)
   {
     if(i < _NONE)
-      return (gs->board[i] == 'K' || gs->board[i] == 'k');
+      return (gs->board[i] == _WHITE_KING || gs->board[i] == _BLACK_KING);
     return false;
   }
 

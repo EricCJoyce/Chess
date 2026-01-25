@@ -160,7 +160,7 @@ void deserialize(GameState* gs)
     unsigned char i, j;
 
     for(i = 0; i < _NONE; i++)                                      //  Fill-in/blank-out.
-      gs->board[i] = 'e';
+      gs->board[i] = _EMPTY;
     gs->previousDoublePawnMove = 0;
 
     //////////////////////////////////////////////////////////////////  (1 byte) Decode side to move and castling data.
@@ -200,29 +200,29 @@ void deserialize(GameState* gs)
     for(j = 0; j < _NONE; j++)
       {
         if(currentState[i] == _WHITE_PAWN)
-          gs->board[j] = 'P';
+          gs->board[j] = _WHITE_PAWN;
         else if(currentState[i] == _WHITE_KNIGHT)
-          gs->board[j] = 'N';
+          gs->board[j] = _WHITE_KNIGHT;
         else if(currentState[i] == _WHITE_BISHOP)
-          gs->board[j] = 'B';
+          gs->board[j] = _WHITE_BISHOP;
         else if(currentState[i] == _WHITE_ROOK)
-          gs->board[j] = 'R';
+          gs->board[j] = _WHITE_ROOK;
         else if(currentState[i] == _WHITE_QUEEN)
-          gs->board[j] = 'Q';
+          gs->board[j] = _WHITE_QUEEN;
         else if(currentState[i] == _WHITE_KING)
-          gs->board[j] = 'K';
+          gs->board[j] = _WHITE_KING;
         else if(currentState[i] == _BLACK_PAWN)
-          gs->board[j] = 'p';
+          gs->board[j] = _BLACK_PAWN;
         else if(currentState[i] == _BLACK_KNIGHT)
-          gs->board[j] = 'n';
+          gs->board[j] = _BLACK_KNIGHT;
         else if(currentState[i] == _BLACK_BISHOP)
-          gs->board[j] = 'b';
+          gs->board[j] = _BLACK_BISHOP;
         else if(currentState[i] == _BLACK_ROOK)
-          gs->board[j] = 'r';
+          gs->board[j] = _BLACK_ROOK;
         else if(currentState[i] == _BLACK_QUEEN)
-          gs->board[j] = 'q';
+          gs->board[j] = _BLACK_QUEEN;
         else if(currentState[i] == _BLACK_KING)
-          gs->board[j] = 'k';
+          gs->board[j] = _BLACK_KING;
 
         i++;
       }

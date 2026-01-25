@@ -214,56 +214,149 @@ function loadWebASM()
                    table: new WebAssembly.Table({initial: 0, element: 'anyfunc'}),
                    _printRow: function(a, b, c, d, e, f, g, h)      //  (Fantastically stupid.)
                      {
+                       const _EMPTY        = 0x00;                  //  (See C code.)
+                       const _WHITE_PAWN   = 0x01;
+                       const _WHITE_KNIGHT = 0x02;
+                       const _WHITE_BISHOP = 0x03;
+                       const _WHITE_ROOK   = 0x04;
+                       const _WHITE_QUEEN  = 0x05;
+                       const _WHITE_KING   = 0x06;
+                       const _BLACK_PAWN   = 0x07;
+                       const _BLACK_KNIGHT = 0x08;
+                       const _BLACK_BISHOP = 0x09;
+                       const _BLACK_ROOK   = 0x0A;
+                       const _BLACK_QUEEN  = 0x0B;
+                       const _BLACK_KING   = 0x0C;
                        var consoleStr = '';
 
-                       a = String.fromCharCode(a);
-                       b = String.fromCharCode(b);
-                       c = String.fromCharCode(c);
-                       d = String.fromCharCode(d);
-                       e = String.fromCharCode(e);
-                       f = String.fromCharCode(f);
-                       g = String.fromCharCode(g);
-                       h = String.fromCharCode(h);
-
-                       if(a == 'e')
-                         consoleStr += '. ';
-                       else
-                         consoleStr += a + ' ';
-
-                       if(b == 'e')
-                         consoleStr += '. ';
-                       else
-                         consoleStr += b + ' ';
-
-                       if(c == 'e')
-                         consoleStr += '. ';
-                       else
-                         consoleStr += c + ' ';
-
-                       if(d == 'e')
-                         consoleStr += '. ';
-                       else
-                         consoleStr += d + ' ';
-
-                       if(e == 'e')
-                         consoleStr += '. ';
-                       else
-                         consoleStr += e + ' ';
-
-                       if(f == 'e')
-                         consoleStr += '. ';
-                       else
-                         consoleStr += f + ' ';
-
-                       if(g == 'e')
-                         consoleStr += '. ';
-                       else
-                         consoleStr += g + ' ';
-
-                       if(h == 'e')
-                         consoleStr += '.';
-                       else
-                         consoleStr += h;
+                       switch(a)
+                         {
+                           case _EMPTY:        consoleStr += '. ';  break;
+                           case _WHITE_PAWN:   consoleStr += 'P ';  break;
+                           case _WHITE_KNIGHT: consoleStr += 'N ';  break;
+                           case _WHITE_BISHOP: consoleStr += 'B ';  break;
+                           case _WHITE_ROOK:   consoleStr += 'R ';  break;
+                           case _WHITE_QUEEN:  consoleStr += 'Q ';  break;
+                           case _WHITE_KING:   consoleStr += 'K ';  break;
+                           case _BLACK_PAWN:   consoleStr += 'p ';  break;
+                           case _BLACK_KNIGHT: consoleStr += 'n ';  break;
+                           case _BLACK_BISHOP: consoleStr += 'b ';  break;
+                           case _BLACK_ROOK:   consoleStr += 'r ';  break;
+                           case _BLACK_QUEEN:  consoleStr += 'q ';  break;
+                           case _BLACK_KING:   consoleStr += 'k ';  break;
+                         }
+                       switch(b)
+                         {
+                           case _EMPTY:        consoleStr += '. ';  break;
+                           case _WHITE_PAWN:   consoleStr += 'P ';  break;
+                           case _WHITE_KNIGHT: consoleStr += 'N ';  break;
+                           case _WHITE_BISHOP: consoleStr += 'B ';  break;
+                           case _WHITE_ROOK:   consoleStr += 'R ';  break;
+                           case _WHITE_QUEEN:  consoleStr += 'Q ';  break;
+                           case _WHITE_KING:   consoleStr += 'K ';  break;
+                           case _BLACK_PAWN:   consoleStr += 'p ';  break;
+                           case _BLACK_KNIGHT: consoleStr += 'n ';  break;
+                           case _BLACK_BISHOP: consoleStr += 'b ';  break;
+                           case _BLACK_ROOK:   consoleStr += 'r ';  break;
+                           case _BLACK_QUEEN:  consoleStr += 'q ';  break;
+                           case _BLACK_KING:   consoleStr += 'k ';  break;
+                         }
+                       switch(c)
+                         {
+                           case _EMPTY:        consoleStr += '. ';  break;
+                           case _WHITE_PAWN:   consoleStr += 'P ';  break;
+                           case _WHITE_KNIGHT: consoleStr += 'N ';  break;
+                           case _WHITE_BISHOP: consoleStr += 'B ';  break;
+                           case _WHITE_ROOK:   consoleStr += 'R ';  break;
+                           case _WHITE_QUEEN:  consoleStr += 'Q ';  break;
+                           case _WHITE_KING:   consoleStr += 'K ';  break;
+                           case _BLACK_PAWN:   consoleStr += 'p ';  break;
+                           case _BLACK_KNIGHT: consoleStr += 'n ';  break;
+                           case _BLACK_BISHOP: consoleStr += 'b ';  break;
+                           case _BLACK_ROOK:   consoleStr += 'r ';  break;
+                           case _BLACK_QUEEN:  consoleStr += 'q ';  break;
+                           case _BLACK_KING:   consoleStr += 'k ';  break;
+                         }
+                       switch(d)
+                         {
+                           case _EMPTY:        consoleStr += '. ';  break;
+                           case _WHITE_PAWN:   consoleStr += 'P ';  break;
+                           case _WHITE_KNIGHT: consoleStr += 'N ';  break;
+                           case _WHITE_BISHOP: consoleStr += 'B ';  break;
+                           case _WHITE_ROOK:   consoleStr += 'R ';  break;
+                           case _WHITE_QUEEN:  consoleStr += 'Q ';  break;
+                           case _WHITE_KING:   consoleStr += 'K ';  break;
+                           case _BLACK_PAWN:   consoleStr += 'p ';  break;
+                           case _BLACK_KNIGHT: consoleStr += 'n ';  break;
+                           case _BLACK_BISHOP: consoleStr += 'b ';  break;
+                           case _BLACK_ROOK:   consoleStr += 'r ';  break;
+                           case _BLACK_QUEEN:  consoleStr += 'q ';  break;
+                           case _BLACK_KING:   consoleStr += 'k ';  break;
+                         }
+                       switch(e)
+                         {
+                           case _EMPTY:        consoleStr += '. ';  break;
+                           case _WHITE_PAWN:   consoleStr += 'P ';  break;
+                           case _WHITE_KNIGHT: consoleStr += 'N ';  break;
+                           case _WHITE_BISHOP: consoleStr += 'B ';  break;
+                           case _WHITE_ROOK:   consoleStr += 'R ';  break;
+                           case _WHITE_QUEEN:  consoleStr += 'Q ';  break;
+                           case _WHITE_KING:   consoleStr += 'K ';  break;
+                           case _BLACK_PAWN:   consoleStr += 'p ';  break;
+                           case _BLACK_KNIGHT: consoleStr += 'n ';  break;
+                           case _BLACK_BISHOP: consoleStr += 'b ';  break;
+                           case _BLACK_ROOK:   consoleStr += 'r ';  break;
+                           case _BLACK_QUEEN:  consoleStr += 'q ';  break;
+                           case _BLACK_KING:   consoleStr += 'k ';  break;
+                         }
+                       switch(f)
+                         {
+                           case _EMPTY:        consoleStr += '. ';  break;
+                           case _WHITE_PAWN:   consoleStr += 'P ';  break;
+                           case _WHITE_KNIGHT: consoleStr += 'N ';  break;
+                           case _WHITE_BISHOP: consoleStr += 'B ';  break;
+                           case _WHITE_ROOK:   consoleStr += 'R ';  break;
+                           case _WHITE_QUEEN:  consoleStr += 'Q ';  break;
+                           case _WHITE_KING:   consoleStr += 'K ';  break;
+                           case _BLACK_PAWN:   consoleStr += 'p ';  break;
+                           case _BLACK_KNIGHT: consoleStr += 'n ';  break;
+                           case _BLACK_BISHOP: consoleStr += 'b ';  break;
+                           case _BLACK_ROOK:   consoleStr += 'r ';  break;
+                           case _BLACK_QUEEN:  consoleStr += 'q ';  break;
+                           case _BLACK_KING:   consoleStr += 'k ';  break;
+                         }
+                       switch(g)
+                         {
+                           case _EMPTY:        consoleStr += '. ';  break;
+                           case _WHITE_PAWN:   consoleStr += 'P ';  break;
+                           case _WHITE_KNIGHT: consoleStr += 'N ';  break;
+                           case _WHITE_BISHOP: consoleStr += 'B ';  break;
+                           case _WHITE_ROOK:   consoleStr += 'R ';  break;
+                           case _WHITE_QUEEN:  consoleStr += 'Q ';  break;
+                           case _WHITE_KING:   consoleStr += 'K ';  break;
+                           case _BLACK_PAWN:   consoleStr += 'p ';  break;
+                           case _BLACK_KNIGHT: consoleStr += 'n ';  break;
+                           case _BLACK_BISHOP: consoleStr += 'b ';  break;
+                           case _BLACK_ROOK:   consoleStr += 'r ';  break;
+                           case _BLACK_QUEEN:  consoleStr += 'q ';  break;
+                           case _BLACK_KING:   consoleStr += 'k ';  break;
+                         }
+                       switch(h)
+                         {
+                           case _EMPTY:        consoleStr += '. ';  break;
+                           case _WHITE_PAWN:   consoleStr += 'P ';  break;
+                           case _WHITE_KNIGHT: consoleStr += 'N ';  break;
+                           case _WHITE_BISHOP: consoleStr += 'B ';  break;
+                           case _WHITE_ROOK:   consoleStr += 'R ';  break;
+                           case _WHITE_QUEEN:  consoleStr += 'Q ';  break;
+                           case _WHITE_KING:   consoleStr += 'K ';  break;
+                           case _BLACK_PAWN:   consoleStr += 'p ';  break;
+                           case _BLACK_KNIGHT: consoleStr += 'n ';  break;
+                           case _BLACK_BISHOP: consoleStr += 'b ';  break;
+                           case _BLACK_ROOK:   consoleStr += 'r ';  break;
+                           case _BLACK_QUEEN:  consoleStr += 'q ';  break;
+                           case _BLACK_KING:   consoleStr += 'k ';  break;
+                         }
 
                        console.log(consoleStr);
                      },
