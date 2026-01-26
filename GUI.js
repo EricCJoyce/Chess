@@ -616,14 +616,11 @@ function updateAIPlaysBlack()
         */
         resetCameraPositionAngle(angle);                            //  Force redraw
 
-        if(!gameStarted)
-          {
-            pullGUIComponents();                                    //  Cue the A.I. to make the first move
+        pullGUIComponents();                                        //  Cue the A.I. to make the first move
                                                                     //  It now becomes the A.I.'s turn!
-            artworkForThinking(true);                               //  Show the "thinking" artwork.
-            updateNodeCounter(philadelphia.nodeCtr);                //  Show the A.I.'s node count.
-            nodeCounter(true);                                      //  Show the node counter.
-          }
+        artworkForThinking(true);                                   //  Show the "thinking" artwork.
+        updateNodeCounter(philadelphia.nodeCtr);                    //  Show the A.I.'s node count.
+        nodeCounter(true);                                          //  Show the node counter.
       }
   }
 
