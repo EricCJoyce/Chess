@@ -574,7 +574,7 @@ function updateAIPlaysBlack()
   {
     var i;
 
-    if(!gameOver)
+    if(!gameStarted)
       {
         switch_mp3.play();                                          //  Play the sound effect.
 
@@ -635,27 +635,30 @@ function updateTimeControl()
     var whiteClockDiv = document.getElementById('white-clock-div');
     var blackClockDiv = document.getElementById('black-clock-div');
 
-    clockgame = !clockgame;
+    if(!gameStarted)
+      {
+        clockgame = !clockgame;
 
-    if(clockgame)
-      {
-        whiteClock.style.visibility = 'visible';
-        blackClock.style.visibility = 'visible';
-        if(!isNaN(whiteTimeMin))
-          whiteClockDiv.innerHTML = whiteTimeMin + ':00';
-        if(!isNaN(blackTimeMin))
-          blackClockDiv.innerHTML = blackTimeMin + ':00';
-        whiteClockDiv.style.visibility = 'visible';
-        blackClockDiv.style.visibility = 'visible';
-      }
-    else
-      {
-        whiteClock.style.visibility = 'hidden';
-        blackClock.style.visibility = 'hidden';
-        whiteClockDiv.innerHTML = '';
-        blackClockDiv.innerHTML = '';
-        whiteClockDiv.style.visibility = 'hidden';
-        blackClockDiv.style.visibility = 'hidden';
+        if(clockgame)
+          {
+            whiteClock.style.visibility = 'visible';
+            blackClock.style.visibility = 'visible';
+            if(!isNaN(whiteTimeMin))
+              whiteClockDiv.innerHTML = whiteTimeMin + ':00';
+            if(!isNaN(blackTimeMin))
+              blackClockDiv.innerHTML = blackTimeMin + ':00';
+            whiteClockDiv.style.visibility = 'visible';
+            blackClockDiv.style.visibility = 'visible';
+          }
+        else
+          {
+            whiteClock.style.visibility = 'hidden';
+            blackClock.style.visibility = 'hidden';
+            whiteClockDiv.innerHTML = '';
+            blackClockDiv.innerHTML = '';
+            whiteClockDiv.style.visibility = 'hidden';
+            blackClockDiv.style.visibility = 'hidden';
+          }
       }
   }
 
@@ -666,12 +669,15 @@ function updateClockTimeAllotted()
     var blackClock = document.getElementById('black-clock-div');
     var x = parseInt(document.getElementById('minutesallocated-input').value);
 
-    if(!isNaN(x))
+    if(!gameStarted)
       {
-        whiteTimeMin = blackTimeMin = x;
+        if(!isNaN(x))
+          {
+            whiteTimeMin = blackTimeMin = x;
 
-        whiteClock.innerHTML = whiteTimeMin + ':00';
-        blackClock.innerHTML = blackTimeMin + ':00';
+            whiteClock.innerHTML = whiteTimeMin + ':00';
+            blackClock.innerHTML = blackTimeMin + ':00';
+          }
       }
   }
 
