@@ -1220,12 +1220,15 @@ void afterChild_step(unsigned int gsIndex, NegamaxNode* node)
     float score;
     unsigned int i;
 
+    bool bestUnset;
+    bool valueUnset;
     float negInf = -std::numeric_limits<float>::infinity();         //  Ensure that a "best move" is stored, even if all positions are losing.
-    bool bestUnset = (parent.bestMove[0] == _NONE && parent.bestMove[1] == _NONE);
-    bool valueUnset = (parent.value == negInf);
 
     parentIndex = node->parent;                                     //  Retrieve the index of the parent of the given node.
     restoreNode(parentIndex, &parent);                              //  Restore the parent of the given node.
+
+    bestUnset = (parent.bestMove[0] == _NONE && parent.bestMove[1] == _NONE);
+    valueUnset = (parent.value == negInf);
 
     if(parentIndex == gsIndex)                                      //  Make sure this isn't the root node.
       {
@@ -1234,6 +1237,31 @@ void afterChild_step(unsigned int gsIndex, NegamaxNode* node)
         return;
       }
 
+    score = -node->value;                                           //  Negamax principle.
+
+    //////////////////////////////////////////////////////////////////  Null-Move Child.
+    if(NN_HAS_FLAG(node, NN_FLAG_IS_NULL_CHILD))
+      {
+        NN_CLEAR_FLAG(&parent, NN_FLAG_NULL_IN_PROGRESS);           //  Clear out the bookkeeping: null child is done.
+                                                                    //  Since we incremented moveNextPtr when this null-child was spawned, undo that now.
+        parent.moveNextPtr = 0;                                     //  Null-move is NOT a real move from the move list!
+        if(score >= parent.beta)                                    //  Null-move pruning decision: fail-high => cutoff.
+          {
+            parent.value = score;
+            parent.alpha = std::max(parent.alpha, score);
+            parent.phase = _PHASE_FINISH_NODE;
+          }
+        else                                                        //  No cutoff: proceed to generate/order the real moves.
+          parent.phase = _PHASE_GEN_AND_ORDER;
+
+        saveNode(&parent, parentIndex);
+                                                                    //  Pop this null-child.
+        negamaxSearchBufferLength = restoreNegamaxSearchBufferLength();
+        saveNegamaxSearchBufferLength(negamaxSearchBufferLength - 1);
+        return;
+      }
+
+    //////////////////////////////////////////////////////////////////  Normal Child.
     for(i = 0; i < _GAMESTATE_BYTE_SIZE; i++)                       //  Copy "parent"s "gs" to "queryGameStateBuffer" for sideToMove().
       queryGameStateBuffer[i] = parent.gs[i];
     copyQuery2EvalGSInput();                                        //  Copy Negamax Module's "queryGameStateBuffer" to Evaluation Module's "inputBuffer".
@@ -1242,7 +1270,6 @@ void afterChild_step(unsigned int gsIndex, NegamaxNode* node)
     moveIndex = parent.moveOffset + parent.moveNextPtr - 1;         //  Retrieve the index of the move the parent made to reach this node.
     restoreMove(moveIndex, &move);                                  //  Restore the move.
 
-    score = -node->value;                                           //  Negamax principle.
     if(score > parent.value || (bestUnset && valueUnset))           //  Even if all positions are losing, store a "best move"
       {                                                             //  so that we avoid returning the uninitialized (_NONE, _NONE, _NO_PROMO).
         parent.value = score;
