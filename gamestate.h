@@ -50,7 +50,7 @@
 typedef struct GameStateType                                        //  TOTAL: 67 bytes.
   {
     bool whiteToMove;                                               //  True: white to move. False: black to move.
-    char board[_NONE];                                              //  Array of characters.
+    unsigned char board[_NONE];                                     //  Array of characters.
 
     bool whiteKingsidePrivilege;                                    //  Can white castle kingside?
     bool whiteQueensidePrivilege;                                   //  Can white castle queenside?
