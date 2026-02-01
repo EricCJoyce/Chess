@@ -55,11 +55,11 @@ sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,sourc
 #define CTRL_TIME_ENABLED                     0x04                  /* Set this byte in commandFlags to indicate that search is timed. */
 #define CTRL_PONDERING                        0x08                  /* Set this byte in commandFlags to indicate that search occurs during opponent's turn. */
 
-#define _PHASE_ENTER_NODE                        0                  /* Go to  when entering negamax(). */
-#define _PHASE_GEN_AND_ORDER                     1                  /* Go to  when entering negamax(). */
-#define _PHASE_NEXT_MOVE                         2                  /* Go to  when entering negamax(). */
-#define _PHASE_AFTER_CHILD                       3                  /* Go to  when entering negamax(). */
-#define _PHASE_FINISH_NODE                       4                  /* Go to  when entering negamax(). */
+#define _PHASE_ENTER_NODE                        0                  /* Go to enterNode_step()  when entering negamax(). */
+#define _PHASE_GEN_AND_ORDER                     1                  /* Go to expansion_step()  when entering negamax(). */
+#define _PHASE_NEXT_MOVE                         2                  /* Go to nextMove_step()   when entering negamax(). */
+#define _PHASE_AFTER_CHILD                       3                  /* Go to afterChild_step() when entering negamax(). */
+#define _PHASE_FINISH_NODE                       4                  /* Go to finishNode_step() when entering negamax(). */
 #define _PHASE_COMPLETE                          5                  /* Write to output buffer when entering negamax() and signal search completion.  */
 
 #define NN_FLAG_NULL_TRIED                    0x01                  /* Indicates that we already tried a null move here. */
