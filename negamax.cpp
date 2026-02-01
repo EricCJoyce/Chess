@@ -219,7 +219,7 @@ extern "C"
     unsigned int getNodeStackSize(void);
     unsigned int getMovesArenaSize(void);
 
-    void initSearch(bool);
+    void initSearch(void);
     bool negamax(void);
   }
 
@@ -609,7 +609,7 @@ unsigned int getMovesArenaSize(void)
  Negamax-search functions  */
 
 /* Initialize the root node for (interrupatble) negamax search. */
-void initSearch(bool initializeForWhite)
+void initSearch(void)
   {
     NegamaxNode root;
     bool whiteToMove;
