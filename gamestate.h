@@ -200,8 +200,6 @@ void copyGameState(GameState* src, GameState* dst)
 
 void makeMove(Move* move, GameState* gs)
   {
-    gs->previousDoublePawnMove = 0;                                 //  Zero this out, unless appropriate to flag a bit.
-
     if(isBlackKingside(move, gs))                                   //  Black Kingside-Castle
       {
         gs->board[60] = _EMPTY;
@@ -211,6 +209,7 @@ void makeMove(Move* move, GameState* gs)
         gs->blackKingsidePrivilege = false;                         //  Black cannot Kingside.
         gs->blackQueensidePrivilege = false;                        //  Black cannot Queenside.
         gs->blackCastled = true;                                    //  Black has castled.
+        gs->previousDoublePawnMove = 0;                             //  Zero this out.
       }
     else if(isBlackQueenside(move, gs))                             //  Black Queenside-Castle
       {
@@ -222,6 +221,7 @@ void makeMove(Move* move, GameState* gs)
         gs->blackKingsidePrivilege = false;                         //  Black cannot Kingside.
         gs->blackQueensidePrivilege = false;                        //  Black cannot Queenside.
         gs->blackCastled = true;                                    //  Black has castled.
+        gs->previousDoublePawnMove = 0;                             //  Zero this out.
       }
     else if(isWhiteKingside(move, gs))                              //  White Kingside-Castle
       {
@@ -232,6 +232,7 @@ void makeMove(Move* move, GameState* gs)
         gs->whiteKingsidePrivilege = false;                         //  White cannot Kingside.
         gs->whiteQueensidePrivilege = false;                        //  White cannot Queenside.
         gs->whiteCastled = true;                                    //  White has castled.
+        gs->previousDoublePawnMove = 0;                             //  Zero this out.
       }
     else if(isWhiteQueenside(move, gs))                             //  White Queenside-Castle
       {
@@ -243,6 +244,7 @@ void makeMove(Move* move, GameState* gs)
         gs->whiteKingsidePrivilege = false;                         //  White cannot Kingside.
         gs->whiteQueensidePrivilege = false;                        //  White cannot Queenside.
         gs->whiteCastled = true;                                    //  White has castled.
+        gs->previousDoublePawnMove = 0;                             //  Zero this out.
       }
     else if(isEnPassantAttack(move, gs))                            //  En-passant capture
       {
@@ -251,8 +253,9 @@ void makeMove(Move* move, GameState* gs)
         gs->board[move->from] = _EMPTY;
 
         gs->moveCtr = 0;                                            //  Capture resets the 50-move counter.
+        gs->previousDoublePawnMove = 0;                             //  Zero this out.
       }
-    else
+    else                                                            //  Any other type of non-castling, non-en-passant move.
       {
         if(isKing(move->from, gs) && isWhite(move->from, gs))       //  White King moved: castling rights lost.
           {
@@ -300,11 +303,14 @@ void makeMove(Move* move, GameState* gs)
                   }
               }
             gs->board[move->from] = _EMPTY;
+            gs->previousDoublePawnMove = 0;                         //  Zero this out.
 
             gs->moveCtr = 0;                                        //  Pawn move resets the 50-move counter.
           }
         else                                                        //  Any other case.
           {
+            gs->previousDoublePawnMove = 0;                         //  Zero this out... Unless it gets set below.
+
             if(isPawnDoubleMove(move->from, move->to, gs))          //  Save last move IFF last move was a pawn double-move!
               {
                 switch(col(move->from))
