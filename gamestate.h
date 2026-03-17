@@ -1751,8 +1751,6 @@ unsigned char isWin(GameState* gs)
       }
     else if(wMatNonK == 0 && bMatNonK == 0)                         //  Game is over if only Kings remain
       return GAME_OVER_STALEMATE;
-    else if(gs->moveCtr == 50)                                      //  Game is over if moveCtr reaches 50.
-      return GAME_OVER_STALEMATE;
 
     return GAME_ONGOING;
   }
