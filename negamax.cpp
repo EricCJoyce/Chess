@@ -12,7 +12,7 @@ sudo docker run --rm -v $(pwd):/src -u $(id -u):$(id -g) --mount type=bind,sourc
 
 #define _GAMESTATE_BYTE_SIZE                    67                  /* Number of bytes needed to encode a game state. */
 #define _MOVE_BYTE_SIZE                          3                  /* Number of bytes needed to encode a move. */
-#define _MAX_MOVES                              64                  /* A (generous) upper bound on how many moves may be made by a team in a single turn. */
+#define _MAX_MOVES                             256                  /* A (generous) upper bound on how many moves may be made by a team in a single turn. */
 #define _NONE                                   64                  /* Required as a "blank" value without #include "gamestate.h". */
 #define _NO_PROMO                                0                  /* Required as a "blank" value without #include "gamestate.h". */
 
@@ -287,7 +287,7 @@ unsigned char queryMoveBuffer[_MOVE_BYTE_SIZE];                     //  Input fr
                                                                     //  Global array containing a serialized (answer) game state:
 unsigned char answerGameStateBuffer[_GAMESTATE_BYTE_SIZE];          //  Output from evaluationEngine to negamaxEngine.
 
-                                                                    //  512 bytes.
+                                                                    //  2048 bytes.
                                                                     //  Global array containing: {serialized (answer-move, rough score, quiet-flag)}:
                                                                     //  Output from evaluationEngine to negamaxEngine.
 unsigned char answerMovesBuffer[_MAX_MOVES * (_MOVE_BYTE_SIZE + 5)];//  The actual number of moves is the unsigned char returned by this function.
@@ -338,7 +338,7 @@ unsigned char historyTableBuffer[2 * _NONE * _NONE];                //          
 
                                                                     //  SUBTOTAL:  17,644,456 bytes.
                                                                     //  Give the stack 1,048,576 bytes.
-                                                                    //  TOTAL:     18,693,032 bytes.
+                                                                    //  TOTAL:     18,694,568 bytes.
                                                                     //  Round to:  18,743,296 = 286 pages (cover units of 65,536).
 
 /**************************************************************************************************

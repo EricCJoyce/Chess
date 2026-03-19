@@ -42,7 +42,7 @@
 #define _MOVE_BYTE_SIZE           3                                 /* Number of bytes needed to store a Move structure. */
 #define _MAX_NUM_TARGETS         32                                 /* A (generous) upper bound on how many distinct destinations (not distinct moves)
                                                                        may be available to a player from a single index. */
-#define _MAX_MOVES               64                                 /* A (generous) upper bound on how many moves are available to a team in a single turn. */
+#define _MAX_MOVES              256                                 /* A (generous) upper bound on how many moves are available to a team in a single turn. */
 
 /**************************************************************************************************
  Typedefs  */
@@ -373,7 +373,7 @@ char nextToMove(GameState* gs)
 bool inCheckBy(unsigned char index, unsigned char team, GameState* gs)
   {
     bool ret = false;
-    unsigned char enemytargets[256];                                //  Generous upper bound attacks every square four times.
+    unsigned char enemytargets[_MAX_MOVES];                         //  Generous upper bound attacks every square four times.
     unsigned int enemyStrikeCtr = 0;
     unsigned char i;
     unsigned int j, len = 0;
@@ -462,7 +462,7 @@ bool canQueensideCastle(unsigned char team, GameState* gs)
 unsigned int getMoves(GameState* gs, Move* buffer)
   {
     unsigned int movesCtr = 0;
-    Move potentialmoves[_NONE];                                     //  Assumes generous upper bound of 64 moves per piece.
+    Move potentialmoves[_MAX_MOVES];                                //  Assumes generous upper bound of moves per piece.
     unsigned int potentialmovesCtr = 0;
     unsigned int i;
     unsigned char index;
@@ -492,7 +492,7 @@ unsigned int getMoves(GameState* gs, Move* buffer)
    Return number of moves. Actual Move objects stored in given buffer. */
 unsigned int getMovesIndex(unsigned char index, GameState* gs, Move* buffer)
   {
-    Move potentialmoves[_NONE];                                     //  Assumes a generous upper bound of all squares being reachable from a single index.
+    Move potentialmoves[_MAX_MOVES];                                //  Assume a generous upper bound of moves.
     unsigned int potentialmovesCtr = 0;
     unsigned int movesCtr = 0;
     unsigned int i;
@@ -1238,7 +1238,7 @@ unsigned char attackersOfSquare(unsigned char index, unsigned char team, GameSta
     unsigned char len = 0;
     unsigned char i;
     unsigned int lenMoves, j;
-    Move moves[_NONE];                                              //  Assumes generous upper bound of 64 moves per piece.
+    Move moves[_MAX_MOVES];                                         //  Assumes generous upper bound of moves.
 
     for(i = 0; i < _NONE; i++)                                      //  Scan every square.
       {
@@ -1701,7 +1701,7 @@ unsigned int getKingNonCastle(unsigned char index, GameState* gs, Move* buffer)
      GAME_OVER_STALEMATE  if the state is a stalemate */
 unsigned char isWin(GameState* gs)
   {
-    Move moves[_NONE];                                              //  Generous upper-bound assumption that every square could be reachable.
+    Move moves[_MAX_MOVES];                                         //  Generous upper-bound assumption.
     unsigned int len;
     unsigned char i;
     unsigned char kpos = 0;
