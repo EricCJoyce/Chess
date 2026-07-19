@@ -795,28 +795,28 @@ int main(int argc, char* argv[])
 
 /* Game State Encoding & Decoding
 
-   Byte [     0]  = Side to move and castling data: [7][6][5][4][3][2][1][0]
-                                                     ^  ^  ^  ^  ^  ^  ^  ^
-                                                     |  |  |  |  |  |  |  +---
-                                                     |  |  |  |  |  |  +------ ON: black has cstled.
-                                                     |  |  |  |  |  +--------- ON: black has queenside privilege.
-                                                     |  |  |  |  +------------ ON: black has kingside privilege.
-                                                     |  |  |  +--------------- ON: white has castled.
-                                                     |  |  +------------------ ON: white has queenside privilege.
-                                                     |  +--------------------- ON: white has kingside privilege.
-                                                     +------------------------ ON: white to move; OFF: black to move.
-   Byte [     1]  = En-passant data:                [7][6][5][4][3][2][1][0]
-                                                     ^  ^  ^  ^  ^  ^  ^  ^
-                                                     |  |  |  |  |  |  |  +--- ON: pawn double move previously occurred on file H
-                                                     |  |  |  |  |  |  +------ ON: pawn double move previously occurred on file G
-                                                     |  |  |  |  |  +--------- ON: pawn double move previously occurred on file F
-                                                     |  |  |  |  +------------ ON: pawn double move previously occurred on file E
-                                                     |  |  |  +--------------- ON: pawn double move previously occurred on file D
-                                                     |  |  +------------------ ON: pawn double move previously occurred on file C
-                                                     |  +--------------------- ON: pawn double move previously occurred on file B
-                                                     +------------------------ ON: pawn double move previously occurred on file A
+   Byte [     0] = Side to move and castling data: [7][6][5][4][3][2][1][0]
+                                                    ^  ^  ^  ^  ^  ^  ^  ^
+                                                    |  |  |  |  |  |  |  +---
+                                                    |  |  |  |  |  |  +------ ON: black has cstled.
+                                                    |  |  |  |  |  +--------- ON: black has queenside privilege.
+                                                    |  |  |  |  +------------ ON: black has kingside privilege.
+                                                    |  |  |  +--------------- ON: white has castled.
+                                                    |  |  +------------------ ON: white has queenside privilege.
+                                                    |  +--------------------- ON: white has kingside privilege.
+                                                    +------------------------ ON: white to move; OFF: black to move.
+   Byte [     1] = En-passant data:                [7][6][5][4][3][2][1][0]
+                                                    ^  ^  ^  ^  ^  ^  ^  ^
+                                                    |  |  |  |  |  |  |  +--- ON: pawn double move previously occurred on file H
+                                                    |  |  |  |  |  |  +------ ON: pawn double move previously occurred on file G
+                                                    |  |  |  |  |  +--------- ON: pawn double move previously occurred on file F
+                                                    |  |  |  |  +------------ ON: pawn double move previously occurred on file E
+                                                    |  |  |  +--------------- ON: pawn double move previously occurred on file D
+                                                    |  |  +------------------ ON: pawn double move previously occurred on file C
+                                                    |  +--------------------- ON: pawn double move previously occurred on file B
+                                                    +------------------------ ON: pawn double move previously occurred on file A
    Bytes[ 2, 65] = Board encoding
-   Byte [    66] = Move counter                      */
+   Byte [    66] = Move counter                     */
 
 /* Hash the given byte array "hashInputBuffer". */
 unsigned long long hash(unsigned char* hashInputBuffer)
