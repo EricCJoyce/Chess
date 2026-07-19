@@ -972,5 +972,7 @@ unsigned long long hash(unsigned char* hashInputBuffer)
         i++;
       }
 
+                                                                    //  We do NOT hash the move counter.
+
     return h;
   }
