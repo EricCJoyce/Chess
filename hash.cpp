@@ -798,7 +798,7 @@ int main(int argc, char* argv[])
    Byte [     0] = Side to move and castling data: [7][6][5][4][3][2][1][0]
                                                     ^  ^  ^  ^  ^  ^  ^  ^
                                                     |  |  |  |  |  |  |  +---
-                                                    |  |  |  |  |  |  +------ ON: black has cstled.
+                                                    |  |  |  |  |  |  +------ ON: black has castled.
                                                     |  |  |  |  |  +--------- ON: black has queenside privilege.
                                                     |  |  |  |  +------------ ON: black has kingside privilege.
                                                     |  |  |  +--------------- ON: white has castled.
