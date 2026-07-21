@@ -29,7 +29,7 @@
 #define W1_TRAPPED                                         2.0
 #define W1_PINS                                            2.0
                                                                     //  Endgame:
-                                                                    //  python3 linear_regression.py -iter 10 -model linear -scale 0.01
+                                                                    //  Weights determined by hand.
 #define W2_MATERIAL                                        5.0
 #define W2_MOBILITY                                        3.0
 #define W2_ATTACKS                                         1.0
