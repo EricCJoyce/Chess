@@ -3,44 +3,44 @@
 
 #include "gamestate.h"
                                                                     //  Opening game:
-                                                                    //  Weights determined by hand.
-#define W0_MATERIAL                                        5.0
-#define W0_MOBILITY                                        3.0
-#define W0_ATTACKS                                         1.0
-#define W0_COVERAGE                                        1.0
-#define W0_PAWNSTRUCTURE                                   2.0
-#define W0_DEVELOPMENT                                     1.0
-#define W0_PIECEEVAL                                       1.0
-#define W0_CENTERCONTROL                                   2.0
-#define W0_VULNERABILITY                                   1.0
-#define W0_TRAPPED                                         1.0
-#define W0_PINS                                            1.0
+                                                                    //  Weights determined by TDLeaf(lambda).
+#define W0_MATERIAL                                        5.040807723999023
+#define W0_MOBILITY                                        2.9752259254455566
+#define W0_ATTACKS                                         0.9979414939880371
+#define W0_COVERAGE                                        1.0112544298171997
+#define W0_PAWNSTRUCTURE                                   1.9906731843948364
+#define W0_DEVELOPMENT                                     0.9152906537055969
+#define W0_PIECEEVAL                                       0.8849599957466125
+#define W0_CENTERCONTROL                                   1.9605997800827026
+#define W0_VULNERABILITY                                   1.0537378787994385
+#define W0_TRAPPED                                         1.0164088010787964
+#define W0_PINS                                            1.0020297765731812
                                                                     //  Middle game:
-                                                                    //  Weights determined by hand.
-#define W1_MATERIAL                                        5.0
-#define W1_MOBILITY                                        3.0
-#define W1_ATTACKS                                         1.0
-#define W1_COVERAGE                                        1.0
-#define W1_PAWNSTRUCTURE                                   2.0
-#define W1_DEVELOPMENT                                     0.0
-#define W1_PIECEEVAL                                       2.0
-#define W1_CENTERCONTROL                                   2.0
-#define W1_VULNERABILITY                                   2.0
-#define W1_TRAPPED                                         2.0
-#define W1_PINS                                            2.0
+                                                                    //  Weights determined by TDLeaf(lambda).
+#define W1_MATERIAL                                        5.11403751373291
+#define W1_MOBILITY                                        2.9726643562316895
+#define W1_ATTACKS                                         0.9981229305267334
+#define W1_COVERAGE                                        0.9892688989639282
+#define W1_PAWNSTRUCTURE                                   2.0239293575286865
+#define W1_DEVELOPMENT                                    -0.007830764167010784
+#define W1_PIECEEVAL                                       2.0214951038360596
+#define W1_CENTERCONTROL                                   1.831732153892517
+#define W1_VULNERABILITY                                   1.945639729499817
+#define W1_TRAPPED                                         2.0098085403442383
+#define W1_PINS                                            1.9965931177139282
                                                                     //  Endgame:
-                                                                    //  Weights determined by hand.
-#define W2_MATERIAL                                        5.0
-#define W2_MOBILITY                                        3.0
-#define W2_ATTACKS                                         1.0
-#define W2_COVERAGE                                        1.0
-#define W2_PAWNSTRUCTURE                                   2.0
-#define W2_DEVELOPMENT                                     0.0
-#define W2_PIECEEVAL                                       1.0
-#define W2_CENTERCONTROL                                   2.0
-#define W2_VULNERABILITY                                   2.0
-#define W2_TRAPPED                                         2.0
-#define W2_PINS                                            2.0
+                                                                    //  Weights determined by TDLeaf(lambda)
+#define W2_MATERIAL                                        5.043929100036621
+#define W2_MOBILITY                                        2.9775259494781494
+#define W2_ATTACKS                                         1.001509428024292
+#define W2_COVERAGE                                        0.9992994070053101
+#define W2_PAWNSTRUCTURE                                   2.0027809143066406
+#define W2_DEVELOPMENT                                     0.0013116482878103852
+#define W2_PIECEEVAL                                       0.992546021938324
+#define W2_CENTERCONTROL                                   1.8774081468582153
+#define W2_VULNERABILITY                                   1.966538906097412
+#define W2_TRAPPED                                         1.9991623163223267
+#define W2_PINS                                            1.9973188638687134
 
 #define PAWN                                             100.0
 #define KNIGHT                                           300.0
@@ -99,7 +99,7 @@
 #define KING_LOST_CASTLE_RIGHTS_PENALTY                  -10.0
 #define KING_PAWN_SHIELD_IMMEDIATE                         2.0
 #define KING_PAWN_SHIELD_ONE_DISTANT                       1.0
-#define KING_STORMING_PAWN_PENALTY                         0.5
+#define KING_STORMING_PAWN_PENALTY                        -0.5
 #define KING_TROPISM_PAWN_WEIGHT                           0.0
 #define KING_TROPISM_KNIGHT_WEIGHT                         0.5
 #define KING_TROPISM_BISHOP_WEIGHT                         1.0
@@ -3331,8 +3331,15 @@ float Fianchetto(unsigned char index, unsigned char* negTeam, unsigned char negL
     return h;
   }
 
-/* Returning bishop: a bishop returned to its original square after allowing the king to castle in
-   the same direction. Like this: 1.e4 c5 2.Nf3 Nc6 3.Bb5 d6 4.0-0 Bd7 5. c3 Nf6 6.Re1 a6 7.Bf1.
+/* Returning bishop: a bishop returned to its original square after allowing the king to castle in the same direction.
+   Like this: 1.  e4 c5                                             r . . q k b . r
+              2. Nf3 Nc6                                            . p . b p p p p
+              3. Bb5 d6                                             p . n p . n . .
+              4. 0-0 Bd7                                            . . p . . . . .
+              5.  c3 Nf6                                            . . . . P . . .
+              6. Re1 a6                                             . . P . . N . .
+              7. Bf1.                                               P P . P . P P P
+                                                                    R N B Q R[B]K .
    It would be unwise to penalize such a bishop as "undeveloped." */
 float bishopReturn(unsigned char index, GameState* gs)
   {
@@ -3340,12 +3347,12 @@ float bishopReturn(unsigned char index, GameState* gs)
 
     if(isWhite(index, gs))
       {
-        if(!whiteCastled(gs) && (index == 5 || index == 2))
+        if(whiteCastled(gs) && (index == 5 || index == 2))          //  White HAS castled, and the bishop has returned.
           h += BISHOP_UNDEVELOPED_PENALTY;
       }
     else
       {
-        if(!blackCastled(gs) && (index == 58 || index == 61))
+        if(blackCastled(gs) && (index == 58 || index == 61))        //  Black HAS castled, and the bishop has returned.
           h += BISHOP_UNDEVELOPED_PENALTY;
       }
 
@@ -3499,7 +3506,7 @@ float Tarrasch(unsigned char index,
     while( i < posLen && !(isPawn(posTeam[i], gs) && sameSide(index, posTeam[i], gs)) )
       i++;
 
-    while( j < negLen && !(isPawn(negTeam[i], gs) && opposed(index, negTeam[j], gs)) )
+    while( j < negLen && !(isPawn(negTeam[j], gs) && opposed(index, negTeam[j], gs)) )
       j++;
 
     if(isSemiOpenFile(index, gs) && i < posLen)                     //  Rook is on semi-open file and an ALLY pawn was found on the same file.

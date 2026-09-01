@@ -6,7 +6,7 @@
 #include <string.h>
 #include <time.h>
 
-#define ZHASH_TABLE_SIZE    751
+#define ZHASH_TABLE_SIZE    902
 
 #define _WHITE_PAWN        0x01
 #define _WHITE_KNIGHT      0x02
@@ -785,6 +785,158 @@
 #define PREV_DOUBLE_COL_G   749
 #define PREV_DOUBLE_COL_H   750
 
+#define MOVE_CTR_0          751
+#define MOVE_CTR_1          752
+#define MOVE_CTR_2          753
+#define MOVE_CTR_3          754
+#define MOVE_CTR_4          755
+#define MOVE_CTR_5          756
+#define MOVE_CTR_6          757
+#define MOVE_CTR_7          758
+#define MOVE_CTR_8          759
+#define MOVE_CTR_9          760
+#define MOVE_CTR_10         761
+#define MOVE_CTR_11         762
+#define MOVE_CTR_12         763
+#define MOVE_CTR_13         764
+#define MOVE_CTR_14         765
+#define MOVE_CTR_15         766
+#define MOVE_CTR_16         767
+#define MOVE_CTR_17         768
+#define MOVE_CTR_18         769
+#define MOVE_CTR_19         770
+#define MOVE_CTR_20         771
+#define MOVE_CTR_21         772
+#define MOVE_CTR_22         773
+#define MOVE_CTR_23         774
+#define MOVE_CTR_24         775
+#define MOVE_CTR_25         776
+#define MOVE_CTR_26         777
+#define MOVE_CTR_27         778
+#define MOVE_CTR_28         779
+#define MOVE_CTR_29         780
+#define MOVE_CTR_30         781
+#define MOVE_CTR_31         782
+#define MOVE_CTR_32         783
+#define MOVE_CTR_33         784
+#define MOVE_CTR_34         785
+#define MOVE_CTR_35         786
+#define MOVE_CTR_36         787
+#define MOVE_CTR_37         788
+#define MOVE_CTR_38         789
+#define MOVE_CTR_39         790
+#define MOVE_CTR_40         791
+#define MOVE_CTR_41         792
+#define MOVE_CTR_42         793
+#define MOVE_CTR_43         794
+#define MOVE_CTR_44         795
+#define MOVE_CTR_45         796
+#define MOVE_CTR_46         797
+#define MOVE_CTR_47         798
+#define MOVE_CTR_48         799
+#define MOVE_CTR_49         800
+#define MOVE_CTR_50         801
+#define MOVE_CTR_51         802
+#define MOVE_CTR_52         803
+#define MOVE_CTR_53         804
+#define MOVE_CTR_54         805
+#define MOVE_CTR_55         806
+#define MOVE_CTR_56         807
+#define MOVE_CTR_57         808
+#define MOVE_CTR_58         809
+#define MOVE_CTR_59         810
+#define MOVE_CTR_60         811
+#define MOVE_CTR_61         812
+#define MOVE_CTR_62         813
+#define MOVE_CTR_63         814
+#define MOVE_CTR_64         815
+#define MOVE_CTR_65         816
+#define MOVE_CTR_66         817
+#define MOVE_CTR_67         818
+#define MOVE_CTR_68         819
+#define MOVE_CTR_69         820
+#define MOVE_CTR_70         821
+#define MOVE_CTR_71         822
+#define MOVE_CTR_72         823
+#define MOVE_CTR_73         824
+#define MOVE_CTR_74         825
+#define MOVE_CTR_75         826
+#define MOVE_CTR_76         827
+#define MOVE_CTR_77         828
+#define MOVE_CTR_78         829
+#define MOVE_CTR_79         830
+#define MOVE_CTR_80         831
+#define MOVE_CTR_81         832
+#define MOVE_CTR_82         833
+#define MOVE_CTR_83         834
+#define MOVE_CTR_84         835
+#define MOVE_CTR_85         836
+#define MOVE_CTR_86         837
+#define MOVE_CTR_87         838
+#define MOVE_CTR_88         839
+#define MOVE_CTR_89         840
+#define MOVE_CTR_90         841
+#define MOVE_CTR_91         842
+#define MOVE_CTR_92         843
+#define MOVE_CTR_93         844
+#define MOVE_CTR_94         845
+#define MOVE_CTR_95         846
+#define MOVE_CTR_96         847
+#define MOVE_CTR_97         848
+#define MOVE_CTR_98         849
+#define MOVE_CTR_99         850
+#define MOVE_CTR_100        851
+#define MOVE_CTR_101        852
+#define MOVE_CTR_102        853
+#define MOVE_CTR_103        854
+#define MOVE_CTR_104        855
+#define MOVE_CTR_105        856
+#define MOVE_CTR_106        857
+#define MOVE_CTR_107        858
+#define MOVE_CTR_108        859
+#define MOVE_CTR_109        860
+#define MOVE_CTR_110        861
+#define MOVE_CTR_111        862
+#define MOVE_CTR_112        863
+#define MOVE_CTR_113        864
+#define MOVE_CTR_114        865
+#define MOVE_CTR_115        866
+#define MOVE_CTR_116        867
+#define MOVE_CTR_117        868
+#define MOVE_CTR_118        869
+#define MOVE_CTR_119        870
+#define MOVE_CTR_120        871
+#define MOVE_CTR_121        872
+#define MOVE_CTR_122        873
+#define MOVE_CTR_123        874
+#define MOVE_CTR_124        875
+#define MOVE_CTR_125        876
+#define MOVE_CTR_126        877
+#define MOVE_CTR_127        878
+#define MOVE_CTR_128        879
+#define MOVE_CTR_129        880
+#define MOVE_CTR_130        881
+#define MOVE_CTR_131        882
+#define MOVE_CTR_132        883
+#define MOVE_CTR_133        884
+#define MOVE_CTR_134        885
+#define MOVE_CTR_135        886
+#define MOVE_CTR_136        887
+#define MOVE_CTR_137        888
+#define MOVE_CTR_138        889
+#define MOVE_CTR_139        890
+#define MOVE_CTR_140        891
+#define MOVE_CTR_141        892
+#define MOVE_CTR_142        893
+#define MOVE_CTR_143        894
+#define MOVE_CTR_144        895
+#define MOVE_CTR_145        896
+#define MOVE_CTR_146        897
+#define MOVE_CTR_147        898
+#define MOVE_CTR_148        899
+#define MOVE_CTR_149        900
+#define MOVE_CTR_150        901
+
 /**************************************************************************************************
  Typedefs  */
 
@@ -795,9 +947,6 @@
 
 /**************************************************************************************************
  Globals  */
-                                                                    //  6,008 bytes.
-unsigned char zobristHashBuffer[ZHASH_TABLE_SIZE * 8];              //  Global array containing the serialized Zobrist-hasher values (unsigned long longs).
-                                                                    //  "Keys" are simply unisnged int values #defined above.
 
 /* Because it indexes into "zobristHashBuffer", the hash function is defined in negamax.cpp. */
 

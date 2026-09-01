@@ -209,8 +209,8 @@ function loadWebASM()
             env: {
                    memoryBase: 0,
                    tableBase: 0,
-                                                                    //  Malloc 1 page for 28.3 KB file.
-                   memory: new WebAssembly.Memory({initial: 1, maximum: 1}),
+                                                                    //  Compiled with -s INITIAL_HEAP=1048576 = 16 pages.
+                   memory: new WebAssembly.Memory({initial: 16, maximum: 16}),
                    table: new WebAssembly.Table({initial: 0, element: 'anyfunc'}),
                    _printRow: function(a, b, c, d, e, f, g, h)      //  (Fantastically stupid.)
                      {
@@ -424,6 +424,7 @@ function loadWebASM()
 
             elementsLoaded++;                                       //  Check this load off our list.
             loadTotalReached();                                     //  Check the total.
+            console.log('Game-Logic WASM memory: ', (gameEngine.instance.exports.memory.buffer.byteLength / (1024 * 1024)).toFixed(2), 'MiB');
           });
       });
   }
