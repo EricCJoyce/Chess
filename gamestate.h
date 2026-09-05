@@ -590,7 +590,7 @@ unsigned int getMovesIndex(unsigned char index, GameState* gs, Move* buffer)
 unsigned int getPawnMoves(unsigned char index, GameState* gs, Move* buffer)
   {
     unsigned int movesCtr = 0;
-    unsigned char i, len = 0;
+    unsigned int i, len = 0;
     Move tmp[1];                                                    //  There may only be one en-passant attack available per pawn at a time.
 
     if(isWhite(index, gs))
@@ -1764,7 +1764,10 @@ unsigned char isWin(GameState* gs)
    K+B vs. K
    K+N vs. K
    K+B vs. K+B, with both bishops confined to black-square complex
-   K+B vs. K+B, with both bishops confined to white-square complex */
+   K+B vs. K+B, with both bishops confined to white-square complex
+
+   Note that K+NN vs. K cannot *force* mate, but mate is possible if the defending king cooperates.
+   Therefore, K+NN vs. K cannot technically be considered a dead condition. */
 bool insufficientMaterial(GameState* gs)
   {
     unsigned char i;

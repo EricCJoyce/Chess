@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include "zobrist.h"                                                /* Have a single authority for the total number of hash keys. */
 
 /* Print a comma-separated string of unsigned chars representing the byte array that becomes a Zobrist Hasher.
    The first number is always ZHASH_TABLE_SIZE, the total number of hash keys.
@@ -10,7 +11,6 @@
          WP_A2 ==> (209 << 0) | (251 << 8) | (103 << 16) | (184 << 24) | (60 << 32) | (79 << 40) | (96 << 48) | (161 << 56)
            0   ==> 11628381360081075153 */
 
-#define ZHASH_TABLE_SIZE 902                                        /* Total number of hash keys. */
 #define ZHASH_BYTE_SIZE (ZHASH_TABLE_SIZE * 8)
 
 int main(void)

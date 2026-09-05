@@ -1,7 +1,6 @@
 #ifndef __TRANSPOSITION_H
 #define __TRANSPOSITION_H
 
-#include <stdlib.h>
 #include <string.h>                                                 /* Needed for memcpy(). */
 
 #define _MOVE_BYTE_SIZE                3                            /* Number of bytes needed to store a Move structure. */
