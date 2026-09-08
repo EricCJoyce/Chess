@@ -712,8 +712,14 @@ void initSearch(void)
     root.moveOffset = 0;                                            //  Set offset into moves buffer for the children of root.
     root.moveCount = 0;                                             //  Set the number of children root has.
     root.moveNextPtr = 0;                                           //  Set the index to which root's children iterator currently points.
-                                                                    //  Retrieve target-depth parameter and clamp minimum to 1.
-    depth = inputParametersBuffer[PARAM_BUFFER_TARGETDEPTH_OFFSET] > 0 ? inputParametersBuffer[PARAM_BUFFER_TARGETDEPTH_OFFSET] : 1;
+
+    depth = inputParametersBuffer[PARAM_BUFFER_TARGETDEPTH_OFFSET]; //  Retrieve target-depth parameter, clamp minimum to 1, clamp maximum to _MAX_PLY.
+    if(depth < 1)
+      depth = 1;
+    else if(depth > _MAX_PLY)
+      depth = _MAX_PLY;
+    inputParametersBuffer[PARAM_BUFFER_TARGETDEPTH_OFFSET] = depth;
+
     root.depth = (signed char)depth;                                //  Set root's depth to "depth".
     root.ply = 0;                                                   //  Set root's ply to zero.
 
@@ -892,6 +898,10 @@ void enterNode_step(unsigned int gsIndex, NegamaxNode* node)
                                                                     //               to Negamax's repetition-encoding answer buffer.
     saveRepetitionState(gsIndex);                                   //  Save the canonical repetition-detection encoding under gsIndex.
 
+    //////////////////////////////////////////////////////////////////  Compute the hash for this node.
+    node->zhash = hash(gamestateByteArray);                         //  Zobrist-hash the game state byte array.
+    node->hIndex = hashIndex(node->zhash);                          //  Index modulo size of transposition table.
+
     //////////////////////////////////////////////////////////////////  Terminal test.
                                                                     //  "node"s "gs" is already in the "queryGameStateBuffer".
                                                                     //  And "queryGameStateBuffer" is already in Evaluation Module's "inputBuffer"
@@ -921,10 +931,6 @@ void enterNode_step(unsigned int gsIndex, NegamaxNode* node)
             return;                                                 //  Done here.
           }
       }
-
-    //////////////////////////////////////////////////////////////////  Compute the hash for this node.
-    node->zhash = hash(gamestateByteArray);                         //  Zobrist-hash the game state byte array.
-    node->hIndex = hashIndex(node->zhash);                          //  Index modulo size of transposition table.
 
     //////////////////////////////////////////////////////////////////  Transposition-table probe.
     transpoProbe(gsIndex, node);                                    //  Check the transpo table.
@@ -1467,10 +1473,11 @@ void afterChild_step(unsigned int gsIndex, NegamaxNode* node)
       parent.alpha = score;
     if(parent.alpha >= parent.beta)                                 //  Cutoff.
       {
-        if(move.quietMove == MOVEFLAG_QUIET)                        //  The move is "quiet": it is not a capture, not a promotion.
+        if(parent.depth > 0 && move.quietMove == MOVEFLAG_QUIET)    //  The move is "quiet": it is not a capture, not a promotion.
           {
             killerAdd(parent.ply, move.moveByteArray);              //  This is a KILLER MOVE!
-            historyUpdate(toMove, parent.ply, move.moveByteArray);  //  Update the HISTORY HEURISTIC.
+                                                                    //  Update the HISTORY HEURISTIC.
+            historyUpdate(toMove, (unsigned char)parent.depth, move.moveByteArray);
           }
 
         parent.phase = _PHASE_FINISH_NODE;                          //  Parent's work is done.
